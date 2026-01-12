@@ -37,6 +37,15 @@
         </select>
       </div>
 
+      <!-- Hiện trường Company Name nếu chọn Employer -->
+      <div class="form-group" v-if="form.role === 'employer'">
+        <input 
+          v-model="form.companyName" 
+          placeholder="Company Name" 
+          required
+        />
+      </div>
+
       <button type="submit" :disabled="loading">
         {{ loading ? 'Loading...' : 'Register' }}
       </button>
@@ -68,6 +77,7 @@ const form = reactive({
   email: '',
   password: '',
   role: 'student',
+  companyName: '', // Thêm field này
 });
 
 const handleRegister = async () => {

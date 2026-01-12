@@ -19,7 +19,24 @@ const routes = [
     component: Register,
     meta: { guest: true }
   },
-  
+  {
+    path: '/student',
+    name: 'Student',
+    component: () => import('../views/Student.vue'),
+    meta: { requiresAuth: true, role: 'student' }
+  },
+  {
+    path: '/employer',
+    name: 'Employer',
+    component: () => import('../views/Employer.vue'),
+    meta: { requiresAuth: true, role: 'employer' }
+  },
+  {
+    path: '/admin',
+    name: 'Admin',
+    component: () => import('../views/Admin.vue'),
+    meta: { requiresAuth: true, role: 'admin' }
+  },
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',

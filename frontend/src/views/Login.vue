@@ -41,6 +41,7 @@
 import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../services/api';
+import { useAuth } from '../composables/useAuth';
 
 const router = useRouter();
 const message = ref('');
@@ -59,9 +60,9 @@ const handleLogin = async () => {
 
     const res = await api.post('/auth/login', form);
     
-    // Lưu token vào localStorage
-    localStorage.setItem('token', res.data.token);
-    localStorage.setItem('user', JSON.stringify(res.data.user));
+    // Sử dụng useAuth để lưu thông tin
+    const { setAuth } = useAuth();
+    setAuth(res.data.token, res.data.user);
 
     message.value = 'Đăng nhập thành công! 🎉';
     isSuccess.value = true;

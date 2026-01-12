@@ -1,21 +1,55 @@
-const User = require('../models/User.model');
+const Student = require('../models/Student.model');
+const Employer = require('../models/Employer.model');
+const Admin = require('../models/Admin.model');
 const jwt = require('jsonwebtoken');
 
 // 📝 REGISTER
 exports.register = async (req, res) => {
   try {
-    const { fullName, email, password, role } = req.body;
+    const { fullName, email, password, role, companyName } = req.body;
+
+    console.log('📥 Register request:', { fullName, email, role });
 
     // ✅ Validate input
-    if (!fullName || !email || !password) {
+    if (!fullName || !email || !password || !role) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng điền đầy đủ thông tin (fullName, email, password)',
+        message: 'Vui lòng điền đầy đủ thông tin',
       });
     }
 
+    // ✅ Validate role
+    const validRoles = ['student', 'employer'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Role không hợp lệ. Chỉ chấp nhận: student, employer',
+      });
+    }
+
+    let user;
+    let Model;
+    let collectionName;
+
+    // 🎯 Chọn Model dựa vào role
+    if (role === 'student') {
+      Model = Student;
+      collectionName = 'Student';
+    } else if (role === 'employer') {
+      Model = Employer;
+      collectionName = 'Employer';
+      
+      // Employer bắt buộc phải có companyName
+      if (!companyName) {
+        return res.status(400).json({
+          success: false,
+          message: 'Nhà tuyển dụng phải có tên công ty',
+        });
+      }
+    }
+
     // ✅ Check email đã tồn tại chưa
-    const existingUser = await User.findOne({ email });
+    const existingUser = await Model.findOne({ email });
     if (existingUser) {
       return res.status(400).json({
         success: false,
@@ -24,23 +58,30 @@ exports.register = async (req, res) => {
     }
 
     // ✅ Tạo user mới
-    const user = new User({
+    const userData = {
       fullName,
       email,
-      password, // password sẽ tự động hash nhờ pre('save') trong model
-      role: role || 'student',
-    });
+      password,
+    };
 
+    // Thêm companyName nếu là employer
+    if (role === 'employer') {
+      userData.companyName = companyName;
+    }
+
+    user = new Model(userData);
     await user.save();
+
+    console.log(`✅ ${collectionName} created:`, user._id);
 
     // ✅ Tạo JWT token
     const token = jwt.sign(
-      { userId: user._id, role: user.role },
+      { userId: user._id, role: role },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '7d' }
     );
 
-    // ✅ Trả về response (không trả password)
+    // ✅ Trả về response
     res.status(201).json({
       success: true,
       message: 'Đăng ký thành công',
@@ -49,7 +90,8 @@ exports.register = async (req, res) => {
         id: user._id,
         fullName: user.fullName,
         email: user.email,
-        role: user.role,
+        role: role,
+        companyName: user.companyName || null,
       },
     });
   } catch (error) {
@@ -67,6 +109,8 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    console.log('📥 Login request:', { email });
+
     // ✅ Validate input
     if (!email || !password) {
       return res.status(400).json({
@@ -75,8 +119,33 @@ exports.login = async (req, res) => {
       });
     }
 
-    // ✅ Tìm user
-    const user = await User.findOne({ email });
+    let user = null;
+    let role = null;
+
+    // 🔍 Tìm user trong 3 collections
+    // Thử tìm trong Student
+    user = await Student.findOne({ email });
+    if (user) {
+      role = 'student';
+    }
+
+    // Nếu không có, thử tìm trong Employer
+    if (!user) {
+      user = await Employer.findOne({ email });
+      if (user) {
+        role = 'employer';
+      }
+    }
+
+    // Nếu không có, thử tìm trong Admin
+    if (!user) {
+      user = await Admin.findOne({ email });
+      if (user) {
+        role = 'admin';
+      }
+    }
+
+    // ❌ Không tìm thấy user
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -103,10 +172,12 @@ exports.login = async (req, res) => {
 
     // ✅ Tạo JWT token
     const token = jwt.sign(
-      { userId: user._id, role: user.role },
+      { userId: user._id, role: role },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '7d' }
     );
+
+    console.log(`✅ Login successful (${role}):`, user._id);
 
     res.status(200).json({
       success: true,
@@ -116,7 +187,8 @@ exports.login = async (req, res) => {
         id: user._id,
         fullName: user.fullName,
         email: user.email,
-        role: user.role,
+        role: role,
+        companyName: user.companyName || null,
       },
     });
   } catch (error) {
