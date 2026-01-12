@@ -1,16 +1,8 @@
 <template>
-  <div class="register-container">
-    <h2>Register</h2>
+  <div class="login-container">
+    <h2>Login</h2>
 
-    <form @submit.prevent="handleRegister">
-      <div class="form-group">
-        <input 
-          v-model="form.fullName" 
-          placeholder="Full name" 
-          required
-        />
-      </div>
-
+    <form @submit.prevent="handleLogin">
       <div class="form-group">
         <input 
           v-model="form.email" 
@@ -26,19 +18,11 @@
           type="password" 
           placeholder="Password" 
           required
-          minlength="6"
         />
       </div>
 
-      <div class="form-group">
-        <select v-model="form.role">
-          <option value="student">Student</option>
-          <option value="employer">Employer</option>
-        </select>
-      </div>
-
       <button type="submit" :disabled="loading">
-        {{ loading ? 'Loading...' : 'Register' }}
+        {{ loading ? 'Loading...' : 'Login' }}
       </button>
     </form>
 
@@ -46,9 +30,9 @@
       {{ message }}
     </p>
 
-    <p class="login-link">
-      Đã có tài khoản? 
-      <router-link to="/login">Đăng nhập ngay</router-link>
+    <p class="register-link">
+      Chưa có tài khoản? 
+      <router-link to="/register">Đăng ký ngay</router-link>
     </p>
   </div>
 </template>
@@ -64,32 +48,39 @@ const isSuccess = ref(false);
 const loading = ref(false);
 
 const form = reactive({
-  fullName: '',
   email: '',
   password: '',
-  role: 'student',
 });
 
-const handleRegister = async () => {
+const handleLogin = async () => {
   try {
     loading.value = true;
     message.value = '';
 
-    const res = await api.post('/auth/register', form);
+    const res = await api.post('/auth/login', form);
     
-    message.value = 'Đăng ký thành công! 🎉';
-    isSuccess.value = true;
-    console.log(res.data);
+    // Lưu token vào localStorage
+    localStorage.setItem('token', res.data.token);
+    localStorage.setItem('user', JSON.stringify(res.data.user));
 
-    // Tự động chuyển sang trang login sau 2 giây
+    message.value = 'Đăng nhập thành công! 🎉';
+    isSuccess.value = true;
+
+    // Chuyển hướng sau 1 giây
     setTimeout(() => {
-      router.push('/login');
-    }, 2000);
+      if (res.data.user.role === 'admin') {
+        router.push('/admin');
+      } else if (res.data.user.role === 'employer') {
+        router.push('/employer');
+      } else {
+        router.push('/student');
+      }
+    }, 1000);
 
   } catch (err) {
     isSuccess.value = false;
-    message.value = err.response?.data?.message || 'Đăng ký thất bại';
-    console.error('Register error:', err);
+    message.value = err.response?.data?.message || 'Đăng nhập thất bại';
+    console.error('Login error:', err);
   } finally {
     loading.value = false;
   }
@@ -97,7 +88,7 @@ const handleRegister = async () => {
 </script>
 
 <style scoped>
-.register-container {
+.login-container {
   max-width: 400px;
   margin: 50px auto;
   padding: 30px;
@@ -116,8 +107,7 @@ h2 {
   margin-bottom: 15px;
 }
 
-input,
-select {
+input {
   width: 100%;
   padding: 12px;
   border: 1px solid #ddd;
@@ -126,8 +116,7 @@ select {
   box-sizing: border-box;
 }
 
-input:focus,
-select:focus {
+input:focus {
   outline: none;
   border-color: #4CAF50;
 }
@@ -157,7 +146,6 @@ button:disabled {
   color: green;
   text-align: center;
   margin-top: 15px;
-  font-weight: bold;
 }
 
 .error {
@@ -166,20 +154,19 @@ button:disabled {
   margin-top: 15px;
 }
 
-.login-link {
+.register-link {
   text-align: center;
   margin-top: 20px;
   font-size: 14px;
-  color: #666;
 }
 
-.login-link a {
+.register-link a {
   color: #4CAF50;
   text-decoration: none;
   font-weight: bold;
 }
 
-.login-link a:hover {
+.register-link a:hover {
   text-decoration: underline;
 }
 </style>
