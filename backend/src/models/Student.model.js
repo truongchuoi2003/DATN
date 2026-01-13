@@ -23,8 +23,13 @@ const studentSchema = new mongoose.Schema(
       minlength: 6,
     },
 
+    birthday: {
+      type: Date,
+    },
+
     phone: {
       type: String,
+      required: true,
     },
 
     address: {

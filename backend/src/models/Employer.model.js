@@ -25,6 +25,7 @@ const employerSchema = new mongoose.Schema(
 
     phone: {
       type: String,
+      required: true,
     },
 
     address: {

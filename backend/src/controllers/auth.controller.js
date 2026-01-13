@@ -6,15 +6,15 @@ const jwt = require('jsonwebtoken');
 // 📝 REGISTER
 exports.register = async (req, res) => {
   try {
-    const { fullName, email, password, role, companyName } = req.body;
+    const { fullName, email, password, role, birthday, phone, companyName } = req.body;
 
-    console.log('📥 Register request:', { fullName, email, role });
+    console.log('📥 Register request:', { fullName, email, role, birthday, phone });
 
     // ✅ Validate input
-    if (!fullName || !email || !password || !role) {
+    if (!fullName || !email || !password || !role  || !phone) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng điền đầy đủ thông tin',
+        message: 'Vui lòng điền đầy đủ thông tin ',
       });
     }
 
@@ -35,6 +35,7 @@ exports.register = async (req, res) => {
     if (role === 'student') {
       Model = Student;
       collectionName = 'Student';
+      
     } else if (role === 'employer') {
       Model = Employer;
       collectionName = 'Employer';
@@ -44,6 +45,13 @@ exports.register = async (req, res) => {
         return res.status(400).json({
           success: false,
           message: 'Nhà tuyển dụng phải có tên công ty',
+        });
+      }
+      // Student bắt buộc birthday
+      if (role === 'student' && !birthday) {
+        return res.status(400).json({
+          success: false,
+          message: 'Sinh viên phải có ngày sinh',
         });
       }
     }
@@ -62,11 +70,16 @@ exports.register = async (req, res) => {
       fullName,
       email,
       password,
+      phone,
     };
 
     // Thêm companyName nếu là employer
     if (role === 'employer') {
       userData.companyName = companyName;
+    }
+    // Chỉ student mới có birthday
+    if (role === 'student') {
+      userData.birthday = birthday;
     }
 
     user = new Model(userData);
