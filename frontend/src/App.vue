@@ -1,10 +1,9 @@
-<script setup>
-import HelloWorld from './components/Header.vue'
-</script>
-
 <template>
+  <Navbar />
   <router-view />
 </template>
+
+
 
 <style scoped>
 .logo {

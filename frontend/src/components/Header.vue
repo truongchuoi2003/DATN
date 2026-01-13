@@ -11,7 +11,16 @@
           <span class="role-badge" :class="user?.role">{{ getRoleName(user?.role) }}</span>
         </div>
 
-        <button @click="handleLogout" class="logout-btn">
+        <!-- Profile button -->
+        <button @click="goProfile" class="profile-btn" aria-label="Xem hồ sơ">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          Hồ sơ
+        </button>
+
+        <button @click="handleLogout" class="logout-btn" aria-label="Đăng xuất">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
             <polyline points="16 17 21 12 16 7"></polyline>
@@ -25,9 +34,11 @@
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router';
 import { useAuth } from '../composables/useAuth';
 
 const { user, isLoggedIn, logout } = useAuth();
+const router = useRouter();
 
 const getRoleName = (role) => {
   const roles = {
@@ -41,7 +52,13 @@ const getRoleName = (role) => {
 const handleLogout = () => {
   if (confirm('Bạn có chắc muốn đăng xuất?')) {
     logout();
+    router.push('/login');
   }
+};
+
+const goProfile = () => {
+  // navigate to profile page
+  router.push('/profile');
 };
 </script>
 
@@ -71,13 +88,14 @@ const handleLogout = () => {
 .nav {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 12px;
 }
 
 .user-info {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-right: 8px;
 }
 
 .welcome {
@@ -108,6 +126,26 @@ const handleLogout = () => {
   background: #45b7d1;
 }
 
+/* Profile button (similar style to logout) */
+.profile-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.profile-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
 .logout-btn {
   display: flex;
   align-items: center;
@@ -127,11 +165,13 @@ const handleLogout = () => {
   transform: translateY(-2px);
 }
 
-.logout-btn svg {
+.logout-btn svg,
+.profile-btn svg {
   width: 16px;
   height: 16px;
 }
 
+/* Responsive */
 @media (max-width: 768px) {
   .container {
     flex-direction: column;

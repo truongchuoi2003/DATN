@@ -221,417 +221,173 @@
 </template>
 
 <script setup>
-import Header from '../components/Header.vue';
-import { useAuth } from '../composables/useAuth';
+import { ref, reactive, watch, onMounted } from 'vue';
+import api from '../services/api';
+import { useRouter } from 'vue-router';
 
-const { user } = useAuth();
+const props = defineProps({
+  initialProfile: { type: Object, default: () => ({}) }
+});
+
+const emit = defineEmits(['saved']);
+
+const router = (() => {
+  try { return useRouter(); } catch (e) { return null; }
+})();
+
+const token = localStorage.getItem('token') || '';
+const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+const loading = ref(false);
+const message = ref('');
+const isDirty = ref(false);
+
+const form = reactive({
+  fullName: '',
+  birthday: '',
+  phone: '',
+  address: '',
+  university: '',
+  major: '',
+  graduationYear: '',
+  skillsText: '',
+  lng: '',
+  lat: '',
+  resumeUrl: ''
+});
+
+onMounted(() => {
+  if (props.initialProfile) {
+    const p = props.initialProfile;
+    form.fullName = p.fullName || '';
+    form.birthday = p.birthday ? p.birthday.split('T')[0] : (p.birthday || '');
+    form.phone = p.phone || '';
+    form.address = p.address || '';
+    form.university = p.university || '';
+    form.major = p.major || '';
+    form.graduationYear = p.graduationYear || '';
+    form.skillsText = Array.isArray(p.skills) ? p.skills.join(', ') : (p.skills || '');
+    form.lng = p.location?.coordinates?.[0] ?? '';
+    form.lat = p.location?.coordinates?.[1] ?? '';
+    form.resumeUrl = p.resumeUrl || '';
+  }
+});
+
+// mark dirty on any change
+watch(form, () => { isDirty.value = true; }, { deep: true });
+
+const save = async () => {
+  try {
+    loading.value = true;
+    message.value = '';
+    const payload = {
+      fullName: form.fullName,
+      birthday: form.birthday || undefined,
+      phone: form.phone,
+      address: form.address,
+      university: form.university,
+      major: form.major,
+      graduationYear: form.graduationYear ? Number(form.graduationYear) : undefined,
+      skills: form.skillsText ? form.skillsText.split(',').map(s => s.trim()).filter(Boolean) : undefined,
+    };
+    if (form.lng !== '' && form.lat !== '') {
+      payload.location = { type: 'Point', coordinates: [Number(form.lng), Number(form.lat)] };
+    }
+    const res = await api.put('/profile/me', payload, { headers });
+    message.value = 'Lưu thành công';
+    isDirty.value = false;
+    emit('saved');
+  } catch (err) {
+    console.error(err);
+    message.value = err.response?.data?.message || 'Lỗi khi lưu';
+  } finally {
+    loading.value = false;
+  }
+};
+
+const uploadResume = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    loading.value = true;
+    const res = await api.post('/profile/me/upload-resume', fd, {
+      headers: { ...headers, 'Content-Type': 'multipart/form-data' }
+    });
+    // server returns profile, set resumeUrl
+    form.resumeUrl = res.data.resumeUrl || res.data.resumeUrl || (`/uploads/${res.data._id ? '' : ''}`);
+    message.value = 'Upload CV thành công';
+    isDirty.value = false;
+    emit('saved');
+  } catch (err) {
+    console.error(err);
+    message.value = err.response?.data?.message || 'Upload thất bại';
+  } finally {
+    loading.value = false;
+  }
+};
+
+const cancel = () => {
+  if (isDirty.value) {
+    if (!confirm('Bạn có thay đổi chưa lưu. Rời đi không?')) return;
+  }
+  if (router) router.push('/');
+  else window.location.href = '/';
+};
 </script>
 
+<template>
+  <div class="student-profile">
+    <h3>Hồ sơ Sinh viên</h3>
+
+    <form @submit.prevent="save">
+      <label>Họ và tên</label>
+      <input v-model="form.fullName" @input="() => isDirty = true" required />
+
+      <label>Ngày sinh</label>
+      <input type="date" v-model="form.birthday" @input="() => isDirty = true" />
+
+      <label>Số điện thoại</label>
+      <input v-model="form.phone" @input="() => isDirty = true" />
+
+      <label>Trường</label>
+      <input v-model="form.university" @input="() => isDirty = true" />
+
+      <label>Ngành</label>
+      <input v-model="form.major" @input="() => isDirty = true" />
+
+      <label>Năm tốt nghiệp</label>
+      <input type="number" v-model="form.graduationYear" @input="() => isDirty = true" />
+
+      <label>Kỹ năng (phân tách bằng dấu ,)</label>
+      <input v-model="form.skillsText" @input="() => isDirty = true" />
+
+      <label>Longitude</label>
+      <input v-model.number="form.lng" placeholder="vd: 106.700" />
+
+      <label>Latitude</label>
+      <input v-model.number="form.lat" placeholder="vd: 10.780" />
+
+      <label>CV</label>
+      <div v-if="form.resumeUrl"><a :href="form.resumeUrl" target="_blank">Xem CV</a></div>
+      <input type="file" @change="uploadResume" />
+
+      <div class="form-actions">
+        <button type="submit" class="btn">Lưu</button>
+        <button type="button" class="btn ghost" @click="cancel">Quay về</button>
+      </div>
+      <p v-if="message" class="msg">{{ message }}</p>
+    </form>
+  </div>
+</template>
+
 <style scoped>
-* {
-  box-sizing: border-box;
-}
-
-.dashboard {
-  min-height: 100vh;
-  background: #f5f7fa;
-}
-
-.container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 20px;
-}
-
-/* Hero Section */
-.hero-section {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 40px 0;
-  margin-bottom: 30px;
-}
-
-.hero-content h1 {
-  font-size: 32px;
-  margin-bottom: 10px;
-}
-
-.hero-content p {
-  font-size: 16px;
-  opacity: 0.9;
-}
-
-/* Stats Grid */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-  margin-bottom: 30px;
-}
-
-.stat-card {
-  background: white;
-  padding: 25px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  transition: transform 0.3s, box-shadow 0.3s;
-}
-
-.stat-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-}
-
-.stat-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-}
-
-.stat-info h3 {
-  font-size: 32px;
-  color: #2c3e50;
-  margin-bottom: 5px;
-}
-
-.stat-info p {
-  color: #666;
-  font-size: 14px;
-}
-
-/* Dashboard Grid */
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 30px;
-  margin-bottom: 30px;
-}
-
-/* Card */
-.card {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
-  margin-bottom: 20px;
-}
-
-.card-header {
-  padding: 20px 25px;
-  border-bottom: 1px solid #f0f0f0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.card-header h2 {
-  font-size: 18px;
-  color: #2c3e50;
-  font-weight: 600;
-}
-
-.card-body {
-  padding: 25px;
-}
-
-.link {
-  color: #667eea;
-  text-decoration: none;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.link:hover {
-  text-decoration: underline;
-}
-
-/* Badge */
-.badge {
-  padding: 5px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.badge-warning {
-  background: #fff3cd;
-  color: #856404;
-}
-
-/* Progress Bar */
-.progress-bar {
-  width: 100%;
-  height: 8px;
-  background: #f0f0f0;
-  border-radius: 10px;
-  overflow: hidden;
-  margin-bottom: 15px;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-  transition: width 0.3s;
-}
-
-.progress-text {
-  color: #666;
-  font-size: 14px;
-  margin-bottom: 15px;
-}
-
-/* Buttons */
-.btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.btn-sm {
-  padding: 6px 14px;
-  font-size: 13px;
-}
-
-.btn-outline {
-  background: white;
-  border: 1px solid #667eea;
-  color: #667eea;
-}
-
-.btn-outline:hover {
-  background: #667eea;
-  color: white;
-}
-
-/* Application List */
-.application-list {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.application-item {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  padding: 15px;
-  border: 1px solid #f0f0f0;
-  border-radius: 8px;
-  transition: all 0.3s;
-}
-
-.application-item:hover {
-  border-color: #667eea;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
-}
-
-.company-logo {
-  width: 50px;
-  height: 50px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 20px;
-}
-
-.application-info {
-  flex: 1;
-}
-
-.application-info h4 {
-  font-size: 15px;
-  color: #2c3e50;
-  margin-bottom: 5px;
-}
-
-.application-info p {
-  font-size: 13px;
-  color: #666;
-  margin-bottom: 5px;
-}
-
-.status {
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.status-pending {
-  background: #fff3cd;
-  color: #856404;
-}
-
-.status-accepted {
-  background: #d4edda;
-  color: #155724;
-}
-
-.status-rejected {
-  background: #f8d7da;
-  color: #721c24;
-}
-
-.application-date {
-  font-size: 12px;
-  color: #999;
-}
-
-/* Job List */
-.job-list {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.job-item {
-  padding: 20px;
-  border: 1px solid #f0f0f0;
-  border-radius: 8px;
-  transition: all 0.3s;
-}
-
-.job-item:hover {
-  border-color: #667eea;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
-}
-
-.job-header {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.company-avatar {
-  width: 45px;
-  height: 45px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 18px;
-}
-
-.job-title-area h4 {
-  font-size: 15px;
-  color: #2c3e50;
-  margin-bottom: 4px;
-}
-
-.job-title-area p {
-  font-size: 13px;
-  color: #666;
-}
-
-.job-tags {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-}
-
-.tag {
-  padding: 4px 10px;
-  background: #f0f0f0;
-  border-radius: 12px;
-  font-size: 12px;
-  color: #666;
-}
-
-.job-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.salary {
-  font-size: 14px;
-  color: #667eea;
-  font-weight: 600;
-}
-
-/* Quick Actions */
-.quick-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.action-btn {
-  padding: 15px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  background: white;
-  cursor: pointer;
-  transition: all 0.3s;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.action-btn:hover {
-  border-color: #667eea;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
-}
-
-.action-icon {
-  font-size: 24px;
-}
-
-.action-btn span:last-child {
-  font-size: 13px;
-  color: #666;
-  font-weight: 500;
-}
-
-/* Responsive */
-@media (max-width: 1024px) {
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 768px) {
-  .hero-content h1 {
-    font-size: 24px;
-  }
-
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .quick-actions {
-    grid-template-columns: 1fr;
-  }
-}
+.student-profile { padding: 12px; background: #fff; border-radius:6px; }
+label { display:block; margin-top:8px; font-weight:600; }
+input { width:100%; padding:8px; margin-top:4px; box-sizing:border-box; }
+.form-actions { margin-top:12px; display:flex; gap:8px; }
+.btn { padding:8px 12px; border-radius:6px; border:none; background:#2d8cff; color:white; cursor:pointer; }
+.btn.ghost { background:transparent; border:1px solid #ddd; color:#333; }
+.msg { margin-top:8px; color:#2d8cff; }
 </style>

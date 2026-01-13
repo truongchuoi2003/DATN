@@ -32,7 +32,7 @@ const employerSchema = new mongoose.Schema(
       type: String,
     },
 
-    // Thông tin công ty
+    // 🏢 Thông tin công ty
     companyName: {
       type: String,
       required: true,
@@ -45,7 +45,7 @@ const employerSchema = new mongoose.Schema(
     },
 
     industry: {
-      type: String, // Lĩnh vực: IT, Marketing, Finance...
+      type: String,
       trim: true,
     },
 
@@ -54,7 +54,7 @@ const employerSchema = new mongoose.Schema(
     },
 
     logo: {
-      type: String, // URL của logo công ty
+      type: String, // URL logo
     },
 
     description: {
@@ -63,13 +63,26 @@ const employerSchema = new mongoose.Schema(
     },
 
     taxCode: {
-      type: String, // Mã số thuế
+      type: String,
       trim: true,
+    },
+
+    // 📍 Vị trí công ty (map)
+    location: {
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point',
+      },
+      coordinates: {
+        type: [Number], // [lng, lat]
+        index: '2dsphere',
+      },
     },
 
     verified: {
       type: Boolean,
-      default: false, // Admin sẽ duyệt công ty
+      default: false,
     },
 
     isActive: {
@@ -82,15 +95,13 @@ const employerSchema = new mongoose.Schema(
   }
 );
 
-// 🔐 Hash password trước khi lưu
+// 🔐 Hash password
 employerSchema.pre('save', async function () {
-  if (!this.isModified('password')) {
-    return;
-  }
+  if (!this.isModified('password')) return;
   this.password = await bcrypt.hash(this.password, 10);
 });
 
-// 🔍 So sánh password khi đăng nhập
+// 🔍 Compare password
 employerSchema.methods.comparePassword = async function (inputPassword) {
   return bcrypt.compare(inputPassword, this.password);
 };
