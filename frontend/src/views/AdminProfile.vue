@@ -107,15 +107,6 @@
                   type="tel"
                 />
               </div>
-
-              <div class="form-group">
-                <label>Vai trò</label>
-                <select v-model="formData.role" disabled>
-                  <option value="admin">Admin</option>
-                  <option value="super_admin">Super Admin</option>
-                </select>
-                <small>Chỉ Super Admin có thể thay đổi</small>
-              </div>
             </div>
 
             <div v-if="message" class="alert" :class="{ success: isSuccess, error: !isSuccess }">
@@ -186,7 +177,7 @@
             </div>
 
             <div class="permission-note">
-              <strong>Lưu ý:</strong> Chỉ Super Admin có thể thay đổi quyền hạn. Liên hệ Super Admin nếu bạn cần cập nhật quyền truy cập.
+              <strong>Lưu ý:</strong> Quyền hạn được quản lý bởi hệ thống. Liên hệ quản trị viên nếu bạn cần cập nhật quyền truy cập.
             </div>
           </div>
 
@@ -327,7 +318,6 @@ const formData = reactive({
   fullName: '',
   email: '',
   phone: '',
-  role: '',
   permissions: [],
 });
 
@@ -349,7 +339,6 @@ const getInitials = (name) => {
 const getRoleLabel = (role) => {
   const roles = {
     admin: 'Admin',
-    super_admin: 'Super Admin',
   };
   return roles[role] || role;
 };
@@ -373,7 +362,6 @@ const fetchProfile = async () => {
       fullName: profile.value.fullName || '',
       email: profile.value.email || '',
       phone: profile.value.phone || '',
-      role: profile.value.role || 'admin',
       permissions: profile.value.permissions || [],
     });
   } catch (error) {

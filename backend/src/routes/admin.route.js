@@ -5,7 +5,7 @@ const { authenticate, authorize } = require('../middleware/auth.middleware');
 
 // Tất cả route đều cần đăng nhập và là admin
 router.use(authenticate);
-router.use(authorize('admin', 'super_admin'));
+router.use(authorize('admin'));
 
 // Statistics
 router.get('/statistics', adminController.getStatistics);
