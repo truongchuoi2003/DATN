@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import Login from '../views/Login.vue';
 import Register from '../views/Register.vue';
-import Profile from '../views/Profile.vue'
 
 const routes = [
   {
@@ -27,9 +26,21 @@ const routes = [
     meta: { requiresAuth: true, role: 'student' }
   },
   {
+    path: '/student/profile',
+    name: 'StudentProfile',
+    component: () => import('../views/StudentProfile.vue'),
+    meta: { requiresAuth: true, role: 'student' }
+  },
+  {
     path: '/employer',
     name: 'Employer',
     component: () => import('../views/Employer.vue'),
+    meta: { requiresAuth: true, role: 'employer' }
+  },
+  {
+    path: '/employer/profile',
+    name: 'EmployerProfile',
+    component: () => import('../views/EmployerProfile.vue'),
     meta: { requiresAuth: true, role: 'employer' }
   },
   {
@@ -39,13 +50,22 @@ const routes = [
     meta: { requiresAuth: true, role: 'admin' }
   },
   {
+    path: '/admin/profile',
+    name: 'AdminProfile',
+    component: () => import('../views/AdminProfile.vue'),
+    meta: { requiresAuth: true, role: 'admin' }
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     redirect: '/'
   },
-  { path: '/login', component: Login },
-  { path: '/register', component: Register },
-  { path: '/profile', component: Profile }, // 👈 BẮT BUỘC
+  {
+  path: '/admin/employers',
+  name: 'AdminEmployers',
+  component: () => import('../views/AdminEmployers.vue'),
+  meta: { requiresAuth: true, role: 'admin' }
+  },
 ];
 
 const router = createRouter({

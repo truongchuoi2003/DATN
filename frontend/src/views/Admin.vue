@@ -11,12 +11,12 @@
         </div>
         <div class="hero-stats">
           <div class="hero-stat-item">
-            <span class="hero-stat-value">1,234</span>
+            <span class="hero-stat-value">{{ statistics.totalUsers || 0 }}</span>
             <span class="hero-stat-label">Người dùng</span>
           </div>
           <div class="hero-stat-item">
-            <span class="hero-stat-value">89%</span>
-            <span class="hero-stat-label">Hoạt động</span>
+            <span class="hero-stat-value">{{ statistics.pendingEmployers || 0 }}</span>
+            <span class="hero-stat-label">Chờ duyệt</span>
           </div>
         </div>
       </div>
@@ -32,18 +32,8 @@
               👥
             </div>
             <div class="stat-info">
-              <h3>1,234</h3>
+              <h3>{{ statistics.totalUsers || 0 }}</h3>
               <p>Tổng người dùng</p>
-              <span class="stat-change positive">+48 tuần này</span>
-            </div>
-            <div class="stat-chart">
-              <div class="mini-chart">
-                <div class="bar" style="height: 40%"></div>
-                <div class="bar" style="height: 65%"></div>
-                <div class="bar" style="height: 55%"></div>
-                <div class="bar" style="height: 80%"></div>
-                <div class="bar" style="height: 70%"></div>
-              </div>
             </div>
           </div>
 
@@ -52,18 +42,8 @@
               🎓
             </div>
             <div class="stat-info">
-              <h3>856</h3>
+              <h3>{{ statistics.totalStudents || 0 }}</h3>
               <p>Sinh viên</p>
-              <span class="stat-change positive">+32 tuần này</span>
-            </div>
-            <div class="stat-chart">
-              <div class="mini-chart">
-                <div class="bar" style="height: 50%"></div>
-                <div class="bar" style="height: 60%"></div>
-                <div class="bar" style="height: 45%"></div>
-                <div class="bar" style="height: 75%"></div>
-                <div class="bar" style="height: 85%"></div>
-              </div>
             </div>
           </div>
 
@@ -72,39 +52,57 @@
               💼
             </div>
             <div class="stat-info">
-              <h3>378</h3>
+              <h3>{{ statistics.totalEmployers || 0 }}</h3>
               <p>Nhà tuyển dụng</p>
-              <span class="stat-change positive">+16 tuần này</span>
-            </div>
-            <div class="stat-chart">
-              <div class="mini-chart">
-                <div class="bar" style="height: 60%"></div>
-                <div class="bar" style="height: 50%"></div>
-                <div class="bar" style="height: 70%"></div>
-                <div class="bar" style="height: 55%"></div>
-                <div class="bar" style="height: 80%"></div>
-              </div>
             </div>
           </div>
 
           <div class="stat-card">
             <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-              📢
+              ⏳
             </div>
             <div class="stat-info">
-              <h3>542</h3>
-              <p>Tin tuyển dụng</p>
-              <span class="stat-change positive">+24 tuần này</span>
+              <h3>{{ statistics.pendingEmployers || 0 }}</h3>
+              <p>Chờ duyệt</p>
             </div>
-            <div class="stat-chart">
-              <div class="mini-chart">
-                <div class="bar" style="height: 55%"></div>
-                <div class="bar" style="height: 70%"></div>
-                <div class="bar" style="height: 60%"></div>
-                <div class="bar" style="height: 80%"></div>
-                <div class="bar" style="height: 90%"></div>
+          </div>
+        </div>
+
+        <!-- Quick Actions Grid -->
+        <div class="quick-actions-section">
+          <h2>🚀 Quản lý nhanh</h2>
+          <div class="quick-actions-main">
+            <router-link to="/admin/employers" class="action-card">
+              <div class="action-icon" style="background: #4ecdc4;">🏢</div>
+              <div class="action-content">
+                <h3>Duyệt nhà tuyển dụng</h3>
+                <p>{{ statistics.pendingEmployers || 0 }} đang chờ</p>
               </div>
-            </div>
+            </router-link>
+
+            <button class="action-card" @click="navigateTo('/admin/users')">
+              <div class="action-icon" style="background: #667eea;">👥</div>
+              <div class="action-content">
+                <h3>Quản lý người dùng</h3>
+                <p>{{ statistics.totalUsers || 0 }} người dùng</p>
+              </div>
+            </button>
+
+            <button class="action-card" @click="navigateTo('/admin/jobs')">
+              <div class="action-icon" style="background: #f093fb;">📢</div>
+              <div class="action-content">
+                <h3>Tin tuyển dụng</h3>
+                <p>Quản lý tin đăng</p>
+              </div>
+            </button>
+
+            <button class="action-card" @click="navigateTo('/admin/reports')">
+              <div class="action-icon" style="background: #43e97b;">📊</div>
+              <div class="action-content">
+                <h3>Báo cáo</h3>
+                <p>Thống kê hệ thống</p>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -112,157 +110,53 @@
         <div class="dashboard-grid">
           <!-- Left Column -->
           <div class="left-column">
-            <!-- Recent Users -->
+            <!-- Pending Employers -->
             <div class="card">
               <div class="card-header">
-                <h2>Người dùng mới</h2>
-                <select class="filter-select">
-                  <option>Tất cả</option>
-                  <option>Sinh viên</option>
-                  <option>Nhà tuyển dụng</option>
-                </select>
+                <h2>Nhà tuyển dụng chờ duyệt</h2>
+                <router-link to="/admin/employers" class="link">Xem tất cả</router-link>
               </div>
               <div class="card-body">
-                <div class="table-container">
-                  <table class="data-table">
-                    <thead>
-                      <tr>
-                        <th>Tên</th>
-                        <th>Email</th>
-                        <th>Vai trò</th>
-                        <th>Ngày đăng ký</th>
-                        <th>Trạng thái</th>
-                        <th>Thao tác</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>
-                          <div class="user-cell">
-                            <div class="avatar">NVA</div>
-                            <span>Nguyễn Văn A</span>
-                          </div>
-                        </td>
-                        <td>nva@student.com</td>
-                        <td><span class="role-badge student">Sinh viên</span></td>
-                        <td>15/01/2026</td>
-                        <td><span class="status-badge active">Active</span></td>
-                        <td>
-                          <div class="action-buttons">
-                            <button class="btn-action" title="Xem chi tiết">👁️</button>
-                            <button class="btn-action" title="Chỉnh sửa">✏️</button>
-                            <button class="btn-action danger" title="Xóa">🗑️</button>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td>
-                          <div class="user-cell">
-                            <div class="avatar" style="background: #f093fb;">TTB</div>
-                            <span>Trần Thị B</span>
-                          </div>
-                        </td>
-                        <td>ttb@company.com</td>
-                        <td><span class="role-badge employer">Nhà tuyển dụng</span></td>
-                        <td>14/01/2026</td>
-                        <td><span class="status-badge pending">Pending</span></td>
-                        <td>
-                          <div class="action-buttons">
-                            <button class="btn-action" title="Xem chi tiết">👁️</button>
-                            <button class="btn-action" title="Chỉnh sửa">✏️</button>
-                            <button class="btn-action danger" title="Xóa">🗑️</button>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td>
-                          <div class="user-cell">
-                            <div class="avatar" style="background: #4facfe;">LVC</div>
-                            <span>Lê Văn C</span>
-                          </div>
-                        </td>
-                        <td>lvc@student.com</td>
-                        <td><span class="role-badge student">Sinh viên</span></td>
-                        <td>13/01/2026</td>
-                        <td><span class="status-badge active">Active</span></td>
-                        <td>
-                          <div class="action-buttons">
-                            <button class="btn-action" title="Xem chi tiết">👁️</button>
-                            <button class="btn-action" title="Chỉnh sửa">✏️</button>
-                            <button class="btn-action danger" title="Xóa">🗑️</button>
-                          </div>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td>
-                          <div class="user-cell">
-                            <div class="avatar" style="background: #43e97b;">PHD</div>
-                            <span>Phạm Hữu D</span>
-                          </div>
-                        </td>
-                        <td>phd@company.com</td>
-                        <td><span class="role-badge employer">Nhà tuyển dụng</span></td>
-                        <td>12/01/2026</td>
-                        <td><span class="status-badge active">Active</span></td>
-                        <td>
-                          <div class="action-buttons">
-                            <button class="btn-action" title="Xem chi tiết">👁️</button>
-                            <button class="btn-action" title="Chỉnh sửa">✏️</button>
-                            <button class="btn-action danger" title="Xóa">🗑️</button>
-                          </div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                <div v-if="pendingEmployers.length === 0" class="empty-state">
+                  <p>✅ Không có yêu cầu nào đang chờ</p>
+                </div>
+                <div v-else class="approval-list">
+                  <div v-for="employer in pendingEmployers.slice(0, 3)" :key="employer._id" class="approval-item">
+                    <div class="approval-icon">🏢</div>
+                    <div class="approval-info">
+                      <h4>{{ employer.companyName }}</h4>
+                      <p>{{ employer.email }}</p>
+                      <span class="approval-time">{{ formatDate(employer.createdAt) }}</span>
+                    </div>
+                    <div class="approval-actions">
+                      <button class="btn btn-sm btn-success" @click="handleVerify(employer._id)">
+                        Duyệt
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <!-- Pending Approvals -->
+            <!-- Recent Users -->
             <div class="card">
               <div class="card-header">
-                <h2>Chờ duyệt</h2>
-                <span class="badge badge-warning">8 yêu cầu</span>
+                <h2>Người dùng mới</h2>
               </div>
               <div class="card-body">
-                <div class="approval-list">
-                  <div class="approval-item">
-                    <div class="approval-icon">🏢</div>
-                    <div class="approval-info">
-                      <h4>FPT Software</h4>
-                      <p>Yêu cầu xác thực công ty</p>
-                      <span class="approval-time">2 giờ trước</span>
+                <div v-if="recentUsers.length === 0" class="empty-state">
+                  <p>📭 Chưa có người dùng mới</p>
+                </div>
+                <div v-else class="users-list">
+                  <div v-for="user in recentUsers.slice(0, 5)" :key="user._id" class="user-item">
+                    <div class="avatar">{{ getInitials(user.fullName || user.companyName) }}</div>
+                    <div class="user-info">
+                      <strong>{{ user.fullName || user.companyName }}</strong>
+                      <p>{{ user.email }}</p>
                     </div>
-                    <div class="approval-actions">
-                      <button class="btn btn-sm btn-success">Chấp nhận</button>
-                      <button class="btn btn-sm btn-outline">Từ chối</button>
-                    </div>
-                  </div>
-
-                  <div class="approval-item">
-                    <div class="approval-icon">📢</div>
-                    <div class="approval-info">
-                      <h4>Senior Developer</h4>
-                      <p>Tin tuyển dụng mới từ Viettel</p>
-                      <span class="approval-time">5 giờ trước</span>
-                    </div>
-                    <div class="approval-actions">
-                      <button class="btn btn-sm btn-success">Chấp nhận</button>
-                      <button class="btn btn-sm btn-outline">Từ chối</button>
-                    </div>
-                  </div>
-
-                  <div class="approval-item">
-                    <div class="approval-icon">🏢</div>
-                    <div class="approval-info">
-                      <h4>VNG Corporation</h4>
-                      <p>Cập nhật thông tin công ty</p>
-                      <span class="approval-time">1 ngày trước</span>
-                    </div>
-                    <div class="approval-actions">
-                      <button class="btn btn-sm btn-success">Chấp nhận</button>
-                      <button class="btn btn-sm btn-outline">Từ chối</button>
-                    </div>
+                    <span class="role-badge" :class="user.role">
+                      {{ getRoleName(user.role) }}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -302,113 +196,40 @@
                     </div>
                     <div class="metric-value">78%</div>
                   </div>
-
-                  <div class="metric-item">
-                    <div class="metric-label">Database</div>
-                    <div class="metric-bar">
-                      <div class="metric-fill" style="width: 35%; background: #667eea;"></div>
-                    </div>
-                    <div class="metric-value">35%</div>
-                  </div>
                 </div>
 
                 <div class="server-info">
                   <div class="info-row">
                     <span class="info-label">Server:</span>
-                    <span class="info-value">Production (AWS)</span>
+                    <span class="info-value">Production</span>
                   </div>
                   <div class="info-row">
-                    <span class="info-label">Uptime:</span>
-                    <span class="info-value">24 days 14h</span>
+                    <span class="info-label">Status:</span>
+                    <span class="info-value" style="color: #43e97b;">Online</span>
                   </div>
                   <div class="info-row">
                     <span class="info-label">Version:</span>
-                    <span class="info-value">v1.2.4</span>
+                    <span class="info-value">v1.0.0</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- Recent Activities -->
+            <!-- Quick Links -->
             <div class="card">
               <div class="card-header">
-                <h2>Hoạt động gần đây</h2>
+                <h2>Liên kết nhanh</h2>
               </div>
               <div class="card-body">
-                <div class="activity-timeline">
-                  <div class="timeline-item">
-                    <div class="timeline-icon" style="background: #667eea;">👤</div>
-                    <div class="timeline-content">
-                      <p><strong>Nguyễn Văn A</strong> đã đăng ký tài khoản</p>
-                      <span class="timeline-time">5 phút trước</span>
-                    </div>
-                  </div>
-
-                  <div class="timeline-item">
-                    <div class="timeline-icon" style="background: #f093fb;">📢</div>
-                    <div class="timeline-content">
-                      <p><strong>FPT Software</strong> đăng tin tuyển dụng mới</p>
-                      <span class="timeline-time">15 phút trước</span>
-                    </div>
-                  </div>
-
-                  <div class="timeline-item">
-                    <div class="timeline-icon" style="background: #4facfe;">✅</div>
-                    <div class="timeline-content">
-                      <p>Admin đã phê duyệt <strong>Viettel Solutions</strong></p>
-                      <span class="timeline-time">1 giờ trước</span>
-                    </div>
-                  </div>
-
-                  <div class="timeline-item">
-                    <div class="timeline-icon" style="background: #43e97b;">💼</div>
-                    <div class="timeline-content">
-                      <p><strong>Trần Thị B</strong> đã ứng tuyển 1 công việc</p>
-                      <span class="timeline-time">2 giờ trước</span>
-                    </div>
-                  </div>
-
-                  <div class="timeline-item">
-                    <div class="timeline-icon" style="background: #667eea;">⚙️</div>
-                    <div class="timeline-content">
-                      <p>Hệ thống backup tự động hoàn thành</p>
-                      <span class="timeline-time">3 giờ trước</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Quick Actions -->
-            <div class="card">
-              <div class="card-header">
-                <h2>Quản lý nhanh</h2>
-              </div>
-              <div class="card-body">
-                <div class="quick-actions-grid">
-                  <button class="action-card">
-                    <div class="action-icon" style="background: #667eea;">👥</div>
-                    <span>Người dùng</span>
-                  </button>
-                  <button class="action-card">
-                    <div class="action-icon" style="background: #f093fb;">🏢</div>
-                    <span>Công ty</span>
-                  </button>
-                  <button class="action-card">
-                    <div class="action-icon" style="background: #4facfe;">📢</div>
-                    <span>Tin tuyển dụng</span>
-                  </button>
-                  <button class="action-card">
-                    <div class="action-icon" style="background: #43e97b;">📊</div>
-                    <span>Báo cáo</span>
-                  </button>
-                  <button class="action-card">
-                    <div class="action-icon" style="background: #667eea;">🔔</div>
-                    <span>Thông báo</span>
-                  </button>
-                  <button class="action-card">
-                    <div class="action-icon" style="background: #f093fb;">⚙️</div>
-                    <span>Cài đặt</span>
+                <div class="quick-links">
+                  <router-link to="/admin/employers" class="quick-link-item">
+                    🏢 Quản lý nhà tuyển dụng
+                  </router-link>
+                  <router-link to="/admin/profile" class="quick-link-item">
+                    👤 Hồ sơ của tôi
+                  </router-link>
+                  <button class="quick-link-item" @click="handleLogout">
+                    🚪 Đăng xuất
                   </button>
                 </div>
               </div>
@@ -421,10 +242,118 @@
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import Header from '../components/Header.vue';
 import { useAuth } from '../composables/useAuth';
+import api from '../services/api';
 
-const { user } = useAuth();
+const { user, logout } = useAuth();
+const router = useRouter();
+
+const statistics = ref({
+  totalUsers: 0,
+  totalStudents: 0,
+  totalEmployers: 0,
+  verifiedEmployers: 0,
+  pendingEmployers: 0,
+});
+
+const pendingEmployers = ref([]);
+const recentUsers = ref([]);
+
+const getInitials = (name) => {
+  if (!name) return '?';
+  const parts = name.split(' ');
+  if (parts.length >= 2) {
+    return parts[0][0] + parts[parts.length - 1][0];
+  }
+  return name.substring(0, 2).toUpperCase();
+};
+
+const getRoleName = (role) => {
+  const roles = {
+    student: 'Sinh viên',
+    employer: 'Nhà tuyển dụng',
+    admin: 'Admin',
+  };
+  return roles[role] || role;
+};
+
+const formatDate = (date) => {
+  if (!date) return '';
+  const d = new Date(date);
+  const now = new Date();
+  const diff = now - d;
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const days = Math.floor(hours / 24);
+
+  if (days > 0) return `${days} ngày trước`;
+  if (hours > 0) return `${hours} giờ trước`;
+  return 'Vừa xong';
+};
+
+const fetchStatistics = async () => {
+  try {
+    const res = await api.get('/admin/statistics');
+    statistics.value = res.data.statistics;
+    statistics.value.totalUsers = 
+      statistics.value.totalStudents + 
+      statistics.value.totalEmployers;
+  } catch (error) {
+    console.error('Error fetching statistics:', error);
+  }
+};
+
+const fetchPendingEmployers = async () => {
+  try {
+    const res = await api.get('/admin/employers/pending');
+    pendingEmployers.value = res.data.employers;
+  } catch (error) {
+    console.error('Error fetching pending employers:', error);
+  }
+};
+
+const fetchRecentUsers = async () => {
+  try {
+    const res = await api.get('/admin/users');
+    // Sort by createdAt and get latest 5
+    recentUsers.value = res.data.users
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 5);
+  } catch (error) {
+    console.error('Error fetching recent users:', error);
+  }
+};
+
+const handleVerify = async (employerId) => {
+  if (!confirm('Xác nhận duyệt nhà tuyển dụng này?')) return;
+
+  try {
+    await api.put(`/admin/employers/${employerId}/verify`);
+    alert('Duyệt thành công!');
+    fetchPendingEmployers();
+    fetchStatistics();
+  } catch (error) {
+    alert('Có lỗi xảy ra: ' + (error.response?.data?.message || 'Vui lòng thử lại'));
+  }
+};
+
+const navigateTo = (path) => {
+  alert(`Tính năng "${path}" đang phát triển`);
+};
+
+const handleLogout = () => {
+  if (confirm('Bạn có chắc muốn đăng xuất?')) {
+    logout();
+  }
+};
+
+onMounted(() => {
+  fetchStatistics();
+  fetchPendingEmployers();
+  fetchRecentUsers();
+});
 </script>
 
 <style scoped>
@@ -492,9 +421,9 @@ const { user } = useAuth();
 /* Stats Grid */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 20px;
-  margin-bottom: 30px;
+  margin-bottom: 40px;
 }
 
 .stat-card {
@@ -505,8 +434,7 @@ const { user } = useAuth();
   gap: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   transition: transform 0.3s, box-shadow 0.3s;
-  position: relative;
-  overflow: hidden;
+  align-items: center;
 }
 
 .stat-card:hover {
@@ -538,37 +466,67 @@ const { user } = useAuth();
 .stat-info p {
   color: #666;
   font-size: 14px;
+}
+
+/* Quick Actions Section */
+.quick-actions-section {
+  margin-bottom: 40px;
+}
+
+.quick-actions-section h2 {
+  font-size: 24px;
+  color: #2c3e50;
+  margin-bottom: 20px;
+}
+
+.quick-actions-main {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.action-card {
+  background: white;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s;
+  cursor: pointer;
+  border: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.action-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  border-color: #667eea;
+}
+
+.action-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.action-content h3 {
+  font-size: 18px;
+  color: #2c3e50;
   margin-bottom: 5px;
 }
 
-.stat-change {
-  font-size: 12px;
+.action-content p {
+  font-size: 14px;
   color: #999;
-}
-
-.stat-change.positive {
-  color: #43e97b;
-}
-
-.stat-chart {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  opacity: 0.1;
-}
-
-.mini-chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 50px;
-  padding: 10px;
-}
-
-.mini-chart .bar {
-  width: 8px;
-  background: #2c3e50;
-  border-radius: 2px 2px 0 0;
 }
 
 /* Dashboard Grid */
@@ -606,168 +564,22 @@ const { user } = useAuth();
   padding: 25px;
 }
 
-/* Filter Select */
-.filter-select {
-  padding: 6px 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
+.link {
+  color: #667eea;
+  text-decoration: none;
   font-size: 14px;
-  cursor: pointer;
-  background: white;
-}
-
-/* Badge */
-.badge {
-  padding: 5px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.badge-warning {
-  background: #fff3cd;
-  color: #856404;
-}
-
-/* Status Indicator */
-.status-indicator {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-
-.status-indicator.online {
-  background: #43e97b;
-  box-shadow: 0 0 0 0 rgba(67, 233, 123, 0.7);
-}
-
-@keyframes pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(67, 233, 123, 0.7);
-  }
-  70% {
-    box-shadow: 0 0 0 10px rgba(67, 233, 123, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(67, 233, 123, 0);
-  }
-}
-
-/* Table */
-.table-container {
-  overflow-x: auto;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.data-table thead {
-  background: #f8f9fa;
-}
-
-.data-table th {
-  padding: 12px 15px;
-  text-align: left;
-  font-size: 13px;
-  font-weight: 600;
-  color: #666;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.data-table td {
-  padding: 15px;
-  border-bottom: 1px solid #f0f0f0;
-  font-size: 14px;
-}
-
-.data-table tr:hover {
-  background: #f8f9fa;
-}
-
-.user-cell {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 14px;
-}
-
-.role-badge {
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 12px;
   font-weight: 500;
 }
 
-.role-badge.student {
-  background: #e3f2fd;
-  color: #1976d2;
+.link:hover {
+  text-decoration: underline;
 }
 
-.role-badge.employer {
-  background: #f3e5f5;
-  color: #7b1fa2;
-}
-
-.status-badge {
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.status-badge.active {
-  background: #d4edda;
-  color: #155724;
-}
-
-.status-badge.pending {
-  background: #fff3cd;
-  color: #856404;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 6px;
-}
-
-.btn-action {
-  width: 30px;
-  height: 30px;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  background: white;
-  cursor: pointer;
-  transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-}
-
-.btn-action:hover {
-  border-color: #667eea;
-  transform: translateY(-2px);
-}
-
-.btn-action.danger:hover {
-  border-color: #dc3545;
-  color: #dc3545;
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
 }
 
 /* Approval List */
@@ -805,13 +617,13 @@ const { user } = useAuth();
 .approval-info h4 {
   font-size: 15px;
   color: #2c3e50;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
 }
 
 .approval-info p {
   font-size: 13px;
   color: #666;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
 }
 
 .approval-time {
@@ -849,15 +661,104 @@ const { user } = useAuth();
   transform: translateY(-2px);
 }
 
-.btn-outline {
-  background: white;
-  border: 1px solid #e0e0e0;
-  color: #666;
+/* Users List */
+.users-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.btn-outline:hover {
-  border-color: #dc3545;
-  color: #dc3545;
+.user-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  transition: all 0.3s;
+}
+
+.user-item:hover {
+  border-color: #667eea;
+  background: #f8f9ff;
+}
+
+.avatar {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.user-info {
+  flex: 1;
+}
+
+.user-info strong {
+  display: block;
+  color: #2c3e50;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.user-info p {
+  font-size: 12px;
+  color: #999;
+  margin: 0;
+}
+
+.role-badge {
+  padding: 5px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.role-badge.student {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.role-badge.employer {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.role-badge.admin {
+  background: #ffebee;
+  color: #c62828;
+}
+
+/* Status Indicator */
+.status-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.status-indicator.online {
+  background: #43e97b;
+  box-shadow: 0 0 0 0 rgba(67, 233, 123, 0.7);
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(67, 233, 123, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(67, 233, 123, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(67, 233, 123, 0);
+  }
 }
 
 /* System Metrics */
@@ -897,5 +798,65 @@ const { user } = useAuth();
   font-size: 12px;
   color: #999;
   text-align: right;
+}
+
+.server-info {
+  padding-top: 20px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 14px;
+}
+
+.info-label {
+  color: #999;
+}
+
+.info-value {
+  color: #2c3e50;
+  font-weight: 500;
+}
+
+/* Quick Links */
+.quick-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.quick-link-item {
+  padding: 12px 15px;
+  background: #f8f9fa;
+  border: none;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #2c3e50;
+  font-size: 14px;
+  transition: all 0.3s;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.quick-link-item:hover {
+  background: #667eea;
+  color: white;
+  transform: translateX(5px);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-section .container {
+    flex-direction: column;
+    gap: 20px;
+  }
 }
 </style>

@@ -1,106 +1,157 @@
 const Student = require('../models/Student.model');
 const Employer = require('../models/Employer.model');
+const Admin = require('../models/Admin.model');
 
-// GET /api/profile/me
-exports.getMyProfile = async (req, res) => {
+// 👤 GET PROFILE
+exports.getProfile = async (req, res) => {
   try {
-    const role = req.user.role;
+    const { userId, role } = req.user; // Từ JWT token
+
+    let user;
+    let Model;
+
+    // Chọn Model dựa vào role
     if (role === 'student') {
-      const profile = await Student.findOne({ _id: req.user._id }) // if you used Student as the user document
-        .lean();
-      // if your auth stores User in req.user but Student is a separate doc, adjust to find by userId
-      // const profile = await Student.findOne({ userId: req.user._id }).lean();
-      return res.json(profile || {});
+      Model = Student;
     } else if (role === 'employer') {
-      const profile = await Employer.findOne({ _id: req.user._id }).lean();
-      // or findOne({ userId: req.user._id })
-      return res.json(profile || {});
-    } else {
-      return res.status(400).json({ message: 'Invalid role' });
+      Model = Employer;
+    } else if (role === 'admin') {
+      Model = Admin;
     }
-  } catch (err) {
-    console.error('getMyProfile error', err);
-    return res.status(500).json({ message: err.message });
+
+    // Tìm user và loại bỏ password
+    user = await Model.findById(userId).select('-password');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      profile: user,
+    });
+  } catch (error) {
+    console.error('❌ Get profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message,
+    });
   }
 };
 
-// PUT /api/profile/me
-exports.updateMyProfile = async (req, res) => {
+// ✏️ UPDATE PROFILE
+exports.updateProfile = async (req, res) => {
   try {
-    const role = req.user.role;
-    const data = req.body || {};
+    const { userId, role } = req.user;
+    const updateData = req.body;
 
+    // Không cho phép update các field nhạy cảm
+    delete updateData.password;
+    delete updateData.email;
+    delete updateData.role;
+
+    let Model;
     if (role === 'student') {
-      const allowed = ['fullName','birthday','phone','university','major','graduationYear','skills','resumeUrl','avatar','bio','address','location'];
-      const payload = {};
-      allowed.forEach(k => {
-        if (data[k] !== undefined) payload[k] = data[k];
-      });
-      // normalize skills if string
-      if (payload.skills && typeof payload.skills === 'string') {
-        payload.skills = payload.skills.split(',').map(s => s.trim()).filter(Boolean);
-      }
-      // ensure location shape if provided
-      if (payload.location && payload.location.coordinates) {
-        // assume client sends { type: 'Point', coordinates: [lng,lat] }
-      }
-      const profile = await Student.findOneAndUpdate(
-        { _id: req.user._id },
-        { $set: payload },
-        { new: true, upsert: true }
-      );
-      return res.json(profile);
+      Model = Student;
     } else if (role === 'employer') {
-      const allowed = ['companyName','fullName','phone','address','description','logo','website','location'];
-      const payload = {};
-      allowed.forEach(k => {
-        if (data[k] !== undefined) payload[k] = data[k];
-      });
-      const profile = await Employer.findOneAndUpdate(
-        { _id: req.user._id },
-        { $set: payload },
-        { new: true, upsert: true }
-      );
-      return res.json(profile);
-    } else {
-      return res.status(400).json({ message: 'Invalid role' });
+      Model = Employer;
+    } else if (role === 'admin') {
+      Model = Admin;
     }
-  } catch (err) {
-    console.error('updateMyProfile error', err);
-    return res.status(500).json({ message: err.message });
+
+    const user = await Model.findByIdAndUpdate(
+      userId,
+      updateData,
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Cập nhật profile thành công',
+      profile: user,
+    });
+  } catch (error) {
+    console.error('❌ Update profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message,
+    });
   }
 };
 
-// POST /api/profile/me/upload-resume  (student)
-exports.uploadResume = async (req, res) => {
+// 🔒 CHANGE PASSWORD
+exports.changePassword = async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ message: 'File missing' });
-    const url = `/uploads/${req.file.filename}`;
-    const profile = await Student.findOneAndUpdate(
-      { _id: req.user._id },
-      { $set: { resumeUrl: url } },
-      { new: true, upsert: true }
-    );
-    return res.json(profile);
-  } catch (err) {
-    console.error('uploadResume error', err);
-    return res.status(500).json({ message: err.message });
-  }
-};
+    const { userId, role } = req.user;
+    const { currentPassword, newPassword } = req.body;
 
-// POST /api/profile/me/upload-logo  (employer)
-exports.uploadLogo = async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ message: 'File missing' });
-    const url = `/uploads/${req.file.filename}`;
-    const profile = await Employer.findOneAndUpdate(
-      { _id: req.user._id },
-      { $set: { logo: url } },
-      { new: true, upsert: true }
-    );
-    return res.json(profile);
-  } catch (err) {
-    console.error('uploadLogo error', err);
-    return res.status(500).json({ message: err.message });
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng nhập đầy đủ thông tin',
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mật khẩu mới phải có ít nhất 6 ký tự',
+      });
+    }
+
+    let Model;
+    if (role === 'student') {
+      Model = Student;
+    } else if (role === 'employer') {
+      Model = Employer;
+    } else if (role === 'admin') {
+      Model = Admin;
+    }
+
+    const user = await Model.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng',
+      });
+    }
+
+    // Kiểm tra mật khẩu hiện tại
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Mật khẩu hiện tại không đúng',
+      });
+    }
+
+    // Cập nhật mật khẩu mới
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Đổi mật khẩu thành công',
+    });
+  } catch (error) {
+    console.error('❌ Change password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message,
+    });
   }
 };

@@ -1,15 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middlewares/auth.middleware');
 const profileController = require('../controllers/profile.controller');
-const upload = require('../config/upload');
+const { authenticate } = require('../middleware/auth.middleware');
 
-// protected endpoints
-router.get('/me', protect, profileController.getMyProfile);
-router.put('/me', protect, profileController.updateMyProfile);
+// Tất cả route đều cần đăng nhập
+router.use(authenticate);
 
-// uploads
-router.post('/me/upload-resume', protect, upload.single('file'), profileController.uploadResume);
-router.post('/me/upload-logo', protect, upload.single('file'), profileController.uploadLogo);
+// GET profile
+router.get('/', profileController.getProfile);
+
+// UPDATE profile
+router.put('/', profileController.updateProfile);
+
+// CHANGE password
+router.put('/change-password', profileController.changePassword);
 
 module.exports = router;

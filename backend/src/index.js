@@ -3,6 +3,8 @@ const express = require('express');
 const connectDB = require('./config/db');
 const cors = require('cors');
 const path = require('path');
+const profileRoutes = require('./routes/profile.route');
+const adminRoutes = require('./routes/admin.route');
 
 const app = express();
 
@@ -19,7 +21,8 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Routes
 app.use('/api/auth', require('./routes/auth.route'));
-app.use('/api/profile', require('./routes/profile.route'));
+app.use('/api/profile', profileRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health
 app.get('/api/health', (req, res) => res.json({ status: 'OK' }));
