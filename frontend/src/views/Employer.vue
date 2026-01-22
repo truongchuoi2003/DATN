@@ -9,9 +9,9 @@
           <h1>Chào mừng, {{ user?.companyName || user?.fullName }}! 💼</h1>
           <p>Quản lý tuyển dụng và tìm kiếm ứng viên tài năng</p>
         </div>
-        <button class="btn-hero">
+        <router-link to="/employer/jobs/create" class="btn-hero">
           <span>➕</span> Đăng tin tuyển dụng mới
-        </button>
+        </router-link>
       </div>
     </section>
 
@@ -269,22 +269,22 @@
               </div>
               <div class="card-body">
                 <div class="quick-actions">
-                  <button class="action-btn">
-                    <span class="action-icon">📢</span>
-                    <span>Đăng tin mới</span>
-                  </button>
-                  <button class="action-btn">
-                    <span class="action-icon">🔍</span>
-                    <span>Tìm ứng viên</span>
-                  </button>
-                  <button class="action-btn">
-                    <span class="action-icon">📊</span>
-                    <span>Báo cáo</span>
-                  </button>
-                  <button class="action-btn">
-                    <span class="action-icon">⚙️</span>
-                    <span>Cài đặt</span>
-                  </button>
+                <router-link to="/employer/jobs/create" class="action-btn">
+                  <span class="action-icon">📢</span>
+                  <span>Đăng tin mới</span>
+                </router-link>
+                <router-link to="/employer/jobs" class="action-btn">
+                  <span class="action-icon">📋</span>
+                  <span>Quản lý Jobs</span>
+                </router-link>
+                <button class="action-btn">
+                  <span class="action-icon">🔍</span>
+                  <span>Tìm ứng viên</span>
+                </button>
+                <router-link to="/employer/profile" class="action-btn">
+                  <span class="action-icon">⚙️</span>
+                  <span>Cài đặt</span>
+                </router-link>
                 </div>
               </div>
             </div>

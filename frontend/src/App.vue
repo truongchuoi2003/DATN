@@ -1,9 +1,6 @@
 <template>
-  <Navbar />
   <router-view />
 </template>
-
-
 
 <style scoped>
 .logo {

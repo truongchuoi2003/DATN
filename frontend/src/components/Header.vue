@@ -2,7 +2,9 @@
   <header class="header">
     <div class="container">
       <div class="logo">
-        <h1>DATN Platform</h1>
+        <router-link :to="homeRoute" class="logo-link">
+          <h1>DATN Platform</h1>
+        </router-link>
       </div>
 
       <nav v-if="isLoggedIn" class="nav">
@@ -32,9 +34,23 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
 import { useAuth } from '../composables/useAuth';
 
 const { user, isLoggedIn, logout } = useAuth();
+
+// ✅ Tính toán route về trang chủ dựa vào role
+const homeRoute = computed(() => {
+  if (!user.value) return '/login';
+  
+  const roleRoutes = {
+    student: '/student',
+    employer: '/employer',
+    admin: '/admin'
+  };
+  
+  return roleRoutes[user.value.role] || '/login';
+});
 
 const getRoleName = (role) => {
   const roles = {
@@ -69,10 +85,23 @@ const handleLogout = () => {
   align-items: center;
 }
 
+.logo-link {
+  text-decoration: none;
+  color: white;
+  display: block;
+  transition: all 0.3s;
+}
+
+.logo-link:hover {
+  opacity: 0.9;
+  transform: scale(1.05);
+}
+
 .logo h1 {
   margin: 0;
   font-size: 24px;
   font-weight: 600;
+  cursor: pointer;
 }
 
 .nav {
