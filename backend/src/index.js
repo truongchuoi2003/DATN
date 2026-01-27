@@ -7,6 +7,7 @@ const profileRoutes = require('./routes/profile.route');
 const adminRoutes = require('./routes/admin.route');
 
 
+
 const app = express();
 
 // CORS (dev) - giới hạn origin khi deploy
@@ -25,6 +26,7 @@ app.use('/api/auth', require('./routes/auth.route'));
 app.use('/api/profile', profileRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/jobs', require('./routes/job.route'));
+app.use('/api/applications', require('./routes/application.route'));
 
 // Health
 app.get('/api/health', (req, res) => res.json({ status: 'OK' }));

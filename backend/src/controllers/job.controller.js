@@ -301,3 +301,115 @@ exports.getJobStatistics = async (req, res) => {
     });
   }
 };
+
+// 📋 GET ALL PUBLIC JOBS (Không cần login)
+exports.getAllPublicJobs = async (req, res) => {
+  try {
+    const { 
+      search, 
+      city, 
+      jobType, 
+      level, 
+      minSalary, 
+      maxSalary,
+      skills,
+      page = 1,
+      limit = 10 
+    } = req.query;
+
+    const filter = { status: 'active' };
+
+    // Search by title or description
+    if (search) {
+      filter.$text = { $search: search };
+    }
+
+    // Filter by location
+    if (city) {
+      filter['location.city'] = city;
+    }
+
+    // Filter by job type
+    if (jobType) {
+      filter.jobType = jobType;
+    }
+
+    // Filter by level
+    if (level) {
+      filter.level = level;
+    }
+
+    // Filter by salary
+    if (minSalary) {
+      filter['salary.min'] = { $gte: parseInt(minSalary) };
+    }
+    if (maxSalary) {
+      filter['salary.max'] = { $lte: parseInt(maxSalary) };
+    }
+
+    // Filter by skills
+    if (skills) {
+      const skillArray = skills.split(',').map(s => s.trim());
+      filter.skills = { $in: skillArray };
+    }
+
+    const skip = (page - 1) * limit;
+
+    const jobs = await Job.find(filter)
+      .populate('employer', 'companyName logo website')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await Job.countDocuments(filter);
+
+    res.status(200).json({
+      success: true,
+      count: jobs.length,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / limit),
+      jobs,
+    });
+  } catch (error) {
+    console.error('❌ Get public jobs error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message,
+    });
+  }
+};
+
+// 📋 GET PUBLIC JOB DETAIL (Không cần login)
+exports.getPublicJobDetail = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+
+    const job = await Job.findById(jobId)
+      .populate('employer', 'companyName logo website description industry companySize');
+
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy tin tuyển dụng',
+      });
+    }
+
+    // Tăng views
+    job.views += 1;
+    await job.save();
+
+    res.status(200).json({
+      success: true,
+      job,
+    });
+  } catch (error) {
+    console.error('❌ Get public job detail error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message,
+    });
+  }
+};
