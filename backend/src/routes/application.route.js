@@ -14,6 +14,7 @@ router.post('/', authorize('student'), applicationController.applyForJob);
 router.get('/my-applications', authorize('student'), applicationController.getMyApplications);
 router.put('/:applicationId/withdraw', authorize('student'), applicationController.withdrawApplication);
 
+
 // 📋 Employer routes
 router.get('/job/:jobId', authorize('employer'), applicationController.getJobApplications);
 router.put('/:applicationId/status', authorize('employer'), applicationController.updateApplicationStatus);

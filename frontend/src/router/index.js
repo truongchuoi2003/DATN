@@ -32,10 +32,15 @@ const routes = [
     meta: { requiresAuth: true, role: 'student' }
   },
   {
-  path: '/student/jobs',
-  name: 'StudentJobs',
-  component: () => import('../views/StudentJobs.vue'),
-  meta: { requiresAuth: true, role: 'student' }
+    path: '/student/jobs',
+    name: 'StudentJobs',
+    component: () => import('../views/StudentJobs.vue'),
+    meta: { requiresAuth: true, role: 'student' }
+  },
+  {
+    path: '/student/jobs/:id',  
+    name: 'JobDetail',
+    component: () => import('@/views/JobDetail.vue')
   },
   {
     path: '/employer',
@@ -90,6 +95,7 @@ const routes = [
   component: () => import('../views/AdminEmployers.vue'),
   meta: { requiresAuth: true, role: 'admin' }
   },
+  
 ];
 
 const router = createRouter({

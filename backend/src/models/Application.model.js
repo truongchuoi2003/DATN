@@ -31,6 +31,22 @@ const applicationSchema = new mongoose.Schema(
       type: String, // URL CV
     },
 
+    // ✅ THÊM MỚI
+    expectedSalary: {
+      type: Number,
+      min: 0,
+    },
+
+    availableFrom: {
+      type: Date,
+    },
+
+    additionalInfo: {
+      type: String,
+      maxlength: 500,
+    },
+    // KẾT THÚC THÊM MỚI
+
     // 📊 Trạng thái
     status: {
       type: String,
@@ -60,7 +76,7 @@ const applicationSchema = new mongoose.Schema(
 );
 
 // Index để query nhanh
-applicationSchema.index({ job: 1, student: 1 }, { unique: true }); // 1 student chỉ apply 1 lần/job
+applicationSchema.index({ job: 1, student: 1 }, { unique: true });
 applicationSchema.index({ student: 1, status: 1 });
 applicationSchema.index({ employer: 1, status: 1 });
 applicationSchema.index({ job: 1, status: 1 });

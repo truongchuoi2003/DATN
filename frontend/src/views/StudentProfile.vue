@@ -228,7 +228,12 @@
                 </button>
               </div>
             </div>
-
+            <div v-if="activeTab === 'skills'" class="content-section">
+             <!-- Existing skills content -->
+    
+            <!-- ✅ THÊM COMPONENT UPLOAD CV -->
+            <UploadCV @uploaded="handleCVUploaded" />
+            </div>
             <div class="skills-section">
               <div class="skills-list">
                 <div 
@@ -258,21 +263,6 @@
                   ➕ Thêm
                 </button>
               </div>
-            </div>
-
-            <div class="cv-upload">
-              <h3>CV của bạn</h3>
-              <div class="upload-area">
-                <input type="file" id="cv-upload" accept=".pdf" hidden />
-                <label for="cv-upload" class="upload-label">
-                  <span class="upload-icon">📄</span>
-                  <span>Click để tải CV lên (PDF)</span>
-                  <span class="upload-hint">Tối đa 5MB</span>
-                </label>
-              </div>
-              <p v-if="formData.cv" class="cv-link">
-                CV hiện tại: <a :href="formData.cv" target="_blank">Xem CV</a>
-              </p>
             </div>
           </div>
 
@@ -329,6 +319,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import Header from '../components/Header.vue';
 import api from '../services/api';
+import UploadCV from '@/components/UploadCV.vue';
 
 const activeTab = ref('info');
 const editMode = ref(false);
@@ -476,6 +467,11 @@ const handleChangePassword = async () => {
     passwordMessage.value = error.response?.data?.message || 'Đổi mật khẩu thất bại';
     passwordSuccess.value = false;
   }
+};
+
+const handleCVUploaded = (cvUrl) => {
+  console.log('CV uploaded:', cvUrl);
+  // Có thể reload profile hoặc update UI
 };
 
 onMounted(() => {

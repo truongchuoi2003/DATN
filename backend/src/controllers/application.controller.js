@@ -6,9 +6,8 @@ const Student = require('../models/Student.model');
 exports.applyForJob = async (req, res) => {
   try {
     const { userId, role } = req.user;
-    const { jobId, coverLetter } = req.body;
+    const { jobId, coverLetter, expectedSalary, availableFrom, additionalInfo } = req.body;
 
-    // Kiểm tra role
     if (role !== 'student') {
       return res.status(403).json({
         success: false,
@@ -16,7 +15,6 @@ exports.applyForJob = async (req, res) => {
       });
     }
 
-    // Kiểm tra job có tồn tại và đang active
     const job = await Job.findById(jobId).populate('employer');
     if (!job) {
       return res.status(404).json({
@@ -32,7 +30,6 @@ exports.applyForJob = async (req, res) => {
       });
     }
 
-    // Kiểm tra đã apply chưa
     const existingApplication = await Application.findOne({
       job: jobId,
       student: userId,
@@ -45,7 +42,6 @@ exports.applyForJob = async (req, res) => {
       });
     }
 
-    // Lấy thông tin student để có resumeUrl
     const student = await Student.findById(userId);
     if (!student.resumeUrl) {
       return res.status(400).json({
@@ -54,25 +50,25 @@ exports.applyForJob = async (req, res) => {
       });
     }
 
-    // Tạo application mới
     const application = new Application({
       job: jobId,
       student: userId,
       employer: job.employer._id,
       coverLetter: coverLetter || '',
       resumeUrl: student.resumeUrl,
+      expectedSalary: expectedSalary || null,
+      availableFrom: availableFrom || null,
+      additionalInfo: additionalInfo || null,
     });
 
     await application.save();
 
-    // Tăng applicationsCount của job
     job.applicationsCount += 1;
     await job.save();
 
-    // Populate thông tin
     await application.populate([
       { path: 'student', select: 'fullName email phone university major' },
-      { path: 'job', select: 'title company location salary' },
+      { path: 'job', select: 'title location salary' },
     ]);
 
     res.status(201).json({
@@ -94,7 +90,7 @@ exports.applyForJob = async (req, res) => {
 exports.getMyApplications = async (req, res) => {
   try {
     const { userId } = req.user;
-    const { status } = req.query; // ?status=pending
+    const { status } = req.query;
 
     const filter = { student: userId };
     if (status) {
@@ -130,7 +126,6 @@ exports.getJobApplications = async (req, res) => {
     const { jobId } = req.params;
     const { status } = req.query;
 
-    // Kiểm tra job có thuộc employer này không
     const job = await Job.findById(jobId);
     if (!job) {
       return res.status(404).json({
@@ -177,7 +172,6 @@ exports.updateApplicationStatus = async (req, res) => {
     const { applicationId } = req.params;
     const { status, employerNote } = req.body;
 
-    // Validate status
     const validStatuses = ['reviewing', 'accepted', 'rejected'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
@@ -197,7 +191,6 @@ exports.updateApplicationStatus = async (req, res) => {
       });
     }
 
-    // Kiểm tra quyền sở hữu
     if (application.employer.toString() !== userId) {
       return res.status(403).json({
         success: false,
@@ -205,7 +198,6 @@ exports.updateApplicationStatus = async (req, res) => {
       });
     }
 
-    // Cập nhật
     application.status = status;
     application.employerNote = employerNote || '';
     application.reviewedAt = new Date();
@@ -243,7 +235,6 @@ exports.withdrawApplication = async (req, res) => {
       });
     }
 
-    // Kiểm tra quyền sở hữu
     if (application.student.toString() !== userId) {
       return res.status(403).json({
         success: false,
@@ -251,7 +242,6 @@ exports.withdrawApplication = async (req, res) => {
       });
     }
 
-    // Không cho rút nếu đã được chấp nhận
     if (application.status === 'accepted') {
       return res.status(400).json({
         success: false,
@@ -262,7 +252,6 @@ exports.withdrawApplication = async (req, res) => {
     application.status = 'withdrawn';
     await application.save();
 
-    // Giảm applicationsCount
     await Job.findByIdAndUpdate(application.job, {
       $inc: { applicationsCount: -1 },
     });
@@ -305,6 +294,32 @@ exports.getMyApplicationStats = async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Get statistics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message,
+    });
+  }
+};
+
+// ✅ CHECK IF APPLIED (Student)
+exports.checkIfApplied = async (req, res) => {
+  try {
+    const { userId } = req.user;
+    const { jobId } = req.params;
+
+    const application = await Application.findOne({
+      job: jobId,
+      student: userId,
+    });
+
+    res.status(200).json({
+      success: true,
+      hasApplied: !!application,
+      application: application || null,
+    });
+  } catch (error) {
+    console.error('❌ Check if applied error:', error);
     res.status(500).json({
       success: false,
       message: 'Lỗi server',

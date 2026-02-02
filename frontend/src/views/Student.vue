@@ -198,10 +198,10 @@
                     <span class="action-icon">📄</span>
                     <span>Tải CV lên</span>
                   </button>
-                  <button class="action-btn">
+                  <router-link to="/student/jobs" class="action-btn">
                     <span class="action-icon">🔍</span>
                     <span>Tìm việc làm</span>
-                  </button>
+                  </router-link>
                   <button class="action-btn">
                     <span class="action-icon">💬</span>
                     <span>Tin nhắn</span>

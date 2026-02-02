@@ -120,8 +120,8 @@
             <!-- Footer -->
             <div class="job-footer">
               <div class="job-meta">
-                <span class="meta-item">👁️ {{ job.views }}</span>
-                <span class="meta-item">👥 {{ job.applicationsCount }}</span>
+                <span class="meta-item">👁️ {{ job.views || 0 }}</span>
+                <span class="meta-item">👥 {{ job.applicationsCount || 0 }}</span>
               </div>
               <router-link :to="`/student/jobs/${job._id}`" class="btn btn-primary">
                 Xem chi tiết →
@@ -156,7 +156,9 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import Header from '../components/Header.vue';
-import api from '../services/api';
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
 const loading = ref(false);
 const jobs = ref([]);
@@ -173,6 +175,7 @@ const filters = reactive({
 
 let searchTimeout = null;
 
+// ✅ SỬA: Gọi API public, không cần token
 const fetchJobs = async () => {
   try {
     loading.value = true;
@@ -185,14 +188,18 @@ const fetchJobs = async () => {
     params.append('page', page.value);
     params.append('limit', 12);
 
-    const res = await api.get(`/jobs/public?${params.toString()}`);
+    // ✅ GỌI API PUBLIC - KHÔNG CẦN TOKEN
+    const res = await axios.get(`${API_URL}/jobs/public?${params.toString()}`);
+    
+    console.log('✅ Jobs fetched:', res.data);
     
     jobs.value = res.data.jobs;
     total.value = res.data.total;
     totalPages.value = res.data.totalPages;
   } catch (error) {
-    console.error('Error fetching jobs:', error);
-    alert('Không thể tải danh sách công việc');
+    console.error('❌ Error fetching jobs:', error);
+    console.error('Error details:', error.response?.data);
+    alert('Không thể tải danh sách công việc: ' + (error.response?.data?.message || error.message));
   } finally {
     loading.value = false;
   }
@@ -268,6 +275,7 @@ const getLevelLabel = (level) => {
 };
 
 onMounted(() => {
+  console.log('🚀 StudentJobs mounted, fetching jobs...');
   fetchJobs();
 });
 </script>

@@ -43,11 +43,32 @@ exports.getProfile = async (req, res) => {
   }
 };
 
-// ✏️ UPDATE PROFILE
+// ✏️ UPDATE PROFILE (✅ ĐÃ SỬA - HỖ TRỢ UPLOAD FILE)
 exports.updateProfile = async (req, res) => {
   try {
     const { userId, role } = req.user;
     const updateData = req.body;
+
+    console.log('📝 Update profile request:', {
+      userId,
+      role,
+      hasFile: !!req.file,
+      fileName: req.file?.filename,
+      body: updateData
+    });
+
+    // ✅ XỬ LÝ FILE UPLOAD (CV hoặc logo)
+    if (req.file) {
+      if (role === 'student') {
+        // Student upload CV
+        updateData.resumeUrl = `/uploads/${req.file.filename}`;
+        console.log('✅ CV uploaded:', updateData.resumeUrl);
+      } else if (role === 'employer') {
+        // Employer upload logo
+        updateData.logo = `/uploads/${req.file.filename}`;
+        console.log('✅ Logo uploaded:', updateData.logo);
+      }
+    }
 
     // Không cho phép update các field nhạy cảm
     delete updateData.password;
@@ -76,16 +97,19 @@ exports.updateProfile = async (req, res) => {
       });
     }
 
+    console.log('✅ Profile updated successfully');
+
     res.status(200).json({
       success: true,
-      message: 'Cập nhật profile thành công',
+      message: req.file ? 'Tải file lên thành công' : 'Cập nhật profile thành công',
       profile: user,
     });
   } catch (error) {
     console.error('❌ Update profile error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
-      message: 'Lỗi server',
+      message: 'Lỗi server khi cập nhật profile',
       error: error.message,
     });
   }
@@ -97,6 +121,7 @@ exports.changePassword = async (req, res) => {
     const { userId, role } = req.user;
     const { currentPassword, newPassword } = req.body;
 
+    // Validate input
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
@@ -129,7 +154,7 @@ exports.changePassword = async (req, res) => {
       });
     }
 
-    // Kiểm tra mật khẩu hiện tại
+    // Verify current password
     const isMatch = await user.comparePassword(currentPassword);
     if (!isMatch) {
       return res.status(401).json({
@@ -138,7 +163,7 @@ exports.changePassword = async (req, res) => {
       });
     }
 
-    // Cập nhật mật khẩu mới
+    // Update password
     user.password = newPassword;
     await user.save();
 
