@@ -15,201 +15,228 @@
     <!-- Main Content -->
     <main class="main-content">
       <div class="container">
-        <!-- Stats Cards -->
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-              📝
-            </div>
-            <div class="stat-info">
-              <h3>12</h3>
-              <p>Đơn ứng tuyển</p>
-            </div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-              💼
-            </div>
-            <div class="stat-info">
-              <h3>3</h3>
-              <p>Đang chờ phản hồi</p>
-            </div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-              ✅
-            </div>
-            <div class="stat-info">
-              <h3>2</h3>
-              <p>Được chấp nhận</p>
-            </div>
-          </div>
-
-          <div class="stat-card">
-            <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-              ⭐
-            </div>
-            <div class="stat-info">
-              <h3>156</h3>
-              <p>Công việc phù hợp</p>
-            </div>
-          </div>
+        <!-- Loading State -->
+        <div v-if="loading" class="loading-state">
+          <div class="spinner"></div>
+          <p>Đang tải dữ liệu...</p>
         </div>
 
-        <!-- Main Grid -->
-        <div class="dashboard-grid">
-          <!-- Left Column -->
-          <div class="left-column">
-            <!-- Profile Completion -->
-            <div class="card">
-              <div class="card-header">
-                <h2>Hồ sơ của bạn</h2>
-                <span class="badge badge-warning">75% hoàn thành</span>
+        <!-- Main Content -->
+        <div v-else>
+          <!-- Stats Cards -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                📝
               </div>
-              <div class="card-body">
-                <div class="progress-bar">
-                  <div class="progress-fill" style="width: 75%"></div>
-                </div>
-                <p class="progress-text">Hoàn thiện hồ sơ để tăng cơ hội tìm được việc làm phù hợp</p>
-                <button class="btn btn-primary">Cập nhật hồ sơ</button>
+              <div class="stat-info">
+                <h3>{{ stats.total || 0 }}</h3>
+                <p>Đơn ứng tuyển</p>
               </div>
             </div>
 
-            <!-- Recent Applications -->
-            <div class="card">
-              <div class="card-header">
-                <h2>Đơn ứng tuyển gần đây</h2>
-                <a href="#" class="link">Xem tất cả</a>
+            <div class="stat-card">
+              <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                💼
               </div>
-              <div class="card-body">
-                <div class="application-list">
-                  <div class="application-item">
-                    <div class="company-logo">FPT</div>
-                    <div class="application-info">
-                      <h4>Frontend Developer</h4>
-                      <p>FPT Software</p>
-                      <span class="status status-pending">Đang chờ</span>
-                    </div>
-                    <div class="application-date">2 ngày trước</div>
-                  </div>
+              <div class="stat-info">
+                <h3>{{ stats.pending || 0 }}</h3>
+                <p>Đang chờ phản hồi</p>
+              </div>
+            </div>
 
-                  <div class="application-item">
-                    <div class="company-logo">VNG</div>
-                    <div class="application-info">
-                      <h4>Backend Developer</h4>
-                      <p>VNG Corporation</p>
-                      <span class="status status-accepted">Chấp nhận</span>
-                    </div>
-                    <div class="application-date">5 ngày trước</div>
-                  </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                ✅
+              </div>
+              <div class="stat-info">
+                <h3>{{ stats.accepted || 0 }}</h3>
+                <p>Được chấp nhận</p>
+              </div>
+            </div>
 
-                  <div class="application-item">
-                    <div class="company-logo">MB</div>
-                    <div class="application-info">
-                      <h4>Data Analyst</h4>
-                      <p>MoMo</p>
-                      <span class="status status-rejected">Từ chối</span>
-                    </div>
-                    <div class="application-date">1 tuần trước</div>
-                  </div>
-                </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                ⭐
+              </div>
+              <div class="stat-info">
+                <h3>{{ totalJobs }}</h3>
+                <p>Công việc phù hợp</p>
               </div>
             </div>
           </div>
 
-          <!-- Right Column -->
-          <div class="right-column">
-            <!-- Recommended Jobs -->
-            <div class="card">
-              <div class="card-header">
-                <h2>Việc làm phù hợp</h2>
-                <a href="#" class="link">Xem thêm</a>
+          <!-- Main Grid -->
+          <div class="dashboard-grid">
+            <!-- Left Column -->
+            <div class="left-column">
+              <!-- Profile Completion -->
+              <div class="card">
+                <div class="card-header">
+                  <h2>Hồ sơ của bạn</h2>
+                  <span class="badge" :class="profileCompletion < 50 ? 'badge-danger' : profileCompletion < 80 ? 'badge-warning' : 'badge-success'">
+                    {{ profileCompletion }}% hoàn thành
+                  </span>
+                </div>
+                <div class="card-body">
+                  <div class="progress-bar">
+                    <div class="progress-fill" :style="{ width: profileCompletion + '%' }"></div>
+                  </div>
+                  <p class="progress-text">Hoàn thiện hồ sơ để tăng cơ hội tìm được việc làm phù hợp</p>
+                  
+                  <!-- Missing Info -->
+                  <div v-if="missingFields.length > 0" class="missing-info">
+                    <p class="missing-title">⚠️ Thiếu thông tin:</p>
+                    <ul class="missing-list">
+                      <li v-for="field in missingFields" :key="field">{{ field }}</li>
+                    </ul>
+                  </div>
+                  
+                  <router-link to="/student/profile" class="btn btn-primary">
+                    Cập nhật hồ sơ
+                  </router-link>
+                </div>
               </div>
-              <div class="card-body">
-                <div class="job-list">
-                  <div class="job-item">
-                    <div class="job-header">
-                      <div class="company-avatar">F</div>
-                      <div class="job-title-area">
-                        <h4>Full Stack Developer</h4>
-                        <p>FPT Software</p>
-                      </div>
-                    </div>
-                    <div class="job-tags">
-                      <span class="tag">React</span>
-                      <span class="tag">Node.js</span>
-                      <span class="tag">MongoDB</span>
-                    </div>
-                    <div class="job-footer">
-                      <span class="salary">15-25 triệu</span>
-                      <button class="btn btn-sm btn-outline">Ứng tuyển</button>
-                    </div>
+
+              <!-- Recent Applications -->
+              <div class="card">
+                <div class="card-header">
+                  <h2>Đơn ứng tuyển gần đây</h2>
+                  <router-link to="/student/applications" class="link">
+                    Xem tất cả
+                  </router-link>
+                </div>
+                <div class="card-body">
+                  <!-- Loading Applications -->
+                  <div v-if="loadingApps" class="loading-mini">
+                    <div class="spinner-mini"></div>
+                    <p>Đang tải...</p>
                   </div>
 
-                  <div class="job-item">
-                    <div class="job-header">
-                      <div class="company-avatar" style="background: #ff6b6b;">V</div>
-                      <div class="job-title-area">
-                        <h4>Mobile Developer</h4>
-                        <p>Viettel Solutions</p>
-                      </div>
-                    </div>
-                    <div class="job-tags">
-                      <span class="tag">Flutter</span>
-                      <span class="tag">Firebase</span>
-                    </div>
-                    <div class="job-footer">
-                      <span class="salary">12-20 triệu</span>
-                      <button class="btn btn-sm btn-outline">Ứng tuyển</button>
-                    </div>
+                  <!-- Empty State -->
+                  <div v-else-if="recentApplications.length === 0" class="empty-state-mini">
+                    <p>📭 Chưa có đơn ứng tuyển nào</p>
+                    <router-link to="/student/jobs" class="btn btn-sm btn-outline">
+                      Tìm việc ngay
+                    </router-link>
                   </div>
 
-                  <div class="job-item">
-                    <div class="job-header">
-                      <div class="company-avatar" style="background: #4ecdc4;">G</div>
-                      <div class="job-title-area">
-                        <h4>UI/UX Designer</h4>
-                        <p>Gameloft Vietnam</p>
+                  <!-- Applications List -->
+                  <div v-else class="application-list">
+                    <div 
+                      v-for="app in recentApplications" 
+                      :key="app._id" 
+                      class="application-item"
+                    >
+                      <div class="company-logo">
+                        {{ getInitials(app.job?.employer?.companyName) }}
                       </div>
-                    </div>
-                    <div class="job-tags">
-                      <span class="tag">Figma</span>
-                      <span class="tag">Sketch</span>
-                    </div>
-                    <div class="job-footer">
-                      <span class="salary">10-18 triệu</span>
-                      <button class="btn btn-sm btn-outline">Ứng tuyển</button>
+                      <div class="application-info">
+                        <h4>{{ app.job?.title }}</h4>
+                        <p>{{ app.job?.employer?.companyName }}</p>
+                        <span 
+                          class="status" 
+                          :class="'status-' + app.status"
+                        >
+                          {{ getStatusLabel(app.status) }}
+                        </span>
+                      </div>
+                      <div class="application-date">
+                        {{ formatDate(app.createdAt) }}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- Quick Actions -->
-            <div class="card">
-              <div class="card-header">
-                <h2>Hành động nhanh</h2>
-              </div>
-              <div class="card-body">
-                <div class="quick-actions">
-                  <button class="action-btn">
-                    <span class="action-icon">📄</span>
-                    <span>Tải CV lên</span>
-                  </button>
-                  <router-link to="/student/jobs" class="action-btn">
-                    <span class="action-icon">🔍</span>
-                    <span>Tìm việc làm</span>
+            <!-- Right Column -->
+            <div class="right-column">
+              <!-- Recommended Jobs -->
+              <div class="card">
+                <div class="card-header">
+                  <h2>Việc làm phù hợp</h2>
+                  <router-link to="/student/jobs" class="link">
+                    Xem thêm
                   </router-link>
-                  <button class="action-btn">
-                    <span class="action-icon">💬</span>
-                    <span>Tin nhắn</span>
-                  </button>
-                  <button class="action-btn">
-                    <span class="action-icon">⚙️</span>
-                    <span>Cài đặt</span>
-                  </button>
+                </div>
+                <div class="card-body">
+                  <!-- Loading Jobs -->
+                  <div v-if="loadingJobs" class="loading-mini">
+                    <div class="spinner-mini"></div>
+                    <p>Đang tải...</p>
+                  </div>
+
+                  <!-- Empty State -->
+                  <div v-else-if="recommendedJobs.length === 0" class="empty-state-mini">
+                    <p>📭 Chưa có công việc phù hợp</p>
+                  </div>
+
+                  <!-- Jobs List -->
+                  <div v-else class="job-list">
+                    <div 
+                      v-for="job in recommendedJobs" 
+                      :key="job._id" 
+                      class="job-item"
+                    >
+                      <div class="job-header">
+                        <div class="company-avatar" :style="{ background: getRandomGradient() }">
+                          {{ getInitials(job.employer?.companyName) }}
+                        </div>
+                        <div class="job-title-area">
+                          <h4>{{ job.title }}</h4>
+                          <p>{{ job.employer?.companyName }}</p>
+                        </div>
+                      </div>
+                      <div class="job-tags">
+                        <span v-if="job.location?.city" class="tag">
+                          📍 {{ job.location.city }}
+                        </span>
+                        <span v-if="job.jobType" class="tag">
+                          {{ job.jobType }}
+                        </span>
+                        <span v-if="job.level" class="tag">
+                          {{ job.level }}
+                        </span>
+                      </div>
+                      <div class="job-footer">
+                        <span class="salary">{{ formatSalary(job.salary) }}</span>
+                        <router-link 
+                          :to="`/student/jobs/${job._id}`" 
+                          class="btn btn-sm btn-outline"
+                        >
+                          Xem chi tiết
+                        </router-link>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick Actions -->
+              <div class="card">
+                <div class="card-header">
+                  <h2>Hành động nhanh</h2>
+                </div>
+                <div class="card-body">
+                  <div class="quick-actions">
+                    <router-link to="/student/profile" class="action-btn">
+                      <span class="action-icon">📄</span>
+                      <span>{{ user?.resumeUrl ? 'Cập nhật CV' : 'Tải CV lên' }}</span>
+                    </router-link>
+                    <router-link to="/student/jobs" class="action-btn">
+                      <span class="action-icon">🔍</span>
+                      <span>Tìm việc làm</span>
+                    </router-link>
+                    <router-link to="/student/applications" class="action-btn">
+                      <span class="action-icon">📋</span>
+                      <span>Đơn ứng tuyển</span>
+                    </router-link>
+                    <router-link to="/student/profile" class="action-btn">
+                      <span class="action-icon">⚙️</span>
+                      <span>Cài đặt</span>
+                    </router-link>
+                  </div>
                 </div>
               </div>
             </div>
@@ -221,10 +248,195 @@
 </template>
 
 <script setup>
+import { ref, reactive, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import Header from '../components/Header.vue';
 import { useAuth } from '../composables/useAuth';
+import axios from 'axios';
 
+const router = useRouter();
 const { user } = useAuth();
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+
+// State
+const loading = ref(true);
+const loadingApps = ref(false);
+const loadingJobs = ref(false);
+
+const stats = reactive({
+  total: 0,
+  pending: 0,
+  accepted: 0,
+  rejected: 0
+});
+
+const recentApplications = ref([]);
+const recommendedJobs = ref([]);
+const totalJobs = ref(0);
+
+// Calculate profile completion
+const profileCompletion = computed(() => {
+  if (!user.value) return 0;
+  
+  let score = 0;
+  const fields = [
+    { field: user.value.fullName, weight: 10 },
+    { field: user.value.phone, weight: 10 },
+    { field: user.value.email, weight: 10 },
+    { field: user.value.birthday, weight: 10 },
+    { field: user.value.address, weight: 10 },
+    { field: user.value.university, weight: 15 },
+    { field: user.value.major, weight: 10 },
+    { field: user.value.resumeUrl, weight: 25 }
+  ];
+  
+  fields.forEach(({ field, weight }) => {
+    if (field) score += weight;
+  });
+  
+  return Math.min(100, Math.round(score));
+});
+
+// Calculate missing fields
+const missingFields = computed(() => {
+  if (!user.value) return [];
+  
+  const missing = [];
+  if (!user.value.resumeUrl) missing.push('CV chưa được tải lên');
+  if (!user.value.university) missing.push('Trường đại học');
+  if (!user.value.major) missing.push('Chuyên ngành');
+  if (!user.value.birthday) missing.push('Ngày sinh');
+  if (!user.value.address) missing.push('Địa chỉ');
+  if (!user.value.phone) missing.push('Số điện thoại');
+  
+  return missing;
+});
+
+// Fetch statistics
+const fetchStats = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const res = await axios.get(`${API_URL}/applications/my-stats`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    console.log('✅ Stats fetched:', res.data);
+    Object.assign(stats, res.data.stats);
+  } catch (error) {
+    console.error('❌ Error fetching stats:', error);
+  }
+};
+
+// Fetch recent applications
+const fetchRecentApplications = async () => {
+  try {
+    loadingApps.value = true;
+    const token = localStorage.getItem('token');
+    const res = await axios.get(
+      `${API_URL}/applications/my-applications?limit=3&sort=-createdAt`,
+      {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }
+    );
+    
+    console.log('✅ Recent applications fetched:', res.data);
+    recentApplications.value = res.data.applications;
+  } catch (error) {
+    console.error('❌ Error fetching applications:', error);
+  } finally {
+    loadingApps.value = false;
+  }
+};
+
+// Fetch recommended jobs
+const fetchRecommendedJobs = async () => {
+  try {
+    loadingJobs.value = true;
+    const res = await axios.get(`${API_URL}/jobs/public?limit=3`);
+    
+    console.log('✅ Recommended jobs fetched:', res.data);
+    recommendedJobs.value = res.data.jobs;
+    totalJobs.value = res.data.total || res.data.jobs.length;
+  } catch (error) {
+    console.error('❌ Error fetching jobs:', error);
+  } finally {
+    loadingJobs.value = false;
+  }
+};
+
+// Fetch all data
+const fetchAllData = async () => {
+  loading.value = true;
+  
+  await Promise.all([
+    fetchStats(),
+    fetchRecentApplications(),
+    fetchRecommendedJobs()
+  ]);
+  
+  loading.value = false;
+};
+
+// Utility functions
+const getInitials = (name) => {
+  if (!name) return '?';
+  const parts = name.split(' ');
+  if (parts.length >= 2) {
+    return parts[0][0] + parts[parts.length - 1][0];
+  }
+  return name.substring(0, 2).toUpperCase();
+};
+
+const getStatusLabel = (status) => {
+  const labels = {
+    'pending': 'Đang chờ',
+    'accepted': 'Chấp nhận',
+    'rejected': 'Từ chối',
+    'withdrawn': 'Đã rút'
+  };
+  return labels[status] || status;
+};
+
+const formatDate = (date) => {
+  if (!date) return '';
+  
+  const now = new Date();
+  const createdDate = new Date(date);
+  const diffTime = Math.abs(now - createdDate);
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) return 'Hôm nay';
+  if (diffDays === 1) return 'Hôm qua';
+  if (diffDays < 7) return `${diffDays} ngày trước`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} tuần trước`;
+  return createdDate.toLocaleDateString('vi-VN');
+};
+
+const formatSalary = (salary) => {
+  if (!salary) return 'Thỏa thuận';
+  const min = (salary.min / 1000000).toFixed(0);
+  const max = (salary.max / 1000000).toFixed(0);
+  return `${min}-${max} triệu`;
+};
+
+const getRandomGradient = () => {
+  const gradients = [
+    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+    'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+    'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+    'linear-gradient(135deg, #30cfd0 0%, #330867 100%)'
+  ];
+  return gradients[Math.floor(Math.random() * gradients.length)];
+};
+
+// Lifecycle
+onMounted(() => {
+  console.log('🚀 Student Dashboard mounted');
+  console.log('👤 User:', user.value);
+  fetchAllData();
+});
 </script>
 
 <style scoped>
@@ -259,6 +471,47 @@ const { user } = useAuth();
 .hero-content p {
   font-size: 16px;
   opacity: 0.9;
+}
+
+/* Loading State */
+.loading-state {
+  text-align: center;
+  padding: 80px 20px;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f0f0f0;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 20px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-mini {
+  text-align: center;
+  padding: 30px 20px;
+}
+
+.spinner-mini {
+  width: 30px;
+  height: 30px;
+  border: 3px solid #f0f0f0;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 15px;
+}
+
+.empty-state-mini {
+  text-align: center;
+  padding: 30px 20px;
+  color: #999;
 }
 
 /* Stats Grid */
@@ -365,6 +618,16 @@ const { user } = useAuth();
   color: #856404;
 }
 
+.badge-success {
+  background: #d4edda;
+  color: #155724;
+}
+
+.badge-danger {
+  background: #f8d7da;
+  color: #721c24;
+}
+
 /* Progress Bar */
 .progress-bar {
   width: 100%;
@@ -387,6 +650,40 @@ const { user } = useAuth();
   margin-bottom: 15px;
 }
 
+/* Missing Info */
+.missing-info {
+  background: #fff3cd;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+.missing-title {
+  font-weight: 600;
+  color: #856404;
+  margin-bottom: 8px;
+}
+
+.missing-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.missing-list li {
+  color: #856404;
+  font-size: 13px;
+  padding: 4px 0;
+  padding-left: 20px;
+  position: relative;
+}
+
+.missing-list li:before {
+  content: '•';
+  position: absolute;
+  left: 8px;
+}
+
 /* Buttons */
 .btn {
   padding: 10px 20px;
@@ -396,6 +693,8 @@ const { user } = useAuth();
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
+  text-decoration: none;
+  display: inline-block;
 }
 
 .btn-primary {
@@ -457,6 +756,7 @@ const { user } = useAuth();
   justify-content: center;
   font-weight: bold;
   font-size: 20px;
+  flex-shrink: 0;
 }
 
 .application-info {
@@ -495,6 +795,11 @@ const { user } = useAuth();
 .status-rejected {
   background: #f8d7da;
   color: #721c24;
+}
+
+.status-withdrawn {
+  background: #e2e3e5;
+  color: #383d41;
 }
 
 .application-date {
@@ -538,6 +843,7 @@ const { user } = useAuth();
   justify-content: center;
   font-weight: bold;
   font-size: 18px;
+  flex-shrink: 0;
 }
 
 .job-title-area h4 {
@@ -596,6 +902,7 @@ const { user } = useAuth();
   flex-direction: column;
   align-items: center;
   gap: 8px;
+  text-decoration: none;
 }
 
 .action-btn:hover {

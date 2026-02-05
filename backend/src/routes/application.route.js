@@ -12,7 +12,12 @@ router.get('/my-stats', authorize('student'), applicationController.getMyApplica
 // 📋 Student routes
 router.post('/', authorize('student'), applicationController.applyForJob);
 router.get('/my-applications', authorize('student'), applicationController.getMyApplications);
+
+// ✅ Check if current student has applied for a job
+router.get('/check/:jobId', authorize('student'), applicationController.checkIfApplied);
+
 router.put('/:applicationId/withdraw', authorize('student'), applicationController.withdrawApplication);
+
 
 
 // 📋 Employer routes

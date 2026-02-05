@@ -141,9 +141,15 @@
                 </div>
                 <div class="detail-row" v-if="job.employer?.website">
                   <span class="label">Website:</span>
-                  <a :href="job.employer?.website" target="_blank" class="value link">
+                  <a
+                    :href="normalizeExternalUrl(job.employer?.website)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="value link"
+                  >
                     {{ job.employer?.website }}
                   </a>
+
                 </div>
               </div>
             </div>
@@ -299,6 +305,7 @@ const application = reactive({
   additionalInfo: ''
 });
 
+
 // ✅ Fetch job detail - GỌI API PUBLIC
 const fetchJobDetail = async () => {
   try {
@@ -394,6 +401,15 @@ const submitApplication = async () => {
     submitting.value = false;
   }
 };
+
+const normalizeExternalUrl = (url) => {
+  if (!url) return '';
+  const u = String(url).trim();
+  if (!u) return '';
+  return /^https?:\/\//i.test(u) ? u : `https://${u}`;
+};
+
+const isValidObjectId = (id) => /^[a-f\d]{24}$/i.test(String(id || ''));
 
 // Close modal
 const closeApplicationModal = () => {

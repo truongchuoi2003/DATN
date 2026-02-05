@@ -386,6 +386,14 @@ exports.getPublicJobDetail = async (req, res) => {
   try {
     const { jobId } = req.params;
 
+    // ✅ Chặn sớm nếu jobId không phải ObjectId hợp lệ
+    if (!mongoose.Types.ObjectId.isValid(jobId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'JobId không hợp lệ',
+      });
+    }
+
     const job = await Job.findById(jobId)
       .populate('employer', 'companyName logo website description industry companySize');
 

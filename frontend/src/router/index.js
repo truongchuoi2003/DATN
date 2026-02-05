@@ -3,22 +3,12 @@ import Login from '../views/Login.vue';
 import Register from '../views/Register.vue';
 
 const routes = [
-  {
-    path: '/',
-    redirect: '/login'
-  },
-  {
-    path: '/login',
-    name: 'Login',
-    component: Login,
-    meta: { guest: true }
-  },
-  {
-    path: '/register',
-    name: 'Register',
-    component: Register,
-    meta: { guest: true }
-  },
+  { path: '/', redirect: '/login' },
+
+  { path: '/login', name: 'Login', component: Login, meta: { guest: true } },
+  { path: '/register', name: 'Register', component: Register, meta: { guest: true } },
+
+  // ===== STUDENT =====
   {
     path: '/student',
     name: 'Student',
@@ -38,10 +28,21 @@ const routes = [
     meta: { requiresAuth: true, role: 'student' }
   },
   {
-    path: '/student/jobs/:id',  
+    path: '/student/jobs/:id',
     name: 'JobDetail',
-    component: () => import('@/views/JobDetail.vue')
+    component: () => import('@/views/JobDetail.vue'),
+    meta: { requiresAuth: true, role: 'student' }
   },
+
+  // ✅ TRANG CÓ NÚT “RÚT ĐƠN”
+  {
+    path: '/student/applications',
+    name: 'StudentApplications',
+    component: () => import('../views/StudentApplications.vue'),
+    meta: { requiresAuth: true, role: 'student' }
+  },
+
+  // ===== EMPLOYER =====
   {
     path: '/employer',
     name: 'Employer',
@@ -55,23 +56,25 @@ const routes = [
     meta: { requiresAuth: true, role: 'employer' }
   },
   {
-  path: '/employer/jobs',
-  name: 'EmployerJobs',
-  component: () => import('../views/EmployerJobs.vue'),
-  meta: { requiresAuth: true, role: 'employer' }
+    path: '/employer/jobs',
+    name: 'EmployerJobs',
+    component: () => import('../views/EmployerJobs.vue'),
+    meta: { requiresAuth: true, role: 'employer' }
   },
   {
-  path: '/employer/jobs/create',
-  name: 'JobCreate',
-  component: () => import('../views/JobCreate.vue'),
-  meta: { requiresAuth: true, role: 'employer' }
+    path: '/employer/jobs/create',
+    name: 'JobCreate',
+    component: () => import('../views/JobCreate.vue'),
+    meta: { requiresAuth: true, role: 'employer' }
   },
   {
-   path: '/employer/jobs/:jobId/edit',
-  name: 'JobEdit',
-  component: () => import('../views/JobEdit.vue'),
-  meta: { requiresAuth: true, role: 'employer' }
+    path: '/employer/jobs/:jobId/edit',
+    name: 'JobEdit',
+    component: () => import('../views/JobEdit.vue'),
+    meta: { requiresAuth: true, role: 'employer' }
   },
+
+  // ===== ADMIN =====
   {
     path: '/admin',
     name: 'Admin',
@@ -85,17 +88,14 @@ const routes = [
     meta: { requiresAuth: true, role: 'admin' }
   },
   {
-    path: '/:pathMatch(.*)*',
-    name: 'NotFound',
-    redirect: '/'
+    path: '/admin/employers',
+    name: 'AdminEmployers',
+    component: () => import('../views/AdminEmployers.vue'),
+    meta: { requiresAuth: true, role: 'admin' }
   },
-  {
-  path: '/admin/employers',
-  name: 'AdminEmployers',
-  component: () => import('../views/AdminEmployers.vue'),
-  meta: { requiresAuth: true, role: 'admin' }
-  },
-  
+
+  // ✅ NotFound PHẢI ở cuối
+  { path: '/:pathMatch(.*)*', name: 'NotFound', redirect: '/' },
 ];
 
 const router = createRouter({
@@ -107,33 +107,19 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token');
   const user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null;
-  
-  // Route cần authentication
+
   if (to.meta.requiresAuth) {
-    if (!token) {
-      // Chưa login → redirect về login
-      next('/login');
-    } else if (user && to.meta.role && to.meta.role !== user.role) {
-      // Login rồi nhưng sai role → redirect về đúng role
-      next(`/${user.role}`);
-    } else {
-      // OK
-      next();
-    }
+    if (!token) return next('/login');
+    if (user && to.meta.role && to.meta.role !== user.role) return next(`/${user.role}`);
+    return next();
   }
-  // Route cho guest (login, register)
-  else if (to.meta.guest) {
-    if (token && user) {
-      // Đã login rồi → không cho vào login/register nữa
-      next(`/${user.role}`);
-    } else {
-      next();
-    }
+
+  if (to.meta.guest) {
+    if (token && user) return next(`/${user.role}`);
+    return next();
   }
-  // Route khác
-  else {
-    next();
-  }
+
+  return next();
 });
 
 export default router;
