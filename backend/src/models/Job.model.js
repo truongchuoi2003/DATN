@@ -139,6 +139,6 @@ const jobSchema = new mongoose.Schema(
 // Index để search nhanh
 jobSchema.index({ employer: 1, status: 1 });
 jobSchema.index({ title: 'text', description: 'text' });
-jobSchema.index({ city: 1, jobType: 1 });
+jobSchema.index({ 'location.city': 1, jobType: 1 });
 
 module.exports = mongoose.model('Job', jobSchema);

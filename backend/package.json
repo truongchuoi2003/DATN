@@ -7,7 +7,13 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
-    "create-admin": "node scripts/createAdmin.js"
+    "create-admin": "node scripts/createAdmin.js",
+    "seed:jobs": "node scripts/seedJobs.js",
+    "seed:jobs:reset": "node scripts/seedJobs.js --count=40 --reset",
+    "seed:students": "node scripts/seedStudents.js",
+    "seed:students:reset": "node scripts/seedStudents.js --reset",
+    "seed:applications": "node scripts/seedApplications.js",
+    "seed:applications:reset": "node scripts/seedApplications.js --reset"
   },
   "keywords": [],
   "author": "",
