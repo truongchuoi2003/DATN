@@ -14,6 +14,14 @@ router.get('/public/:jobId', jobController.getPublicJobDetail);
 // ========================================
 router.use(authenticate);
 
+// 📌 Student interaction routes
+router.get('/saved/my', authorize('student'), jobController.getMySavedJobs);
+router.post('/:jobId/interactions/view', authorize('student'), jobController.recordJobView);
+router.post('/:jobId/interactions/click', authorize('student'), jobController.recordJobClick);
+router.post('/:jobId/save', authorize('student'), jobController.saveJob);
+router.delete('/:jobId/save', authorize('student'), jobController.unsaveJob);
+
+// 📊 Employer routes
 router.get('/statistics', authorize('employer'), jobController.getJobStatistics);
 router.get('/my-jobs', authorize('employer'), jobController.getMyJobs);
 router.post('/', authorize('employer'), jobController.createJob);

@@ -27,6 +27,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/jobs', require('./routes/job.route'));
 app.use('/api/applications', require('./routes/application.route'));
+app.use('/api/recommendations', require('./routes/recommendation.route'));
 
 // Health
 app.get('/api/health', (req, res) => res.json({ status: 'OK' }));

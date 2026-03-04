@@ -83,7 +83,27 @@ exports.updateProfile = async (req, res) => {
     } else if (role === 'admin') {
       Model = Admin;
     }
+    // ✅ Chuẩn hóa preferredJobTypes cho student
+    if (role === 'student' && updateData.preferredJobTypes !== undefined) {
+      const allowedJobTypes = ['full-time', 'part-time', 'internship', 'contract', 'freelance'];
 
+      // Hỗ trợ cả array hoặc string (VD "internship,part-time")
+      let normalized = updateData.preferredJobTypes;
+
+      if (typeof normalized === 'string') {
+        normalized = normalized
+          .split(',')
+          .map((x) => x.trim())
+          .filter(Boolean);
+      }
+
+      if (!Array.isArray(normalized)) {
+        normalized = [];
+      }
+
+      updateData.preferredJobTypes = [...new Set(normalized)]
+        .filter((x) => allowedJobTypes.includes(x));
+    }
     const user = await Model.findByIdAndUpdate(
       userId,
       updateData,

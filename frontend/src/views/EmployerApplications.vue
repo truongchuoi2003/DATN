@@ -366,12 +366,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import Header from '../components/Header.vue';
 import api from '../services/api';
 
 const route = useRoute();
+const router = useRouter();
 
 const loading = ref(false);
 const job = ref(null);
@@ -382,6 +383,17 @@ const modalEmployerNote = ref('');
 const showRejectModal = ref(false);
 const rejectNote = ref('');
 const rejectingAppId = ref(null);
+const hasJobId = computed(() => !!route.params.jobId);
+
+const pageTitle = computed(() =>
+  hasJobId.value ? 'Quản lý ứng viên' : 'Tất cả ứng viên'
+);
+
+const pageSubtitle = computed(() =>
+  hasJobId.value
+    ? 'Xem và xử lý các đơn ứng tuyển cho tin này'
+    : 'Tổng hợp tất cả ứng viên từ các tin tuyển dụng của bạn'
+);
 
 // Computed
 const pendingCount = computed(() => 
@@ -404,22 +416,46 @@ const filteredApplications = computed(() => {
 
 // Fetch data
 const fetchJobDetails = async () => {
+  if (!hasJobId.value) {
+    job.value = null;
+    return;
+  }
+
   try {
     const res = await api.get(`/jobs/${route.params.jobId}`);
     job.value = res.data.job;
   } catch (error) {
     console.error('Error fetching job:', error);
+    job.value = null;
   }
 };
 
-const fetchApplications = async () => {
+const fetchApplicationsByJob = async () => {
+  const res = await api.get(`/applications/job/${route.params.jobId}`);
+  applications.value = res.data.applications || [];
+};
+
+const fetchAllEmployerApplications = async () => {
+  const res = await api.get('/applications/employer');
+  applications.value = res.data.applications || [];
+};
+
+const fetchPageData = async () => {
   try {
     loading.value = true;
-    const res = await api.get(`/applications/job/${route.params.jobId}`);
-    applications.value = res.data.applications;
+
+    if (hasJobId.value) {
+      await Promise.all([
+        fetchJobDetails(),
+        fetchApplicationsByJob()
+      ]);
+    } else {
+      job.value = null;
+      await fetchAllEmployerApplications();
+    }
   } catch (error) {
-    console.error('Error fetching applications:', error);
-    alert('Không thể tải danh sách ứng viên');
+    console.error('Error fetching applications page:', error);
+    alert(error.response?.data?.message || 'Không thể tải danh sách ứng viên');
   } finally {
     loading.value = false;
   }
@@ -469,7 +505,7 @@ const updateStatus = async (appId, status, note = '') => {
     });
 
     alert('✅ Cập nhật thành công!');
-    await fetchApplications();
+    await fetchPageData();
     closeModal();
   } catch (error) {
     console.error('Error updating status:', error);
@@ -490,7 +526,7 @@ const saveNote = async (appId) => {
     });
 
     alert('✅ Đã lưu ghi chú!');
-    await fetchApplications();
+    await fetchPageData();
     closeModal();
   } catch (error) {
     console.error('Error saving note:', error);
@@ -564,9 +600,15 @@ const getFullUrl = (url) => {
 };
 
 onMounted(() => {
-  fetchJobDetails();
-  fetchApplications();
+  fetchPageData();
 });
+watch(
+  () => route.params.jobId,
+  () => {
+    fetchPageData();
+  }
+);
+
 </script>
 
 <style scoped>

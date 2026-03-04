@@ -22,6 +22,7 @@ router.put('/:applicationId/withdraw', authorize('student'), applicationControll
 
 // 📋 Employer routes
 router.get('/job/:jobId', authorize('employer'), applicationController.getJobApplications);
+router.get('/employer', authorize('employer'), applicationController.getEmployerApplications);
 router.put('/:applicationId/status', authorize('employer'), applicationController.updateApplicationStatus);
 
 module.exports = router;

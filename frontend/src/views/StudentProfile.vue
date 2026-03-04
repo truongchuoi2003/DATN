@@ -186,6 +186,18 @@
                   type="text"
                 />
               </div>
+              
+              <div class="form-group">
+              <label>Năm học hiện tại</label>
+              <select v-model="formData.academicYear" :disabled="!editMode">
+                <option value="1">Năm 1</option>
+                <option value="2">Năm 2</option>
+                <option value="3">Năm 3</option>
+                <option value="4">Năm 4</option>
+                <option value="5">Năm 5</option>
+                <option value="graduated">Đã tốt nghiệp</option>
+              </select>
+            </div>
 
               <div class="form-group">
                 <label>Năm tốt nghiệp</label>
@@ -207,6 +219,173 @@
                   step="0.01"
                   min="0"
                   max="4"
+                />
+              </div>
+
+              <!-- ✅ THÊM: Loại hình công việc mong muốn (giữ nguyên style hiện có) -->
+              <div class="form-group full-width">
+                <label>Loại hình công việc mong muốn</label>
+
+                <div class="skills-list">
+                  <div 
+                    v-for="item in preferredJobTypeOptions" 
+                    :key="item.value"
+                    class="skill-tag"
+                    :style="formData.preferredJobTypes.includes(item.value)
+                      ? 'background: #e8ecff; border: 1px solid #667eea; color: #4b5fd6;'
+                      : ''"
+                  >
+                    <span>{{ item.label }}</span>
+                    <button 
+                      v-if="editMode"
+                      type="button"
+                      @click="togglePreferredJobType(item.value)"
+                      class="btn-remove"
+                      :style="formData.preferredJobTypes.includes(item.value)
+                        ? 'background: #dc3545;'
+                        : 'background: #28a745;'"
+                      :title="formData.preferredJobTypes.includes(item.value) ? 'Bỏ chọn' : 'Chọn'"
+                    >
+                      {{ formData.preferredJobTypes.includes(item.value) ? '✕' : '+' }}
+                    </button>
+                  </div>
+                </div>
+
+                <small>Chọn 1 hoặc nhiều loại hình để hệ thống gợi ý chính xác hơn</small>
+              </div>
+
+              <div class="form-group full-width">
+                <label>Nhóm nghề quan tâm</label>
+                <input
+                  v-model="formData.preferredCategoriesText"
+                  :disabled="!editMode"
+                  type="text"
+                  placeholder="Ví dụ: Frontend, Backend, Data Analyst, Tester"
+                />
+                <small>Nhập nhiều giá trị, ngăn cách bằng dấu phẩy</small>
+              </div>
+
+              <div class="form-group full-width">
+                <label>Vị trí mong muốn</label>
+                <input
+                  v-model="formData.desiredJobTitlesText"
+                  :disabled="!editMode"
+                  type="text"
+                  placeholder="Ví dụ: Frontend Developer Intern, Backend Intern"
+                />
+                <small>Nhập nhiều giá trị, ngăn cách bằng dấu phẩy</small>
+              </div>
+
+              <div class="form-group full-width">
+                <label>Khu vực mong muốn làm việc</label>
+                <input
+                  v-model="formData.preferredLocationsText"
+                  :disabled="!editMode"
+                  type="text"
+                  placeholder="Ví dụ: Hà Nội, TP. Hồ Chí Minh, Đà Nẵng"
+                />
+                <small>Nhập nhiều giá trị, ngăn cách bằng dấu phẩy</small>
+              </div>
+
+              <div class="form-group full-width">
+                <label>Hình thức làm việc mong muốn</label>
+                <div class="skills-list">
+                  <div
+                    v-for="item in preferredWorkModeOptions"
+                    :key="item.value"
+                    class="skill-tag"
+                    :style="formData.preferredWorkModes.includes(item.value)
+                      ? 'background: #e8ecff; border: 1px solid #667eea; color: #4b5fd6;'
+                      : ''"
+                  >
+                    <span>{{ item.label }}</span>
+                    <button
+                      v-if="editMode"
+                      type="button"
+                      @click="togglePreferredWorkMode(item.value)"
+                      class="btn-remove"
+                      :style="formData.preferredWorkModes.includes(item.value)
+                        ? 'background: #dc3545;'
+                        : 'background: #28a745;'"
+                      :title="formData.preferredWorkModes.includes(item.value) ? 'Bỏ chọn' : 'Chọn'"
+                    >
+                      {{ formData.preferredWorkModes.includes(item.value) ? '✕' : '+' }}
+                    </button>
+                  </div>
+                </div>
+                <small>Chọn Onsite / Remote / Hybrid để gợi ý sát hơn</small>
+              </div>
+
+              <div class="form-group full-width">
+                <label>Dự án đã làm</label>
+                <textarea
+                  v-model="formData.projectsText"
+                  :disabled="!editMode"
+                  rows="3"
+                  placeholder="Ví dụ: Website tìm việc sinh viên, Hệ thống quản lý quán cafe"
+                ></textarea>
+                <small>Nhập nhiều dự án, ngăn cách bằng dấu phẩy</small>
+              </div>
+
+              <div class="form-group full-width">
+                <label>Công nghệ đã dùng trong dự án</label>
+                <input
+                  v-model="formData.projectTechnologiesText"
+                  :disabled="!editMode"
+                  type="text"
+                  placeholder="Ví dụ: VueJS, NodeJS, MongoDB, Express"
+                />
+                <small>Nhập nhiều công nghệ, ngăn cách bằng dấu phẩy</small>
+              </div>
+
+              <div class="form-group full-width">
+                <label>Chứng chỉ</label>
+                <input
+                  v-model="formData.certificationsText"
+                  :disabled="!editMode"
+                  type="text"
+                  placeholder="Ví dụ: TOEIC 750, MOS, Google Data Analytics"
+                />
+                <small>Nhập nhiều giá trị, ngăn cách bằng dấu phẩy</small>
+              </div>
+
+              <div class="form-group full-width">
+                <label>Link CV</label>
+                <input
+                  v-model="formData.resumeUrl"
+                  :disabled="!editMode"
+                  type="text"
+                  placeholder="Link file CV đã upload"
+                />
+              </div>
+
+              <div class="form-group full-width">
+                <label>Portfolio URL</label>
+                <input
+                  v-model="formData.portfolioUrl"
+                  :disabled="!editMode"
+                  type="text"
+                  placeholder="https://..."
+                />
+              </div>
+
+              <div class="form-group">
+                <label>GitHub URL</label>
+                <input
+                  v-model="formData.githubUrl"
+                  :disabled="!editMode"
+                  type="text"
+                  placeholder="https://github.com/..."
+                />
+              </div>
+
+              <div class="form-group">
+                <label>LinkedIn URL</label>
+                <input
+                  v-model="formData.linkedinUrl"
+                  :disabled="!editMode"
+                  type="text"
+                  placeholder="https://linkedin.com/in/..."
                 />
               </div>
             </div>
@@ -320,6 +499,9 @@ import { ref, reactive, onMounted } from 'vue';
 import Header from '../components/Header.vue';
 import api from '../services/api';
 import UploadCV from '@/components/UploadCV.vue';
+import { useAuth } from '../composables/useAuth';
+
+const { refreshUser } = useAuth();
 
 const activeTab = ref('info');
 const editMode = ref(false);
@@ -331,6 +513,37 @@ const newSkill = ref('');
 const passwordMessage = ref('');
 const passwordSuccess = ref(false);
 
+// ✅ options cho loại hình công việc mong muốn
+const preferredJobTypeOptions = [
+  { value: 'internship', label: 'Internship' },
+  { value: 'part-time', label: 'Part-time' },
+  { value: 'full-time', label: 'Full-time' },
+  { value: 'freelance', label: 'Freelance' },
+  { value: 'contract', label: 'Contract' },
+];
+
+// ✅ options cho hình thức làm việc
+const preferredWorkModeOptions = [
+  { value: 'onsite', label: 'Onsite' },
+  { value: 'remote', label: 'Remote' },
+  { value: 'hybrid', label: 'Hybrid' },
+];
+
+const joinArrayToText = (arr) => {
+  if (!Array.isArray(arr)) return '';
+  return arr.filter(Boolean).join(', ');
+};
+
+const parseTextToArray = (text) => {
+  if (!text) return [];
+  return [...new Set(
+    String(text)
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+  )];
+};
+
 const formData = reactive({
   fullName: '',
   email: '',
@@ -338,13 +551,31 @@ const formData = reactive({
   birthday: '',
   address: '',
   bio: '',
+
   studentId: '',
   university: '',
   major: '',
+  academicYear: '1',
   graduationYear: null,
   gpa: null,
+
   skills: [],
-  cv: '',
+  preferredJobTypes: [],
+  preferredWorkModes: [],
+
+  // ✅ các trường mới cho recommend
+  preferredCategoriesText: '',
+  desiredJobTitlesText: '',
+  preferredLocationsText: '',
+  projectsText: '',
+  projectTechnologiesText: '',
+  certificationsText: '',
+
+  // ✅ link hồ sơ
+  resumeUrl: '',
+  portfolioUrl: '',
+  githubUrl: '',
+  linkedinUrl: '',
 });
 
 const passwordForm = reactive({
@@ -366,8 +597,7 @@ const fetchProfile = async () => {
   try {
     const res = await api.get('/profile');
     profile.value = res.data.profile;
-    
-    // Copy data to formData
+
     Object.assign(formData, {
       fullName: profile.value.fullName || '',
       email: profile.value.email || '',
@@ -375,13 +605,29 @@ const fetchProfile = async () => {
       birthday: profile.value.birthday ? profile.value.birthday.split('T')[0] : '',
       address: profile.value.address || '',
       bio: profile.value.bio || '',
+
       studentId: profile.value.studentId || '',
       university: profile.value.university || '',
       major: profile.value.major || '',
+      academicYear: profile.value.academicYear || '1',
       graduationYear: profile.value.graduationYear || null,
       gpa: profile.value.gpa || null,
+
       skills: profile.value.skills || [],
-      cv: profile.value.cv || '',
+      preferredJobTypes: profile.value.preferredJobTypes || [],
+      preferredWorkModes: profile.value.preferredWorkModes || [],
+
+      preferredCategoriesText: joinArrayToText(profile.value.preferredCategories || []),
+      desiredJobTitlesText: joinArrayToText(profile.value.desiredJobTitles || []),
+      preferredLocationsText: joinArrayToText(profile.value.preferredLocations || []),
+      projectsText: joinArrayToText(profile.value.projects || []),
+      projectTechnologiesText: joinArrayToText(profile.value.projectTechnologies || []),
+      certificationsText: joinArrayToText(profile.value.certifications || []),
+
+      resumeUrl: profile.value.resumeUrl || '',
+      portfolioUrl: profile.value.portfolioUrl || '',
+      githubUrl: profile.value.githubUrl || '',
+      linkedinUrl: profile.value.linkedinUrl || '',
     });
   } catch (error) {
     console.error('Error fetching profile:', error);
@@ -391,16 +637,70 @@ const fetchProfile = async () => {
 const handleSave = async () => {
   try {
     message.value = '';
-    const res = await api.put('/profile', formData);
-    
+
+    const payload = {
+      fullName: formData.fullName,
+      phone: formData.phone,
+      birthday: formData.birthday || null,
+      address: formData.address,
+      bio: formData.bio,
+
+      studentId: formData.studentId,
+      university: formData.university,
+      major: formData.major,
+      academicYear: formData.academicYear,
+      graduationYear: formData.graduationYear ? Number(formData.graduationYear) : null,
+      gpa: formData.gpa !== null && formData.gpa !== '' ? Number(formData.gpa) : null,
+
+      skills: Array.isArray(formData.skills)
+        ? [...new Set(formData.skills)].filter(Boolean)
+        : [],
+
+      preferredJobTypes: Array.isArray(formData.preferredJobTypes)
+        ? [...new Set(formData.preferredJobTypes)].filter(Boolean)
+        : [],
+
+      preferredWorkModes: Array.isArray(formData.preferredWorkModes)
+        ? [...new Set(formData.preferredWorkModes)].filter(Boolean)
+        : [],
+
+      preferredCategories: parseTextToArray(formData.preferredCategoriesText),
+      desiredJobTitles: parseTextToArray(formData.desiredJobTitlesText),
+      preferredLocations: parseTextToArray(formData.preferredLocationsText),
+      projects: parseTextToArray(formData.projectsText),
+      projectTechnologies: parseTextToArray(formData.projectTechnologiesText),
+      certifications: parseTextToArray(formData.certificationsText),
+
+      resumeUrl: formData.resumeUrl,
+      portfolioUrl: formData.portfolioUrl,
+      githubUrl: formData.githubUrl,
+      linkedinUrl: formData.linkedinUrl,
+    };
+
+    const res = await api.put('/profile', payload);
+
     profile.value = res.data.profile;
+
+    // ✅ đồng bộ localStorage nếu app đang dùng dữ liệu user từ localStorage
+    const oldUser = JSON.parse(localStorage.getItem('user') || '{}');
+    localStorage.setItem(
+      'user',
+      JSON.stringify({
+        ...oldUser,
+        ...res.data.profile,
+      })
+    );
+    refreshUser();
+
     message.value = 'Cập nhật thành công! ✅';
     isSuccess.value = true;
     editMode.value = false;
-    
+
     setTimeout(() => {
       message.value = '';
     }, 3000);
+
+    await fetchProfile();
   } catch (error) {
     message.value = error.response?.data?.message || 'Cập nhật thất bại';
     isSuccess.value = false;
@@ -410,19 +710,43 @@ const handleSave = async () => {
 const handleCancel = () => {
   editMode.value = false;
   message.value = '';
-  // Reset formData
   fetchProfile();
 };
 
 const addSkill = () => {
   if (newSkill.value.trim()) {
-    formData.skills.push(newSkill.value.trim());
+    const skill = newSkill.value.trim();
+    if (!formData.skills.includes(skill)) {
+      formData.skills.push(skill);
+    }
     newSkill.value = '';
   }
 };
 
 const removeSkill = (index) => {
   formData.skills.splice(index, 1);
+};
+
+const togglePreferredJobType = (value) => {
+  if (!editMode.value) return;
+
+  const index = formData.preferredJobTypes.indexOf(value);
+  if (index >= 0) {
+    formData.preferredJobTypes.splice(index, 1);
+  } else {
+    formData.preferredJobTypes.push(value);
+  }
+};
+
+const togglePreferredWorkMode = (value) => {
+  if (!editMode.value) return;
+
+  const index = formData.preferredWorkModes.indexOf(value);
+  if (index >= 0) {
+    formData.preferredWorkModes.splice(index, 1);
+  } else {
+    formData.preferredWorkModes.push(value);
+  }
 };
 
 const handleChangePassword = async () => {
@@ -455,7 +779,6 @@ const handleChangePassword = async () => {
     passwordMessage.value = 'Đổi mật khẩu thành công! ✅';
     passwordSuccess.value = true;
 
-    // Reset form
     passwordForm.currentPassword = '';
     passwordForm.newPassword = '';
     passwordForm.confirmPassword = '';
@@ -470,8 +793,13 @@ const handleChangePassword = async () => {
 };
 
 const handleCVUploaded = (cvUrl) => {
-  console.log('CV uploaded:', cvUrl);
-  // Có thể reload profile hoặc update UI
+  formData.resumeUrl = cvUrl || '';
+  message.value = 'CV đã được tải lên, nhớ bấm "Lưu" để cập nhật hồ sơ ✅';
+  isSuccess.value = true;
+
+  setTimeout(() => {
+    message.value = '';
+  }, 3000);
 };
 
 onMounted(() => {

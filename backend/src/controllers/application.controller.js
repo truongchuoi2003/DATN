@@ -1,9 +1,31 @@
 const Application = require('../models/Application.model');
 const Job = require('../models/Job.model');
 const Student = require('../models/Student.model');
+const Interaction = require('../models/Interaction.model');
 const mongoose = require('mongoose');
 
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+
+const createInteractionLog = async ({
+  studentId,
+  jobId,
+  interactionType,
+  source = 'web',
+  metadata = {},
+}) => {
+  try {
+    return await Interaction.create({
+      student: studentId,
+      job: jobId,
+      interactionType,
+      source,
+      metadata,
+    });
+  } catch (error) {
+    console.error(`❌ Failed to log interaction [${interactionType}]:`, error.message);
+    return null;
+  }
+};
 
 const buildSort = (sortQuery) => {
   // Chỉ cho phép sort các field an toàn
@@ -111,6 +133,16 @@ exports.applyForJob = async (req, res) => {
       // tăng số đơn còn hiệu lực
       await Job.findByIdAndUpdate(job._id, { $inc: { applicationsCount: 1 } });
 
+      await createInteractionLog({
+        studentId: userId,
+        jobId: job._id,
+        interactionType: 'apply',
+        source: 'web',
+        metadata: {
+          applicationId: existingApplication._id.toString(),
+          reapplied: true,
+        },
+      });
       await existingApplication.populate([
         { path: 'student', select: 'fullName email phone university major' },
         { path: 'job', select: 'title location salary' },
@@ -120,9 +152,8 @@ exports.applyForJob = async (req, res) => {
         success: true,
         message: 'Ứng tuyển lại thành công! 🎉',
         application: existingApplication,
-      });
-    }
-
+      });}
+      
     // ✅ Apply lần đầu
     const application = new Application({
       job: jobId,
@@ -139,6 +170,16 @@ exports.applyForJob = async (req, res) => {
     await application.save();
 
     await Job.findByIdAndUpdate(job._id, { $inc: { applicationsCount: 1 } });
+
+    await createInteractionLog({
+      studentId: userId,
+      jobId: job._id,
+      interactionType: 'apply',
+      source: 'web',
+      metadata: {
+        applicationId: application._id.toString(),
+      },
+    });
 
     await application.populate([
       { path: 'student', select: 'fullName email phone university major' },
@@ -249,6 +290,41 @@ exports.getJobApplications = async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Get job applications error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message,
+    });
+  }
+};
+
+// 📋 GET ALL APPLICATIONS OF EMPLOYER
+exports.getEmployerApplications = async (req, res) => {
+  try {
+    const { userId } = req.user;
+    const { status } = req.query;
+
+    const filter = {
+      employer: userId,
+      status: { $ne: 'withdrawn' },
+    };
+
+    if (status) {
+      filter.status = status;
+    }
+
+    const applications = await Application.find(filter)
+      .populate('student', 'fullName email phone university major gpa skills resumeUrl avatar')
+      .populate('job', 'title location jobType level status')
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: applications.length,
+      applications,
+    });
+  } catch (error) {
+    console.error('❌ Get employer applications error:', error);
     return res.status(500).json({
       success: false,
       message: 'Lỗi server',

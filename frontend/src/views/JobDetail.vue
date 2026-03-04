@@ -305,20 +305,66 @@ const application = reactive({
   additionalInfo: ''
 });
 
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  if (!token) return null;
+  return {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+};
 
-// ✅ Fetch job detail - GỌI API PUBLIC
+const recordInteraction = async (type) => {
+  try {
+    const headers = getAuthHeaders();
+    if (!headers) return;
+
+    await axios.post(
+      `${API_URL}/jobs/${route.params.id}/interactions/${type}`,
+      {},
+      { headers }
+    );
+  } catch (error) {
+    console.error(`❌ Error recording ${type}:`, error.response?.data || error.message);
+  }
+};
+
+const fetchSavedStatus = async () => {
+  try {
+    const headers = getAuthHeaders();
+    if (!headers) {
+      isSaved.value = false;
+      return;
+    }
+
+    const res = await axios.get(`${API_URL}/jobs/saved/my`, { headers });
+    const savedJobs = res.data.jobs || [];
+    isSaved.value = savedJobs.some((item) => String(item._id) === String(route.params.id));
+  } catch (error) {
+    console.error('❌ Error fetching saved status:', error.response?.data || error.message);
+    isSaved.value = false;
+  }
+};
+
+// ✅ Fetch job detail
 const fetchJobDetail = async () => {
   try {
     loading.value = true;
-    
-    // ✅ GỌI API PUBLIC - không cần token
+
     const res = await axios.get(`${API_URL}/jobs/public/${route.params.id}`);
     job.value = res.data.job;
-    
-    console.log('✅ Job loaded:', job.value);
-    
-    // Check if already applied (cần token)
-    await checkApplicationStatus();
+
+    // ghi nhận hành vi cho hybrid
+    await Promise.allSettled([
+      recordInteraction('click'),
+      recordInteraction('view'),
+    ]);
+
+    // check trạng thái apply + save
+    await Promise.allSettled([
+      checkApplicationStatus(),
+      fetchSavedStatus(),
+    ]);
   } catch (error) {
     console.error('❌ Error fetching job:', error);
     alert('Không thể tải thông tin công việc');
@@ -327,38 +373,28 @@ const fetchJobDetail = async () => {
   }
 };
 
-// ✅ Check if user has applied - CẦN TOKEN
 const checkApplicationStatus = async () => {
   try {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      console.log('ℹ️ User not logged in, skip check applied');
-      return;
-    }
+    const headers = getAuthHeaders();
+    if (!headers) return;
 
     const res = await axios.get(
       `${API_URL}/applications/check/${route.params.id}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      }
+      { headers }
     );
     hasApplied.value = res.data.hasApplied;
-    console.log('✅ Application status checked:', hasApplied.value);
   } catch (error) {
     console.error('❌ Error checking application status:', error);
     hasApplied.value = false;
   }
 };
 
-// ✅ Submit application - CẦN TOKEN
 const submitApplication = async () => {
   try {
     submitting.value = true;
 
-    const token = localStorage.getItem('token');
-    if (!token) {
+    const headers = getAuthHeaders();
+    if (!headers) {
       alert('⚠️ Vui lòng đăng nhập để ứng tuyển!');
       router.push('/login');
       return;
@@ -372,17 +408,10 @@ const submitApplication = async () => {
       additionalInfo: application.additionalInfo || null,
     };
 
-    console.log('📤 Submitting application:', payload);
-
     const res = await axios.post(
       `${API_URL}/applications`,
       payload,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      }
+      { headers }
     );
 
     console.log('✅ Application submitted:', res.data);
@@ -390,12 +419,9 @@ const submitApplication = async () => {
     alert('✅ Ứng tuyển thành công! Chúc bạn may mắn!');
     hasApplied.value = true;
     closeApplicationModal();
-    
-    // Redirect to applications page
     router.push('/student/applications');
   } catch (error) {
     console.error('❌ Error submitting application:', error);
-    console.error('Error response:', error.response?.data);
     alert(error.response?.data?.message || 'Không thể gửi đơn ứng tuyển. Vui lòng thử lại!');
   } finally {
     submitting.value = false;
@@ -409,9 +435,6 @@ const normalizeExternalUrl = (url) => {
   return /^https?:\/\//i.test(u) ? u : `https://${u}`;
 };
 
-const isValidObjectId = (id) => /^[a-f\d]{24}$/i.test(String(id || ''));
-
-// Close modal
 const closeApplicationModal = () => {
   showApplicationModal.value = false;
   application.coverLetter = '';
@@ -420,12 +443,33 @@ const closeApplicationModal = () => {
   application.additionalInfo = '';
 };
 
-// Save job (placeholder)
+// ✅ Save / Unsave job thật
 const saveJob = async () => {
-  alert('Tính năng lưu tin đang được phát triển!');
+  try {
+    const headers = getAuthHeaders();
+    if (!headers) {
+      alert('⚠️ Vui lòng đăng nhập để lưu việc làm!');
+      router.push('/login');
+      return;
+    }
+
+    if (!job.value?._id) return;
+
+    if (isSaved.value) {
+      await axios.delete(`${API_URL}/jobs/${job.value._id}/save`, { headers });
+      isSaved.value = false;
+      alert('Đã bỏ lưu việc làm');
+    } else {
+      await axios.post(`${API_URL}/jobs/${job.value._id}/save`, {}, { headers });
+      isSaved.value = true;
+      alert('Đã lưu việc làm thành công!');
+    }
+  } catch (error) {
+    console.error('❌ Save/Unsave job error:', error.response?.data || error.message);
+    alert(error.response?.data?.message || 'Không thể cập nhật trạng thái lưu việc làm');
+  }
 };
 
-// Utility functions
 const getInitials = (name) => {
   if (!name) return '?';
   const parts = name.split(' ');
@@ -487,7 +531,6 @@ const getExperienceLabel = (exp) => {
 };
 
 onMounted(() => {
-  console.log('🚀 JobDetail mounted, job ID:', route.params.id);
   fetchJobDetail();
 });
 </script>

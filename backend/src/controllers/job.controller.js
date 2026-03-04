@@ -1,6 +1,324 @@
 const Job = require('../models/Job.model');
 const Employer = require('../models/Employer.model');
-const mongoose = require('mongoose'); // ✅ THÊM DÒNG NÀY
+const Interaction = require('../models/Interaction.model');
+const mongoose = require('mongoose');
+
+const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
+
+const createInteractionLog = async ({
+  studentId,
+  jobId,
+  interactionType,
+  source = 'web',
+  metadata = {},
+}) => {
+  try {
+    return await Interaction.create({
+      student: studentId,
+      job: jobId,
+      interactionType,
+      source,
+      metadata,
+    });
+  } catch (error) {
+    console.error(`❌ Failed to log interaction [${interactionType}]:`, error.message);
+    return null;
+  }
+};
+
+// 👁️ RECORD VIEW (Student)
+exports.recordJobView = async (req, res) => {
+  try {
+    const { userId, role } = req.user;
+    const { jobId } = req.params;
+
+    if (role !== 'student') {
+      return res.status(403).json({
+        success: false,
+        message: 'Chỉ sinh viên mới có thể ghi nhận lịch sử xem việc làm',
+      });
+    }
+
+    if (!isValidObjectId(jobId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'JobId không hợp lệ',
+      });
+    }
+
+    const job = await Job.findById(jobId).select('_id status');
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy tin tuyển dụng',
+      });
+    }
+
+    await createInteractionLog({
+      studentId: userId,
+      jobId,
+      interactionType: 'view',
+      source: 'web',
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Đã ghi nhận lượt xem',
+    });
+  } catch (error) {
+    console.error('❌ Record job view error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message,
+    });
+  }
+};
+
+// 🖱️ RECORD CLICK (Student)
+exports.recordJobClick = async (req, res) => {
+  try {
+    const { userId, role } = req.user;
+    const { jobId } = req.params;
+
+    if (role !== 'student') {
+      return res.status(403).json({
+        success: false,
+        message: 'Chỉ sinh viên mới có thể ghi nhận click việc làm',
+      });
+    }
+
+    if (!isValidObjectId(jobId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'JobId không hợp lệ',
+      });
+    }
+
+    const job = await Job.findById(jobId).select('_id status');
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy tin tuyển dụng',
+      });
+    }
+
+    await createInteractionLog({
+      studentId: userId,
+      jobId,
+      interactionType: 'click',
+      source: 'web',
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Đã ghi nhận click',
+    });
+  } catch (error) {
+    console.error('❌ Record job click error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message,
+    });
+  }
+};
+
+// ⭐ SAVE JOB (Student)
+exports.saveJob = async (req, res) => {
+  try {
+    const { userId, role } = req.user;
+    const { jobId } = req.params;
+
+    if (role !== 'student') {
+      return res.status(403).json({
+        success: false,
+        message: 'Chỉ sinh viên mới có thể lưu việc làm',
+      });
+    }
+
+    if (!isValidObjectId(jobId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'JobId không hợp lệ',
+      });
+    }
+
+    const job = await Job.findById(jobId).select('_id status title');
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy tin tuyển dụng',
+      });
+    }
+
+    const latestSaveState = await Interaction.findOne({
+      student: userId,
+      job: jobId,
+      interactionType: { $in: ['save', 'unsave'] },
+    }).sort({ createdAt: -1 });
+
+    if (latestSaveState && latestSaveState.interactionType === 'save') {
+      return res.status(200).json({
+        success: true,
+        message: 'Tin tuyển dụng này đã được lưu trước đó',
+      });
+    }
+
+    await createInteractionLog({
+      studentId: userId,
+      jobId,
+      interactionType: 'save',
+      source: 'manual',
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Đã lưu việc làm thành công',
+    });
+  } catch (error) {
+    console.error('❌ Save job error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message,
+    });
+  }
+};
+
+// ❌ UNSAVE JOB (Student)
+exports.unsaveJob = async (req, res) => {
+  try {
+    const { userId, role } = req.user;
+    const { jobId } = req.params;
+
+    if (role !== 'student') {
+      return res.status(403).json({
+        success: false,
+        message: 'Chỉ sinh viên mới có thể bỏ lưu việc làm',
+      });
+    }
+
+    if (!isValidObjectId(jobId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'JobId không hợp lệ',
+      });
+    }
+
+    const job = await Job.findById(jobId).select('_id');
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy tin tuyển dụng',
+      });
+    }
+
+    const latestSaveState = await Interaction.findOne({
+      student: userId,
+      job: jobId,
+      interactionType: { $in: ['save', 'unsave'] },
+    }).sort({ createdAt: -1 });
+
+    if (!latestSaveState || latestSaveState.interactionType !== 'save') {
+      return res.status(200).json({
+        success: true,
+        message: 'Tin tuyển dụng này hiện chưa ở trạng thái đã lưu',
+      });
+    }
+
+    await createInteractionLog({
+      studentId: userId,
+      jobId,
+      interactionType: 'unsave',
+      source: 'manual',
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đã bỏ lưu việc làm',
+    });
+  } catch (error) {
+    console.error('❌ Unsave job error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message,
+    });
+  }
+};
+
+// 📌 GET MY SAVED JOBS (Student)
+exports.getMySavedJobs = async (req, res) => {
+  try {
+    const { userId, role } = req.user;
+
+    if (role !== 'student') {
+      return res.status(403).json({
+        success: false,
+        message: 'Chỉ sinh viên mới có thể xem danh sách đã lưu',
+      });
+    }
+
+    const latestStates = await Interaction.aggregate([
+      {
+        $match: {
+          student: new mongoose.Types.ObjectId(userId),
+          interactionType: { $in: ['save', 'unsave'] },
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: '$job',
+          latestType: { $first: '$interactionType' },
+          latestAt: { $first: '$createdAt' },
+        },
+      },
+      {
+        $match: {
+          latestType: 'save',
+        },
+      },
+      { $sort: { latestAt: -1 } },
+    ]);
+
+    const jobIds = latestStates.map((item) => item._id);
+
+    if (jobIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        jobs: [],
+      });
+    }
+
+    const jobs = await Job.find({
+      _id: { $in: jobIds },
+      status: 'active',
+    })
+      .populate('employer', 'companyName logo website')
+      .sort({ createdAt: -1 });
+
+    const jobMap = new Map(jobs.map((job) => [job._id.toString(), job]));
+    const orderedJobs = jobIds
+      .map((id) => jobMap.get(id.toString()))
+      .filter(Boolean);
+
+    return res.status(200).json({
+      success: true,
+      count: orderedJobs.length,
+      jobs: orderedJobs,
+    });
+  } catch (error) {
+    console.error('❌ Get my saved jobs error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message,
+    });
+  }
+};
 
 // 📋 CREATE JOB (Employer only)
 exports.createJob = async (req, res) => {
@@ -303,19 +621,26 @@ exports.getJobStatistics = async (req, res) => {
 };
 
 // 📋 GET ALL PUBLIC JOBS (Không cần login)
+// 📋 GET ALL PUBLIC JOBS (Không cần login)
 exports.getAllPublicJobs = async (req, res) => {
   try {
-    const { 
-      search, 
-      city, 
-      jobType, 
-      level, 
-      minSalary, 
+    const {
+      search,
+      city,
+      jobType,
+      level,
+      minSalary,
       maxSalary,
       skills,
+      lat,
+      lng,
+      radiusKm,
       page = 1,
-      limit = 10 
+      limit = 10,
     } = req.query;
+
+    const currentPage = Math.max(parseInt(page, 10) || 1, 1);
+    const pageSize = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
 
     const filter = { status: 'active' };
 
@@ -341,25 +666,68 @@ exports.getAllPublicJobs = async (req, res) => {
 
     // Filter by salary
     if (minSalary) {
-      filter['salary.min'] = { $gte: parseInt(minSalary) };
+      const minSalaryValue = parseInt(minSalary, 10);
+      if (!Number.isNaN(minSalaryValue)) {
+        filter['salary.min'] = { $gte: minSalaryValue };
+      }
     }
+
     if (maxSalary) {
-      filter['salary.max'] = { $lte: parseInt(maxSalary) };
+      const maxSalaryValue = parseInt(maxSalary, 10);
+      if (!Number.isNaN(maxSalaryValue)) {
+        filter['salary.max'] = { $lte: maxSalaryValue };
+      }
     }
 
     // Filter by skills
     if (skills) {
-      const skillArray = skills.split(',').map(s => s.trim());
-      filter.skills = { $in: skillArray };
+      const skillArray = skills
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      if (skillArray.length > 0) {
+        filter.skills = { $in: skillArray };
+      }
     }
 
-    const skip = (page - 1) * limit;
+    // ✅ Lọc thật sự theo bán kính (backend geospatial filter)
+    const hasAnyGeoParam = lat !== undefined || lng !== undefined || radiusKm !== undefined;
+
+    if (hasAnyGeoParam) {
+      const latValue = parseFloat(lat);
+      const lngValue = parseFloat(lng);
+      const radiusValue = parseFloat(radiusKm);
+
+      const isValidGeoInput =
+        Number.isFinite(latValue) &&
+        Number.isFinite(lngValue) &&
+        Number.isFinite(radiusValue) &&
+        radiusValue > 0;
+
+      if (!isValidGeoInput) {
+        return res.status(400).json({
+          success: false,
+          message: 'lat, lng, radiusKm không hợp lệ',
+        });
+      }
+
+      const earthRadiusKm = 6371;
+
+      filter['location.coordinates'] = {
+        $geoWithin: {
+          $centerSphere: [[lngValue, latValue], radiusValue / earthRadiusKm],
+        },
+      };
+    }
+
+    const skip = (currentPage - 1) * pageSize;
 
     const jobs = await Job.find(filter)
       .populate('employer', 'companyName logo website')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(pageSize);
 
     const total = await Job.countDocuments(filter);
 
@@ -367,8 +735,8 @@ exports.getAllPublicJobs = async (req, res) => {
       success: true,
       count: jobs.length,
       total,
-      page: parseInt(page),
-      totalPages: Math.ceil(total / limit),
+      page: currentPage,
+      totalPages: Math.ceil(total / pageSize),
       jobs,
     });
   } catch (error) {

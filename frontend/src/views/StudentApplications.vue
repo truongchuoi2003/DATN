@@ -1,304 +1,294 @@
 <template>
-  <div class="student-applications">
+  <div class="employer-applications">
     <Header />
 
     <div class="container">
-      <!-- Page Header -->
+      <!-- Header -->
       <div class="page-header">
         <div>
-          <h1>📝 Đơn ứng tuyển của tôi</h1>
-          <p class="subtitle">Theo dõi và quản lý các đơn ứng tuyển của bạn</p>
+          <h1>👥 {{ pageTitle }}</h1>
+          <p class="subtitle">{{ pageSubtitle }}</p>
+        </div>
+
+        <button @click="router.back()" class="btn btn-secondary">
+          ← Quay lại
+        </button>
+      </div>
+
+      <!-- Job Info (chỉ hiện khi xem theo 1 job) -->
+      <div v-if="job && hasJobId" class="job-info-card">
+        <div class="job-header">
+          <div>
+            <h2>{{ job.title }}</h2>
+            <p>
+              {{ job.location?.city || 'Không rõ địa điểm' }} •
+              {{ getJobTypeLabel(job.jobType) }}
+            </p>
+          </div>
+
+          <div class="job-stats-inline">
+            <span><strong>{{ applications.length }}</strong> ứng viên</span>
+            <span><strong>{{ pendingCount }}</strong> chờ xử lý</span>
+          </div>
         </div>
       </div>
 
-      <!-- Statistics -->
+      <!-- Stats -->
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-            📋
-          </div>
-          <div class="stat-info">
-            <h3>{{ stats.total }}</h3>
-            <p>Tổng đơn (đang hiển thị)</p>
+          <div class="stat-icon pending">⏳</div>
+          <div>
+            <div class="stat-value">{{ pendingCount }}</div>
+            <div class="stat-label">Chờ xử lý</div>
           </div>
         </div>
 
         <div class="stat-card">
-          <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-            ⏳
-          </div>
-          <div class="stat-info">
-            <h3>{{ stats.pending }}</h3>
-            <p>Đang chờ</p>
+          <div class="stat-icon reviewing">👀</div>
+          <div>
+            <div class="stat-value">{{ reviewingCount }}</div>
+            <div class="stat-label">Đang xem xét</div>
           </div>
         </div>
 
         <div class="stat-card">
-          <div class="stat-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-            👀
-          </div>
-          <div class="stat-info">
-            <h3>{{ stats.reviewing }}</h3>
-            <p>Đang xem</p>
+          <div class="stat-icon accepted">✅</div>
+          <div>
+            <div class="stat-value">{{ acceptedCount }}</div>
+            <div class="stat-label">Đã chấp nhận</div>
           </div>
         </div>
 
         <div class="stat-card">
-          <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-            ✅
-          </div>
-          <div class="stat-info">
-            <h3>{{ stats.accepted }}</h3>
-            <p>Được nhận</p>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
-            ❌
-          </div>
-          <div class="stat-info">
-            <h3>{{ stats.rejected }}</h3>
-            <p>Từ chối</p>
-          </div>
-        </div>
-
-        <!-- ✅ Withdrawn -->
-        <div class="stat-card">
-          <div class="stat-icon" style="background: linear-gradient(135deg, #adb5bd 0%, #6c757d 100%);">
-            🚫
-          </div>
-          <div class="stat-info">
-            <h3>{{ stats.withdrawn }}</h3>
-            <p>Đã rút</p>
+          <div class="stat-icon rejected">❌</div>
+          <div>
+            <div class="stat-value">{{ rejectedCount }}</div>
+            <div class="stat-label">Đã từ chối</div>
           </div>
         </div>
       </div>
 
-      <!-- Filter Tabs -->
-      <div class="filter-tabs">
+      <!-- Filter -->
+      <div class="filter-bar">
         <button
           class="filter-btn"
           :class="{ active: filter === 'all' }"
           @click="changeFilter('all')"
         >
-          Tất cả ({{ stats.total }})
+          Tất cả ({{ applications.length }})
         </button>
-
         <button
           class="filter-btn"
           :class="{ active: filter === 'pending' }"
           @click="changeFilter('pending')"
         >
-          ⏳ Chờ xử lý ({{ stats.pending }})
+          Chờ xử lý ({{ pendingCount }})
         </button>
-
         <button
           class="filter-btn"
           :class="{ active: filter === 'reviewing' }"
           @click="changeFilter('reviewing')"
         >
-          👀 Đang xem ({{ stats.reviewing }})
+          Đang xem xét ({{ reviewingCount }})
         </button>
-
         <button
           class="filter-btn"
           :class="{ active: filter === 'accepted' }"
           @click="changeFilter('accepted')"
         >
-          ✅ Được nhận ({{ stats.accepted }})
+          Đã chấp nhận ({{ acceptedCount }})
         </button>
-
         <button
           class="filter-btn"
           :class="{ active: filter === 'rejected' }"
           @click="changeFilter('rejected')"
         >
-          ❌ Từ chối ({{ stats.rejected }})
-        </button>
-
-        <!-- ✅ Tab Đã rút -->
-        <button
-          class="filter-btn"
-          :class="{ active: filter === 'withdrawn' }"
-          @click="changeFilter('withdrawn')"
-        >
-          🚫 Đã rút ({{ stats.withdrawn }})
+          Đã từ chối ({{ rejectedCount }})
         </button>
       </div>
 
       <!-- Loading -->
-      <div v-if="loadingAny" class="loading-state">
+      <div v-if="loading" class="state-box">
         <div class="loading-spinner"></div>
-        <p>Đang tải dữ liệu...</p>
+        <p>Đang tải danh sách ứng viên...</p>
       </div>
 
-      <!-- Applications List -->
-      <div v-else class="applications-grid">
-        <div v-if="displayApplications.length === 0" class="empty-state">
-          <div class="empty-icon">📭</div>
-          <h3>{{ getEmptyMessage() }}</h3>
-          <p v-if="filter !== 'withdrawn'">Hãy khám phá các tin tuyển dụng để ứng tuyển</p>
-          <button v-if="filter !== 'withdrawn'" @click="router.push('/student/jobs')" class="btn-primary">
-            🔍 Tìm việc ngay
-          </button>
-        </div>
+      <!-- Empty -->
+      <div v-else-if="filteredApplications.length === 0" class="state-box">
+        <div class="empty-icon">📭</div>
+        <p>{{ getEmptyMessage() }}</p>
+      </div>
 
+      <!-- List -->
+      <div v-else class="applications-list">
         <div
-          v-for="app in displayApplications"
+          v-for="app in filteredApplications"
           :key="app._id"
           class="application-card"
         >
-          <!-- Card Header -->
           <div class="card-header">
-            <div class="company-info">
-              <div class="company-logo">
-                {{ getInitials(app.job?.employer?.companyName) }}
+            <div class="candidate-main">
+              <div class="avatar">
+                <img
+                  v-if="app.student?.avatar"
+                  :src="getFullUrl(app.student.avatar)"
+                  alt="avatar"
+                />
+                <span v-else>{{ getInitials(app.student?.fullName) }}</span>
               </div>
+
               <div>
-                <h3>{{ app.job?.title }}</h3>
-                <p class="company-name">{{ app.job?.employer?.companyName }}</p>
+                <h3>{{ app.student?.fullName || 'Không rõ tên' }}</h3>
+                <p>{{ app.student?.email || 'Không có email' }}</p>
               </div>
             </div>
 
-            <div class="status-badge" :class="normalizeStatus(app.status)">
+            <span class="status-badge" :class="app.status">
               {{ getStatusLabel(app.status) }}
-            </div>
+            </span>
           </div>
 
-          <!-- Card Body -->
           <div class="card-body">
+            <div v-if="!hasJobId && app.job" class="job-ref">
+              💼 {{ app.job.title }} - {{ app.job.location?.city || 'Không rõ địa điểm' }}
+            </div>
+
             <div class="info-grid">
               <div class="info-item">
-                <span class="icon">📍</span>
-                <div>
-                  <p class="label">Địa điểm</p>
-                  <p class="value">{{ app.job?.location?.address }}, {{ app.job?.location?.city }}</p>
-                </div>
+                <span class="label">🏫 Trường:</span>
+                <span class="value">{{ app.student?.university || 'Chưa cập nhật' }}</span>
               </div>
 
               <div class="info-item">
-                <span class="icon">💰</span>
-                <div>
-                  <p class="label">Mức lương</p>
-                  <p class="value">{{ formatSalary(app.job?.salary) }}</p>
-                </div>
+                <span class="label">🎓 Ngành:</span>
+                <span class="value">{{ app.student?.major || 'Chưa cập nhật' }}</span>
               </div>
 
               <div class="info-item">
-                <span class="icon">📅</span>
-                <div>
-                  <p class="label">Ngày ứng tuyển</p>
-                  <p class="value">{{ formatDateTime(app.createdAt) }}</p>
-                </div>
+                <span class="label">📊 GPA:</span>
+                <span class="value">
+                  {{ app.student?.gpa != null ? app.student.gpa : 'Chưa cập nhật' }}
+                </span>
               </div>
 
-              <div class="info-item" v-if="app.reviewedAt">
-                <span class="icon">👁️</span>
-                <div>
-                  <p class="label">Ngày xem xét</p>
-                  <p class="value">{{ formatDateTime(app.reviewedAt) }}</p>
-                </div>
+              <div class="info-item">
+                <span class="label">📅 Ứng tuyển:</span>
+                <span class="value">{{ formatDate(app.createdAt || app.appliedAt) }}</span>
+              </div>
+
+              <div class="info-item" v-if="app.expectedSalary">
+                <span class="label">💰 Lương mong muốn:</span>
+                <span class="value">{{ formatNumber(app.expectedSalary) }} VNĐ</span>
+              </div>
+
+              <div class="info-item" v-if="app.availableFrom">
+                <span class="label">🗓️ Có thể đi làm:</span>
+                <span class="value">{{ formatDate(app.availableFrom) }}</span>
               </div>
             </div>
 
-            <div v-if="app.employerNote" class="employer-note-preview" :class="normalizeStatus(app.status)">
-              <p><strong>💬 Phản hồi:</strong> {{ app.employerNote }}</p>
+            <div v-if="app.student?.skills?.length" class="skills-section">
+              <div class="skills-label">Kỹ năng:</div>
+              <div class="skills-list">
+                <span
+                  v-for="(skill, index) in app.student.skills.slice(0, 8)"
+                  :key="index"
+                  class="skill-tag"
+                >
+                  {{ skill }}
+                </span>
+              </div>
+            </div>
+
+            <div v-if="app.coverLetter" class="cover-preview">
+              <strong>Thư xin việc:</strong>
+              {{ truncateText(app.coverLetter, 160) }}
             </div>
           </div>
 
-          <!-- Card Footer -->
-          <div class="card-footer">
-            <div class="card-actions">
-              <button @click="viewApplication(app)" class="btn-action view">
-                👁️ Xem chi tiết
-              </button>
+          <div class="card-actions">
+            <button @click="viewApplication(app)" class="btn btn-primary">
+              👁️ Xem chi tiết
+            </button>
 
-              <router-link
-                :to="`/student/jobs/${app.job?._id}`"
-                class="btn-action view"
-              >
-                📋 Xem tin tuyển dụng
-              </router-link>
+            <a
+              v-if="getResumeUrl(app)"
+              :href="getFullUrl(getResumeUrl(app))"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="btn btn-secondary"
+            >
+              📥 Tải CV
+            </a>
 
-              <!-- ✅ Chỉ hiện rút đơn nếu pending/reviewing -->
-              <button
-                v-if="canWithdraw(app.status)"
-                @click="withdrawApplication(app._id)"
-                class="btn-action danger"
-              >
-                🚫 Rút đơn
-              </button>
-            </div>
+            <button
+              v-if="app.status !== 'accepted'"
+              @click="updateStatus(app._id, 'accepted', app.employerNote || '')"
+              class="btn btn-success"
+            >
+              ✅ Chấp nhận
+            </button>
+
+            <button
+              v-if="app.status !== 'rejected'"
+              @click="openRejectModal(app)"
+              class="btn btn-danger"
+            >
+              ❌ Từ chối
+            </button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- View Application Modal -->
-    <div v-if="selectedApplication" class="modal" @click="closeModal">
-      <div class="modal-content large" @click.stop>
+    <!-- Detail Modal -->
+    <div v-if="selectedApplication" class="modal-overlay" @click="closeModal">
+      <div class="modal-content" @click.stop>
         <button class="btn-close" @click="closeModal">✕</button>
 
-        <h2>📝 Chi tiết đơn ứng tuyển</h2>
+        <h2>Chi tiết ứng viên</h2>
 
-        <!-- Job Info -->
         <div class="modal-section">
-          <h3>💼 Thông tin công việc</h3>
+          <h3>👤 Thông tin cá nhân</h3>
           <div class="detail-grid">
-            <div class="detail-item">
-              <span class="label">Vị trí:</span>
-              <span class="value">{{ selectedApplication.job?.title }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="label">Công ty:</span>
-              <span class="value">{{ selectedApplication.job?.employer?.companyName }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="label">Địa điểm:</span>
-              <span class="value">{{ selectedApplication.job?.location?.address }}, {{ selectedApplication.job?.location?.city }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="label">Mức lương:</span>
-              <span class="value">{{ formatSalary(selectedApplication.job?.salary) }}</span>
-            </div>
+            <div><strong>Họ tên:</strong> {{ selectedApplication.student?.fullName || 'Chưa cập nhật' }}</div>
+            <div><strong>Email:</strong> {{ selectedApplication.student?.email || 'Chưa cập nhật' }}</div>
+            <div><strong>SĐT:</strong> {{ selectedApplication.student?.phone || 'Chưa cập nhật' }}</div>
+            <div><strong>Trường:</strong> {{ selectedApplication.student?.university || 'Chưa cập nhật' }}</div>
+            <div><strong>Ngành:</strong> {{ selectedApplication.student?.major || 'Chưa cập nhật' }}</div>
+            <div><strong>GPA:</strong> {{ selectedApplication.student?.gpa != null ? selectedApplication.student.gpa : 'Chưa cập nhật' }}</div>
+            <div><strong>Trạng thái:</strong> {{ getStatusLabel(selectedApplication.status) }}</div>
+            <div><strong>Ngày ứng tuyển:</strong> {{ formatDateTime(selectedApplication.createdAt || selectedApplication.appliedAt) }}</div>
           </div>
         </div>
 
-        <!-- Application Info -->
-        <div class="modal-section">
-          <h3>📋 Thông tin ứng tuyển</h3>
+        <div v-if="!hasJobId && selectedApplication.job" class="modal-section">
+          <h3>💼 Tin tuyển dụng</h3>
           <div class="detail-grid">
-            <div class="detail-item">
-              <span class="label">Trạng thái:</span>
-              <span class="status-badge" :class="normalizeStatus(selectedApplication.status)">
-                {{ getStatusLabel(selectedApplication.status) }}
-              </span>
-            </div>
-            <div class="detail-item">
-              <span class="label">Ngày ứng tuyển:</span>
-              <span class="value">{{ formatDateTime(selectedApplication.createdAt) }}</span>
-            </div>
-            <div class="detail-item" v-if="selectedApplication.expectedSalary">
-              <span class="label">Mức lương mong muốn:</span>
-              <span class="value">{{ formatNumber(selectedApplication.expectedSalary) }} VND/tháng</span>
-            </div>
-            <div class="detail-item" v-if="selectedApplication.availableFrom">
-              <span class="label">Có thể bắt đầu từ:</span>
-              <span class="value">{{ formatDate(selectedApplication.availableFrom) }}</span>
-            </div>
-            <div class="detail-item" v-if="selectedApplication.reviewedAt">
-              <span class="label">Ngày xem xét:</span>
-              <span class="value">{{ formatDateTime(selectedApplication.reviewedAt) }}</span>
-            </div>
+            <div><strong>Vị trí:</strong> {{ selectedApplication.job.title }}</div>
+            <div><strong>Địa điểm:</strong> {{ selectedApplication.job.location?.city || 'Chưa cập nhật' }}</div>
+            <div><strong>Loại hình:</strong> {{ getJobTypeLabel(selectedApplication.job.jobType) }}</div>
+            <div><strong>Cấp độ:</strong> {{ selectedApplication.job.level || 'Chưa cập nhật' }}</div>
           </div>
         </div>
 
-        <!-- CV -->
-        <div class="modal-section" v-if="selectedApplication.resumeUrl || selectedApplication.cvUrl">
-          <h3>📄 CV đã nộp</h3>
+        <div v-if="selectedApplication.student?.skills?.length" class="modal-section">
+          <h3>🛠️ Kỹ năng</h3>
+          <div class="skills-list">
+            <span
+              v-for="(skill, index) in selectedApplication.student.skills"
+              :key="index"
+              class="skill-tag"
+            >
+              {{ skill }}
+            </span>
+          </div>
+        </div>
+
+        <div v-if="getResumeUrl(selectedApplication)" class="modal-section">
+          <h3>📄 CV</h3>
           <a
-            :href="selectedApplication.resumeUrl || selectedApplication.cvUrl"
+            :href="getFullUrl(getResumeUrl(selectedApplication))"
             target="_blank"
             rel="noopener noreferrer"
             class="cv-link"
@@ -307,38 +297,79 @@
           </a>
         </div>
 
-        <!-- Cover Letter -->
         <div class="modal-section">
           <h3>✍️ Thư xin việc</h3>
-          <p class="text-content">{{ selectedApplication.coverLetter }}</p>
+          <p class="text-content">{{ selectedApplication.coverLetter || 'Không có thư xin việc' }}</p>
         </div>
 
-        <!-- Additional Info -->
-        <div class="modal-section" v-if="selectedApplication.additionalInfo">
+        <div v-if="selectedApplication.additionalInfo" class="modal-section">
           <h3>💬 Thông tin bổ sung</h3>
           <p class="text-content">{{ selectedApplication.additionalInfo }}</p>
         </div>
 
-        <!-- Employer Note -->
-        <div
-          class="modal-section employer-feedback"
-          v-if="selectedApplication.employerNote"
-          :class="normalizeStatus(selectedApplication.status)"
-        >
-          <h3>💬 Phản hồi từ nhà tuyển dụng</h3>
-          <p class="text-content">{{ selectedApplication.employerNote }}</p>
+        <div class="modal-section">
+          <h3>📝 Ghi chú của bạn</h3>
+          <textarea
+            v-model="modalEmployerNote"
+            placeholder="Thêm ghi chú về ứng viên này..."
+            rows="4"
+            class="note-textarea"
+          ></textarea>
         </div>
 
-        <!-- Actions -->
-        <div class="modal-section modal-actions">
+        <div class="modal-actions">
           <button
-            v-if="canWithdraw(selectedApplication.status)"
-            class="btn-action danger"
-            @click="withdrawFromModal"
+            v-if="selectedApplication.status !== 'accepted'"
+            @click="updateStatusWithNote(selectedApplication._id, 'accepted')"
+            class="btn btn-success"
           >
-            🚫 Rút đơn
+            ✅ Chấp nhận
           </button>
-          <button class="btn-action view" @click="closeModal">Đóng</button>
+
+          <button
+            v-if="selectedApplication.status !== 'rejected'"
+            @click="openRejectModal(selectedApplication)"
+            class="btn btn-danger"
+          >
+            ❌ Từ chối
+          </button>
+
+          <button
+            @click="saveNote(selectedApplication._id)"
+            class="btn btn-primary"
+          >
+            💾 Lưu ghi chú
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reject Modal -->
+    <div v-if="showRejectModal" class="modal-overlay" @click="closeRejectModal">
+      <div class="modal-content small" @click.stop>
+        <button class="btn-close" @click="closeRejectModal">✕</button>
+
+        <h2>❌ Từ chối ứng viên</h2>
+
+        <div class="modal-section">
+          <label class="block-label">Lý do từ chối (không bắt buộc)</label>
+          <textarea
+            v-model="rejectNote"
+            placeholder="Ví dụ: Kinh nghiệm chưa phù hợp với yêu cầu công việc..."
+            rows="5"
+            maxlength="500"
+            class="note-textarea"
+          ></textarea>
+          <small class="help-text">{{ rejectNote.length }}/500 ký tự</small>
+        </div>
+
+        <div class="modal-actions">
+          <button @click="closeRejectModal" class="btn btn-secondary">
+            Hủy
+          </button>
+          <button @click="confirmReject" class="btn btn-danger">
+            ❌ Xác nhận từ chối
+          </button>
         </div>
       </div>
     </div>
@@ -346,220 +377,305 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import Header from '../components/Header.vue';
 import api from '../services/api';
 
+const route = useRoute();
 const router = useRouter();
 
+const loading = ref(false);
+const job = ref(null);
+const applications = ref([]);
 const filter = ref('all');
+
 const selectedApplication = ref(null);
+const modalEmployerNote = ref('');
 
-const loadingActive = ref(false);
-const loadingWithdrawn = ref(false);
-const loadingStats = ref(false);
+const showRejectModal = ref(false);
+const rejectNote = ref('');
+const rejectingAppId = ref(null);
 
-const activeApplications = ref([]);     // mặc định: không có withdrawn
-const withdrawnApplications = ref([]);  // chỉ load khi chọn tab withdrawn
-const withdrawnLoaded = ref(false);
+const hasJobId = computed(() => !!route.params.jobId);
 
-const stats = ref({
-  total: 0,
-  pending: 0,
-  reviewing: 0,
-  accepted: 0,
-  rejected: 0,
-  withdrawn: 0,
+const pageTitle = computed(() =>
+  hasJobId.value ? 'Quản lý ứng viên' : 'Tất cả ứng viên'
+);
+
+const pageSubtitle = computed(() =>
+  hasJobId.value
+    ? 'Xem và xử lý các đơn ứng tuyển cho tin này'
+    : 'Tổng hợp tất cả ứng viên từ các tin tuyển dụng của bạn'
+);
+
+const pendingCount = computed(() =>
+  applications.value.filter((a) => a.status === 'pending').length
+);
+
+const reviewingCount = computed(() =>
+  applications.value.filter((a) => a.status === 'reviewing').length
+);
+
+const acceptedCount = computed(() =>
+  applications.value.filter((a) => a.status === 'accepted').length
+);
+
+const rejectedCount = computed(() =>
+  applications.value.filter((a) => a.status === 'rejected').length
+);
+
+const filteredApplications = computed(() => {
+  if (filter.value === 'all') return applications.value;
+  return applications.value.filter((a) => a.status === filter.value);
 });
 
-// Helpers
-const normalizeStatus = (status) => (status || '').toString().toLowerCase().trim();
-const canWithdraw = (status) => ['pending', 'reviewing'].includes(normalizeStatus(status));
+const fetchJobDetails = async () => {
+  if (!hasJobId.value) {
+    job.value = null;
+    return;
+  }
 
-const loadingAny = computed(() => loadingActive.value || loadingWithdrawn.value || loadingStats.value);
-
-// ✅ list hiển thị theo tab
-const displayApplications = computed(() => {
-  if (filter.value === 'withdrawn') return withdrawnApplications.value;
-  if (filter.value === 'all') return activeApplications.value;
-  return activeApplications.value.filter(a => normalizeStatus(a.status) === filter.value);
-});
-
-// Fetch active apps (ẩn withdrawn theo backend)
-const fetchActiveApplications = async () => {
   try {
-    loadingActive.value = true;
-    const res = await api.get('/applications/my-applications');
-    activeApplications.value = res.data.applications || [];
-  } catch (e) {
-    console.error('Error fetching applications:', e);
-    alert('Không thể tải danh sách đơn ứng tuyển');
-  } finally {
-    loadingActive.value = false;
+    const res = await api.get(`/jobs/${route.params.jobId}`);
+    job.value = res.data.job || null;
+  } catch (error) {
+    console.error('Error fetching job:', error);
+    job.value = null;
   }
 };
 
-// Fetch withdrawn apps (chỉ khi chọn tab)
-const fetchWithdrawnApplications = async () => {
+const fetchApplicationsByJob = async () => {
+  const res = await api.get(`/applications/job/${route.params.jobId}`);
+  applications.value = res.data.applications || [];
+};
+
+const fetchAllEmployerApplications = async () => {
+  const res = await api.get('/applications/employer');
+  applications.value = res.data.applications || [];
+};
+
+const fetchPageData = async () => {
   try {
-    loadingWithdrawn.value = true;
-    const res = await api.get('/applications/my-applications', { params: { status: 'withdrawn' } });
-    withdrawnApplications.value = res.data.applications || [];
-    withdrawnLoaded.value = true;
-  } catch (e) {
-    console.error('Error fetching withdrawn applications:', e);
-    alert('Không thể tải danh sách đơn đã rút');
+    loading.value = true;
+
+    if (hasJobId.value) {
+      await Promise.all([fetchJobDetails(), fetchApplicationsByJob()]);
+    } else {
+      job.value = null;
+      await fetchAllEmployerApplications();
+    }
+  } catch (error) {
+    console.error('Error fetching applications page:', error);
+    alert(error.response?.data?.message || 'Không thể tải danh sách ứng viên');
   } finally {
-    loadingWithdrawn.value = false;
+    loading.value = false;
   }
 };
 
-// Fetch stats
-const fetchStats = async () => {
-  try {
-    loadingStats.value = true;
-    const res = await api.get('/applications/my-stats');
-    const s = res.data?.stats || res.data?.statistics || {};
-    stats.value = {
-      total: s.total || 0,
-      pending: s.pending || 0,
-      reviewing: s.reviewing || 0,
-      accepted: s.accepted || 0,
-      rejected: s.rejected || 0,
-      withdrawn: s.withdrawn || 0,
-    };
-  } catch (e) {
-    console.error('Error fetching stats:', e);
-    // không alert để khỏi spam, vì stats không critical
-  } finally {
-    loadingStats.value = false;
-  }
-};
-
-const changeFilter = async (newFilter) => {
+const changeFilter = (newFilter) => {
   filter.value = newFilter;
-
-  // ✅ Nếu vào tab withdrawn, load data nếu chưa có
-  if (newFilter === 'withdrawn' && !withdrawnLoaded.value) {
-    await fetchWithdrawnApplications();
-  }
 };
 
 const viewApplication = (app) => {
   selectedApplication.value = app;
+  modalEmployerNote.value = app.employerNote || '';
 };
 
 const closeModal = () => {
   selectedApplication.value = null;
+  modalEmployerNote.value = '';
 };
 
-// Withdraw application (giữ record, set withdrawn, và ẩn khỏi list active)
-const withdrawApplication = async (appId) => {
-  if (!confirm('Bạn có chắc muốn rút đơn ứng tuyển này?')) return;
+const openRejectModal = (app) => {
+  rejectingAppId.value = app._id;
+  rejectNote.value = selectedApplication.value
+    ? modalEmployerNote.value
+    : (app.employerNote || '');
+  showRejectModal.value = true;
+};
+
+const closeRejectModal = () => {
+  showRejectModal.value = false;
+  rejectNote.value = '';
+  rejectingAppId.value = null;
+};
+
+const confirmReject = async () => {
+  if (!rejectingAppId.value) return;
+  await updateStatus(rejectingAppId.value, 'rejected', rejectNote.value);
+  closeRejectModal();
+};
+
+const updateStatus = async (appId, status, note = '') => {
+  const actionText =
+    status === 'accepted'
+      ? 'chấp nhận'
+      : status === 'rejected'
+        ? 'từ chối'
+        : 'cập nhật';
+
+  if (!window.confirm(`Xác nhận ${actionText} ứng viên này?`)) {
+    return;
+  }
 
   try {
-    const res = await api.put(`/applications/${appId}/withdraw`);
-    const updated = res.data?.application;
+    await api.put(`/applications/${appId}/status`, {
+      status,
+      employerNote: note,
+    });
 
-    alert('✅ Đã rút đơn ứng tuyển');
+    alert('✅ Cập nhật thành công!');
+    await fetchPageData();
 
-    // ✅ remove khỏi list active ngay lập tức
-    activeApplications.value = activeApplications.value.filter(a => a._id !== appId);
-
-    // ✅ nếu đã load withdrawn list thì add vào (đỡ phải reload)
-    if (withdrawnLoaded.value && updated) {
-      const exists = withdrawnApplications.value.some(a => a._id === updated._id);
-      if (!exists) {
-        withdrawnApplications.value = [updated, ...withdrawnApplications.value];
+    if (selectedApplication.value && selectedApplication.value._id === appId) {
+      const updated = applications.value.find((a) => a._id === appId);
+      if (updated) {
+        selectedApplication.value = updated;
+        modalEmployerNote.value = updated.employerNote || '';
+      } else {
+        closeModal();
       }
     }
-
-    // refresh stats (để update số đếm)
-    fetchStats();
-
-    // nếu đang mở modal thì đóng
-    if (selectedApplication.value?._id === appId) selectedApplication.value = null;
   } catch (error) {
-    console.error('Error withdrawing application:', error);
-    alert(error.response?.data?.message || 'Không thể rút đơn ứng tuyển');
+    console.error('Error updating status:', error);
+    alert(error.response?.data?.message || 'Không thể cập nhật trạng thái');
   }
 };
 
-const withdrawFromModal = async () => {
-  if (!selectedApplication.value?._id) return;
-  await withdrawApplication(selectedApplication.value._id);
+const updateStatusWithNote = async (appId, status) => {
+  await updateStatus(appId, status, modalEmployerNote.value);
 };
 
-// Utility functions
+const saveNote = async (appId) => {
+  try {
+    const currentApp = applications.value.find((a) => a._id === appId);
+
+    if (!currentApp) {
+      alert('Không tìm thấy đơn ứng tuyển');
+      return;
+    }
+
+    const nextStatus =
+      currentApp.status === 'pending' ? 'reviewing' : currentApp.status;
+
+    await api.put(`/applications/${appId}/status`, {
+      status: nextStatus,
+      employerNote: modalEmployerNote.value,
+    });
+
+    alert(
+      nextStatus === 'reviewing'
+        ? '✅ Đã lưu ghi chú và chuyển sang trạng thái đang xem xét!'
+        : '✅ Đã lưu ghi chú!'
+    );
+
+    await fetchPageData();
+
+    const updated = applications.value.find((a) => a._id === appId);
+    if (updated) {
+      selectedApplication.value = updated;
+      modalEmployerNote.value = updated.employerNote || '';
+    } else {
+      closeModal();
+    }
+  } catch (error) {
+    console.error('Error saving note:', error);
+    alert(error.response?.data?.message || 'Không thể lưu ghi chú');
+  }
+};
+
 const getInitials = (name) => {
   if (!name) return '?';
-  return name
-    .split(' ')
-    .map(word => word[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
 };
 
-const formatSalary = (salary) => {
-  if (!salary) return 'Thương lượng';
-  const { min, max } = salary;
-  if (!min && !max) return 'Thương lượng';
-  if (min && !max) return `Từ ${formatNumber(min)} VND`;
-  if (!min && max) return `Đến ${formatNumber(max)} VND`;
-  return `${formatNumber(min)} - ${formatNumber(max)} VND`;
+const formatNumber = (num) => {
+  if (num == null) return '0';
+  return new Intl.NumberFormat('vi-VN').format(num);
 };
 
-const formatNumber = (num) => new Intl.NumberFormat('vi-VN').format(num);
-
-const formatDateTime = (dateString) => {
-  if (!dateString) return '';
-  return new Date(dateString).toLocaleString('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+const formatDate = (date) => {
+  if (!date) return 'Chưa cập nhật';
+  return new Date(date).toLocaleDateString('vi-VN');
 };
 
-const formatDate = (dateString) => {
-  if (!dateString) return '';
-  return new Date(dateString).toLocaleDateString('vi-VN');
+const formatDateTime = (date) => {
+  if (!date) return 'Chưa cập nhật';
+  return new Date(date).toLocaleString('vi-VN');
+};
+
+const truncateText = (text, length = 120) => {
+  if (!text) return '';
+  if (text.length <= length) return text;
+  return `${text.slice(0, length)}...`;
 };
 
 const getStatusLabel = (status) => {
   const labels = {
-    pending: '⏳ Đang chờ xử lý',
+    pending: '⏳ Chờ xử lý',
     reviewing: '👀 Đang xem xét',
-    accepted: '✅ Được chấp nhận',
-    rejected: '❌ Bị từ chối',
-    withdrawn: '🚫 Đã rút đơn',
+    accepted: '✅ Đã chấp nhận',
+    rejected: '❌ Đã từ chối',
   };
-  const key = normalizeStatus(status);
-  return labels[key] || status;
+  return labels[status] || status;
 };
 
 const getEmptyMessage = () => {
   const messages = {
-    all: 'Bạn chưa có đơn ứng tuyển nào',
-    pending: 'Không có đơn nào đang chờ xử lý',
-    reviewing: 'Không có đơn nào đang được xem xét',
-    accepted: 'Không có đơn nào được chấp nhận',
-    rejected: 'Không có đơn nào bị từ chối',
-    withdrawn: 'Bạn chưa rút đơn nào',
+    all: 'Chưa có ứng viên nào ứng tuyển',
+    pending: 'Không có ứng viên chờ xử lý',
+    reviewing: 'Không có ứng viên đang xem xét',
+    accepted: 'Chưa chấp nhận ứng viên nào',
+    rejected: 'Chưa từ chối ứng viên nào',
   };
+
   return messages[filter.value] || 'Không có dữ liệu';
 };
 
-onMounted(async () => {
-  await Promise.all([fetchActiveApplications(), fetchStats()]);
+const getJobTypeLabel = (type) => {
+  const types = {
+    'full-time': 'Toàn thời gian',
+    'part-time': 'Bán thời gian',
+    internship: 'Thực tập',
+    contract: 'Hợp đồng',
+    freelance: 'Freelance',
+  };
+  return types[type] || type || 'Không xác định';
+};
+
+const getResumeUrl = (app) => {
+  return app?.resumeUrl || app?.student?.resumeUrl || '';
+};
+
+const getFullUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+
+  const apiBase = api.defaults.baseURL || '';
+  const origin = apiBase.replace(/\/api\/?$/, '');
+
+  return `${origin}${url}`;
+};
+
+onMounted(() => {
+  fetchPageData();
 });
+
+watch(
+  () => route.params.jobId,
+  () => {
+    fetchPageData();
+  }
+);
 </script>
 
 <style scoped>
-.student-applications {
+.employer-applications {
   min-height: 100vh;
   background: #f5f7fa;
 }
@@ -570,458 +686,483 @@ onMounted(async () => {
   padding: 30px 20px;
 }
 
-/* Page Header */
 .page-header {
-  margin-bottom: 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
 }
 
 .page-header h1 {
+  margin: 0 0 6px;
   font-size: 32px;
-  color: #2c3e50;
-  margin-bottom: 5px;
+  color: #1f2937;
 }
 
 .subtitle {
-  color: #666;
-  font-size: 16px;
+  margin: 0;
+  color: #6b7280;
 }
 
-/* Statistics */
+.job-info-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 10px 24px rgba(102, 126, 234, 0.24);
+}
+
+.job-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.job-header h2 {
+  margin: 0 0 6px;
+  font-size: 24px;
+}
+
+.job-header p {
+  margin: 0;
+  opacity: 0.95;
+}
+
+.job-stats-inline {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-  margin-bottom: 30px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
 }
 
 .stat-card {
-  background: white;
-  padding: 25px;
-  border-radius: 12px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
   display: flex;
   align-items: center;
-  gap: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  transition: transform 0.3s;
-}
-
-.stat-card:hover {
-  transform: translateY(-5px);
+  gap: 14px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
 }
 
 .stat-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
+  font-size: 24px;
 }
 
-.stat-info h3 {
-  font-size: 32px;
-  color: #2c3e50;
-  margin-bottom: 5px;
+.stat-icon.pending { background: #fff7ed; }
+.stat-icon.reviewing { background: #eff6ff; }
+.stat-icon.accepted { background: #ecfdf5; }
+.stat-icon.rejected { background: #fef2f2; }
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
 }
 
-.stat-info p {
-  color: #666;
+.stat-label {
+  color: #6b7280;
   font-size: 14px;
 }
 
-/* Filter Tabs */
-.filter-tabs {
+.filter-bar {
   display: flex;
   gap: 10px;
-  margin-bottom: 20px;
   flex-wrap: wrap;
-  background: white;
-  padding: 15px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-bottom: 22px;
 }
 
 .filter-btn {
-  padding: 10px 20px;
-  border: none;
-  background: #f8f9fa;
-  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  border-radius: 999px;
+  padding: 10px 14px;
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.3s;
-  color: #495057;
-}
-
-.filter-btn:hover {
-  background: #e9ecef;
+  font-weight: 600;
 }
 
 .filter-btn.active {
-  background: #667eea;
-  color: white;
+  background: #4f46e5;
+  border-color: #4f46e5;
+  color: #fff;
 }
 
-/* Loading */
-.loading-state {
-  background: white;
+.state-box {
+  background: #fff;
+  border-radius: 16px;
   padding: 50px 20px;
   text-align: center;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  color: #6b7280;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+}
+
+.empty-icon {
+  font-size: 40px;
+  margin-bottom: 10px;
 }
 
 .loading-spinner {
   width: 36px;
   height: 36px;
-  border: 3px solid #e9ecef;
-  border-top-color: #667eea;
+  border: 4px solid #e5e7eb;
+  border-top-color: #4f46e5;
   border-radius: 50%;
   margin: 0 auto 12px;
   animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* Applications Grid */
-.applications-grid {
-  display: grid;
-  gap: 20px;
+.applications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
 .application-card {
-  background: white;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  transition: transform 0.3s;
+  background: #fff;
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
 }
 
-.application-card:hover {
-  transform: translateY(-2px);
-}
-
-/* Card Header */
 .card-header {
-  padding: 20px 25px;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 20px;
-  border-bottom: 1px solid #f0f0f0;
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
-.company-info {
+.candidate-main {
   display: flex;
-  gap: 15px;
-  flex: 1;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
 }
 
-.company-logo {
-  width: 50px;
-  height: 50px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.candidate-main h3 {
+  margin: 0 0 4px;
+  color: #111827;
+}
+
+.candidate-main p {
+  margin: 0;
+  color: #6b7280;
+  word-break: break-word;
+}
+
+.avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #eef2ff;
+  color: #4338ca;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-weight: bold;
-  font-size: 18px;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
-.company-info h3 {
-  margin: 0 0 5px 0;
-  font-size: 18px;
-  color: #2c3e50;
-}
-
-.company-name {
-  margin: 0;
-  color: #666;
-  font-size: 14px;
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .status-badge {
-  padding: 8px 16px;
-  border-radius: 20px;
+  align-self: flex-start;
+  padding: 8px 12px;
+  border-radius: 999px;
   font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
+  font-weight: 700;
 }
 
-.status-badge.pending { background: #fff3cd; color: #856404; }
-.status-badge.reviewing { background: #cfe2ff; color: #084298; }
-.status-badge.accepted { background: #d4edda; color: #155724; }
-.status-badge.rejected { background: #f8d7da; color: #721c24; }
-.status-badge.withdrawn { background: #e2e3e5; color: #41464b; }
+.status-badge.pending {
+  background: #fff7ed;
+  color: #c2410c;
+}
 
-/* Card Body */
+.status-badge.reviewing {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.status-badge.accepted {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.status-badge.rejected {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 .card-body {
-  padding: 25px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
+}
+
+.job-ref {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: #374151;
+  font-weight: 600;
 }
 
 .info-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 18px;
 }
 
 .info-item {
+  color: #374151;
+}
+
+.label {
+  font-weight: 700;
+  margin-right: 6px;
+  color: #111827;
+}
+
+.value {
+  color: #4b5563;
+}
+
+.skills-section {
   display: flex;
-  gap: 12px;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.info-item .icon {
-  font-size: 20px;
+.skills-label {
+  font-weight: 700;
+  color: #111827;
 }
 
-.info-item .label {
-  font-size: 12px;
-  color: #888;
-  margin: 0 0 3px 0;
+.skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.info-item .value {
-  font-size: 14px;
-  color: #2c3e50;
-  margin: 0;
-  font-weight: 500;
+.skill-tag {
+  background: #eef2ff;
+  color: #4338ca;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
-.employer-note-preview {
-  padding: 15px;
-  border-radius: 8px;
-  font-size: 14px;
+.cover-preview {
+  background: #fafafa;
+  border-left: 4px solid #6366f1;
+  padding: 12px 14px;
+  border-radius: 10px;
+  color: #374151;
+  line-height: 1.6;
 }
 
-.employer-note-preview.accepted { background: #d4edda; color: #155724; }
-.employer-note-preview.rejected { background: #f8d7da; color: #721c24; }
-.employer-note-preview.reviewing { background: #cfe2ff; color: #084298; }
-.employer-note-preview.pending { background: #fff3cd; color: #856404; }
-.employer-note-preview.withdrawn { background: #e2e3e5; color: #41464b; }
-
-/* Card Footer */
-.card-footer {
-  padding: 20px 25px;
-  border-top: 1px solid #f0f0f0;
+.card-actions {
+  margin-top: 18px;
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.btn-action {
-  padding: 8px 16px;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  background: white;
+.btn {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
   cursor: pointer;
-  transition: all 0.3s;
-  font-size: 13px;
-  font-weight: 500;
+  font-weight: 700;
   text-decoration: none;
-  color: inherit;
-  display: inline-block;
-}
-
-.btn-action:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-.btn-action.view:hover {
-  border-color: #667eea;
-  color: #667eea;
-}
-
-.btn-action.danger:hover {
-  border-color: #ff6b6b;
-  color: #ff6b6b;
-}
-
-/* Empty State */
-.empty-state {
-  background: white;
-  padding: 60px 20px;
-  text-align: center;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.empty-icon {
-  font-size: 64px;
-  margin-bottom: 20px;
-}
-
-.empty-state h3 {
-  margin: 0 0 10px 0;
-  color: #2c3e50;
-  font-size: 20px;
-}
-
-.empty-state p {
-  color: #666;
-  margin: 0 0 25px 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-primary {
-  padding: 12px 25px;
-  background: #667eea;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.3s;
+  background: #4f46e5;
+  color: #fff;
 }
 
-.btn-primary:hover {
-  background: #5a67d8;
-  transform: translateY(-2px);
+.btn-secondary {
+  background: #fff;
+  color: #374151;
+  border: 1px solid #d1d5db;
 }
 
-/* Modal */
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  z-index: 1000;
+.btn-success {
+  background: #10b981;
+  color: #fff;
 }
 
-.modal-content {
-  background: white;
-  border-radius: 12px;
-  padding: 30px;
-  max-width: 600px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  position: relative;
-}
-
-.modal-content.large {
-  max-width: 900px;
+.btn-danger {
+  background: #ef4444;
+  color: #fff;
 }
 
 .btn-close {
   position: absolute;
-  top: 20px;
-  right: 20px;
-  width: 35px;
-  height: 35px;
+  top: 14px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
   border: none;
-  background: #f8f9fa;
   border-radius: 50%;
+  background: #f3f4f6;
   cursor: pointer;
-  font-size: 16px;
-  transition: all 0.3s;
+  font-weight: 700;
 }
 
-.btn-close:hover {
-  background: #e9ecef;
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 999;
+}
+
+.modal-content {
+  position: relative;
+  width: 100%;
+  max-width: 760px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 18px;
+  padding: 24px;
+}
+
+.modal-content.small {
+  max-width: 520px;
 }
 
 .modal-content h2 {
-  margin: 0 0 30px 0;
-  color: #2c3e50;
-  font-size: 24px;
+  margin: 0 0 18px;
+  color: #111827;
 }
 
 .modal-section {
-  margin-bottom: 25px;
+  margin-bottom: 18px;
 }
 
 .modal-section h3 {
-  margin: 0 0 15px 0;
-  color: #2c3e50;
-  font-size: 18px;
+  margin: 0 0 10px;
+  color: #1f2937;
 }
 
 .detail-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 15px;
-}
-
-.detail-item {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.detail-item .label {
-  font-weight: 600;
-  color: #555;
-}
-
-.detail-item .value {
-  color: #2c3e50;
-}
-
-.cv-link {
-  display: inline-block;
-  padding: 10px 20px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  text-decoration: none;
-  color: #667eea;
-  font-weight: 500;
-  transition: all 0.3s;
-}
-
-.cv-link:hover {
-  background: #e9ecef;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  color: #374151;
 }
 
 .text-content {
-  background: #f8f9fa;
-  padding: 15px;
-  border-radius: 8px;
-  font-size: 14px;
-  line-height: 1.6;
   margin: 0;
+  line-height: 1.7;
+  color: #374151;
+  background: #fafafa;
+  padding: 12px;
+  border-radius: 10px;
 }
 
-.employer-feedback.accepted .text-content { background: #d4edda; }
-.employer-feedback.rejected .text-content { background: #f8d7da; }
-.employer-feedback.reviewing .text-content { background: #cfe2ff; }
-.employer-feedback.pending .text-content { background: #fff3cd; }
-.employer-feedback.withdrawn .text-content { background: #e2e3e5; }
+.cv-link {
+  display: inline-flex;
+  text-decoration: none;
+  font-weight: 700;
+  color: #4338ca;
+}
 
-/* Responsive */
-@media (max-width: 768px) {
-  .card-header {
-    flex-direction: column;
-  }
+.note-textarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  padding: 12px;
+  resize: vertical;
+  font: inherit;
+  box-sizing: border-box;
+}
 
-  .detail-grid {
-    grid-template-columns: 1fr;
-  }
+.block-label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 700;
+  color: #111827;
+}
 
-  .filter-tabs {
-    flex-direction: column;
-  }
+.help-text {
+  color: #6b7280;
 }
 
 .modal-actions {
   display: flex;
   gap: 10px;
-  justify-content: flex-end;
   flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 992px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .job-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-header,
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .info-grid,
+  .detail-grid,
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .container {
+    padding: 20px 14px;
+  }
+
+  .modal-content {
+    padding: 18px;
+  }
 }
 </style>

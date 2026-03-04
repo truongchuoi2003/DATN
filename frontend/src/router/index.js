@@ -73,6 +73,18 @@ const routes = [
     component: () => import('../views/JobEdit.vue'),
     meta: { requiresAuth: true, role: 'employer' }
   },
+    {
+    path: '/employer/applications',
+    name: 'EmployerApplicationsAll',
+    component: () => import('../views/EmployerApplications.vue'),
+    meta: { requiresAuth: true, role: 'employer' }
+  },
+  {
+    path: '/employer/applications/:jobId',
+    name: 'EmployerApplicationsByJob',
+    component: () => import('../views/EmployerApplications.vue'),
+    meta: { requiresAuth: true, role: 'employer' }
+  },
 
   // ===== ADMIN =====
   {
