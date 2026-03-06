@@ -340,7 +340,7 @@ const handleVerify = async (employerId) => {
 };
 
 const navigateTo = (path) => {
-  alert(`Tính năng "${path}" đang phát triển`);
+  router.push(path);
 };
 
 const handleLogout = () => {

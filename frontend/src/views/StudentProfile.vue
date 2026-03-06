@@ -51,12 +51,12 @@
             >
               ⭐ Kỹ năng
             </button>
-            <button 
-              :class="{ active: activeTab === 'security' }"
-              @click="activeTab = 'security'"
+            <router-link
+              to="/change-password"
+              class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700"
             >
-              🔒 Bảo mật
-            </button>
+              Đổi mật khẩu
+            </router-link>
           </nav>
         </aside>
 
@@ -442,50 +442,6 @@
                   ➕ Thêm
                 </button>
               </div>
-            </div>
-          </div>
-
-          <!-- Security -->
-          <div v-if="activeTab === 'security'" class="content-section">
-            <div class="section-header">
-              <h2>Đổi mật khẩu</h2>
-            </div>
-
-            <div class="password-form">
-              <div class="form-group">
-                <label>Mật khẩu hiện tại</label>
-                <input 
-                  v-model="passwordForm.currentPassword" 
-                  type="password"
-                  placeholder="Nhập mật khẩu hiện tại"
-                />
-              </div>
-
-              <div class="form-group">
-                <label>Mật khẩu mới</label>
-                <input 
-                  v-model="passwordForm.newPassword" 
-                  type="password"
-                  placeholder="Ít nhất 6 ký tự"
-                />
-              </div>
-
-              <div class="form-group">
-                <label>Xác nhận mật khẩu mới</label>
-                <input 
-                  v-model="passwordForm.confirmPassword" 
-                  type="password"
-                  placeholder="Nhập lại mật khẩu mới"
-                />
-              </div>
-
-              <div v-if="passwordMessage" class="alert" :class="{ success: passwordSuccess, error: !passwordSuccess }">
-                {{ passwordMessage }}
-              </div>
-
-              <button @click="handleChangePassword" class="btn btn-primary">
-                🔒 Đổi mật khẩu
-              </button>
             </div>
           </div>
         </main>

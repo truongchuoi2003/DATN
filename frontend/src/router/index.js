@@ -1,12 +1,15 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import Login from '../views/Login.vue';
 import Register from '../views/Register.vue';
+import ChangePassword from '../views/ChangePassword.vue';
+
 
 const routes = [
   { path: '/', redirect: '/login' },
 
   { path: '/login', name: 'Login', component: Login, meta: { guest: true } },
   { path: '/register', name: 'Register', component: Register, meta: { guest: true } },
+  { path: '/change-password', name: 'ChangePassword', component: ChangePassword, meta: { requiresAuth: true } },
 
   // ===== STUDENT =====
   {
@@ -105,7 +108,12 @@ const routes = [
     component: () => import('../views/AdminEmployers.vue'),
     meta: { requiresAuth: true, role: 'admin' }
   },
-
+  {
+  path: '/admin/users',
+  name: 'AdminUsers',
+  component: () => import('../views/AdminUsers.vue'),
+  meta: { requiresAuth: true, role: 'admin' }
+},
   // ✅ NotFound PHẢI ở cuối
   { path: '/:pathMatch(.*)*', name: 'NotFound', redirect: '/' },
 ];

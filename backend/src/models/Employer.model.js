@@ -22,6 +22,18 @@ const employerSchema = new mongoose.Schema(
       required: true,
       minlength: 6,
     },
+    passwordResetToken: {
+      type: String,
+      default: null,
+    },
+    passwordResetExpires: {
+      type: Date,
+      default: null,
+    },
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
 
     phone: {
       type: String,

@@ -23,6 +23,15 @@ const adminSchema = new mongoose.Schema(
       minlength: 6,
     },
 
+    passwordResetToken: {
+      type: String,
+      default: null,
+    },
+    passwordResetExpires: {
+      type: Date,
+      default: null,
+    },
+
     phone: {
       type: String,
     },
@@ -58,9 +67,7 @@ const adminSchema = new mongoose.Schema(
 
 // 🔐 Hash password trước khi lưu
 adminSchema.pre('save', async function () {
-  if (!this.isModified('password')) {
-    return;
-  }
+  if (!this.isModified('password')) return;
   this.password = await bcrypt.hash(this.password, 10);
 });
 

@@ -18,5 +18,7 @@ router.put('/employers/:employerId/reject', adminController.rejectEmployer);
 
 // Users
 router.get('/users', adminController.getAllUsers);
+router.put('/users/:role/:userId/reset-password', adminController.resetUserPasswordByAdmin);
+router.put('/users/:role/:userId/toggle-status', adminController.toggleUserStatus);
 
 module.exports = router;

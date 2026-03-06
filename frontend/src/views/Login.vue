@@ -63,7 +63,14 @@
                 <input type="checkbox" v-model="rememberMe" />
                 <span>Ghi nhớ đăng nhập</span>
               </label>
-              <a href="#" class="forgot-password">Quên mật khẩu?</a>
+              <div class="mt-3 text-right">
+                <router-link
+                  to="/forgot-password"
+                  class="text-sm text-blue-600 hover:underline"
+                >
+                  Quên mật khẩu?
+                </router-link>
+              </div>
             </div>
 
             <div v-if="message" class="alert" :class="{ success: isSuccess, error: !isSuccess }">

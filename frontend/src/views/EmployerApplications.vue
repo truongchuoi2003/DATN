@@ -395,26 +395,24 @@ const pageSubtitle = computed(() =>
     : 'Tổng hợp tất cả ứng viên từ các tin tuyển dụng của bạn'
 );
 
-// Computed
-const pendingCount = computed(() => 
-  applications.value.filter(a => a.status === 'pending').length
+const pendingCount = computed(() =>
+  applications.value.filter((a) => a.status === 'pending').length
 );
-const reviewingCount = computed(() => 
-  applications.value.filter(a => a.status === 'reviewing').length
+const reviewingCount = computed(() =>
+  applications.value.filter((a) => a.status === 'reviewing').length
 );
-const acceptedCount = computed(() => 
-  applications.value.filter(a => a.status === 'accepted').length
+const acceptedCount = computed(() =>
+  applications.value.filter((a) => a.status === 'accepted').length
 );
-const rejectedCount = computed(() => 
-  applications.value.filter(a => a.status === 'rejected').length
+const rejectedCount = computed(() =>
+  applications.value.filter((a) => a.status === 'rejected').length
 );
 
 const filteredApplications = computed(() => {
   if (filter.value === 'all') return applications.value;
-  return applications.value.filter(a => a.status === filter.value);
+  return applications.value.filter((a) => a.status === filter.value);
 });
 
-// Fetch data
 const fetchJobDetails = async () => {
   if (!hasJobId.value) {
     job.value = null;
@@ -423,7 +421,7 @@ const fetchJobDetails = async () => {
 
   try {
     const res = await api.get(`/jobs/${route.params.jobId}`);
-    job.value = res.data.job;
+    job.value = res.data.job || null;
   } catch (error) {
     console.error('Error fetching job:', error);
     job.value = null;
@@ -431,12 +429,18 @@ const fetchJobDetails = async () => {
 };
 
 const fetchApplicationsByJob = async () => {
-  const res = await api.get(`/applications/job/${route.params.jobId}`);
+  const params = {};
+  if (filter.value !== 'all') params.status = filter.value;
+
+  const res = await api.get(`/applications/job/${route.params.jobId}`, { params });
   applications.value = res.data.applications || [];
 };
 
 const fetchAllEmployerApplications = async () => {
-  const res = await api.get('/applications/employer');
+  const params = { sort: '-createdAt' };
+  if (filter.value !== 'all') params.status = filter.value;
+
+  const res = await api.get('/applications/employer', { params });
   applications.value = res.data.applications || [];
 };
 
@@ -445,10 +449,7 @@ const fetchPageData = async () => {
     loading.value = true;
 
     if (hasJobId.value) {
-      await Promise.all([
-        fetchJobDetails(),
-        fetchApplicationsByJob()
-      ]);
+      await Promise.all([fetchJobDetails(), fetchApplicationsByJob()]);
     } else {
       job.value = null;
       await fetchAllEmployerApplications();
@@ -461,14 +462,21 @@ const fetchPageData = async () => {
   }
 };
 
-// Actions
-const changeFilter = (newFilter) => {
+const changeFilter = async (newFilter) => {
   filter.value = newFilter;
+  await fetchPageData();
 };
 
-const viewApplication = (app) => {
-  selectedApplication.value = app;
-  modalEmployerNote.value = app.employerNote || '';
+const viewApplication = async (app) => {
+  try {
+    const res = await api.get(`/applications/${app._id}`);
+    selectedApplication.value = res.data.application || app;
+    modalEmployerNote.value = selectedApplication.value.employerNote || '';
+  } catch (error) {
+    console.error('Error fetching application detail:', error);
+    selectedApplication.value = app;
+    modalEmployerNote.value = app.employerNote || '';
+  }
 };
 
 const closeModal = () => {
@@ -478,7 +486,10 @@ const closeModal = () => {
 
 const openRejectModal = (app) => {
   rejectingAppId.value = app._id;
-  rejectNote.value = app.employerNote || '';
+  rejectNote.value =
+    selectedApplication.value && selectedApplication.value._id === app._id
+      ? modalEmployerNote.value
+      : app.employerNote || '';
   showRejectModal.value = true;
 };
 
@@ -488,25 +499,46 @@ const closeRejectModal = () => {
   rejectingAppId.value = null;
 };
 
+const refreshSelectedApplication = async (appId) => {
+  try {
+    const res = await api.get(`/applications/${appId}`);
+    selectedApplication.value = res.data.application;
+    modalEmployerNote.value = selectedApplication.value?.employerNote || '';
+  } catch (error) {
+    console.error('Error refreshing application detail:', error);
+  }
+};
+
 const confirmReject = async () => {
+  if (!rejectingAppId.value) return;
   await updateStatus(rejectingAppId.value, 'rejected', rejectNote.value);
   closeRejectModal();
 };
 
-const updateStatus = async (appId, status, note = '') => {
-  if (!confirm(`Xác nhận ${status === 'accepted' ? 'chấp nhận' : status === 'rejected' ? 'từ chối' : 'cập nhật'} ứng viên này?`)) {
+const updateStatus = async (appId, status, note = undefined) => {
+  const actionText =
+    status === 'accepted'
+      ? 'chấp nhận'
+      : status === 'rejected'
+        ? 'từ chối'
+        : 'đánh dấu đang xem xét';
+
+  if (!window.confirm(`Xác nhận ${actionText} ứng viên này?`)) {
     return;
   }
 
   try {
-    await api.put(`/applications/${appId}/status`, {
-      status,
-      employerNote: note
-    });
+    const payload = { status };
+    if (typeof note === 'string') payload.employerNote = note;
 
-    alert('✅ Cập nhật thành công!');
+    await api.put(`/applications/${appId}/status`, payload);
+
+    alert('✅ Cập nhật trạng thái thành công!');
     await fetchPageData();
-    closeModal();
+
+    if (selectedApplication.value?._id === appId) {
+      await refreshSelectedApplication(appId);
+    }
   } catch (error) {
     console.error('Error updating status:', error);
     alert(error.response?.data?.message || 'Không thể cập nhật trạng thái');
@@ -519,67 +551,71 @@ const updateStatusWithNote = async (appId, status) => {
 
 const saveNote = async (appId) => {
   try {
-    const currentApp = applications.value.find(a => a._id === appId);
-    await api.put(`/applications/${appId}/status`, {
-      status: currentApp.status,
-      employerNote: modalEmployerNote.value
+    await api.put(`/applications/${appId}/note`, {
+      employerNote: modalEmployerNote.value,
     });
 
     alert('✅ Đã lưu ghi chú!');
     await fetchPageData();
-    closeModal();
+
+    if (selectedApplication.value?._id === appId) {
+      await refreshSelectedApplication(appId);
+    }
   } catch (error) {
     console.error('Error saving note:', error);
-    alert('Không thể lưu ghi chú');
+    alert(error.response?.data?.message || 'Không thể lưu ghi chú');
   }
 };
 
-// Utility functions
 const getInitials = (name) => {
   if (!name) return '?';
-  const parts = name.split(' ');
+  const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) {
-    return parts[0][0] + parts[parts.length - 1][0];
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
   }
   return name.substring(0, 2).toUpperCase();
 };
 
 const formatNumber = (num) => {
+  if (num == null) return '0';
   return new Intl.NumberFormat('vi-VN').format(num);
 };
 
 const formatDate = (date) => {
+  if (!date) return 'Chưa cập nhật';
   return new Date(date).toLocaleDateString('vi-VN');
 };
 
 const formatDateTime = (date) => {
+  if (!date) return 'Chưa cập nhật';
   return new Date(date).toLocaleString('vi-VN');
 };
 
-const truncateText = (text, length) => {
+const truncateText = (text, length = 120) => {
   if (!text) return '';
   if (text.length <= length) return text;
-  return text.substring(0, length) + '...';
+  return `${text.slice(0, length)}...`;
 };
 
 const getStatusLabel = (status) => {
   const labels = {
-    'pending': '⏳ Chờ xử lý',
-    'reviewing': '👀 Đang xem xét',
-    'accepted': '✅ Đã chấp nhận',
-    'rejected': '❌ Đã từ chối',
+    pending: '⏳ Chờ xử lý',
+    reviewing: '👀 Đang xem xét',
+    accepted: '✅ Đã chấp nhận',
+    rejected: '❌ Đã từ chối',
   };
   return labels[status] || status;
 };
 
 const getEmptyMessage = () => {
   const messages = {
-    'all': 'Chưa có ứng viên nào ứng tuyển',
-    'pending': 'Không có ứng viên chờ xử lý',
-    'reviewing': 'Không có ứng viên đang xem xét',
-    'accepted': 'Chưa chấp nhận ứng viên nào',
-    'rejected': 'Chưa từ chối ứng viên nào',
+    all: 'Chưa có ứng viên nào ứng tuyển',
+    pending: 'Không có ứng viên chờ xử lý',
+    reviewing: 'Không có ứng viên đang xem xét',
+    accepted: 'Chưa chấp nhận ứng viên nào',
+    rejected: 'Chưa từ chối ứng viên nào',
   };
+
   return messages[filter.value] || 'Không có dữ liệu';
 };
 
@@ -587,33 +623,40 @@ const getJobTypeLabel = (type) => {
   const types = {
     'full-time': 'Toàn thời gian',
     'part-time': 'Bán thời gian',
-    'internship': 'Thực tập',
-    'contract': 'Hợp đồng',
-    'freelance': 'Freelance',
+    internship: 'Thực tập',
+    contract: 'Hợp đồng',
+    freelance: 'Freelance',
   };
-  return types[type] || type;
+  return types[type] || type || 'Không xác định';
+};
+
+const getResumeUrl = (app) => {
+  return app?.resumeUrl || app?.student?.resumeUrl || '';
 };
 
 const getFullUrl = (url) => {
+  if (!url) return '';
   if (url.startsWith('http')) return url;
-  return `${api.defaults.baseURL}${url}`;
+
+  const apiBase = api.defaults.baseURL || '';
+  const origin = apiBase.replace(/\/api\/?$/, '');
+
+  return `${origin}${url}`;
 };
 
 onMounted(() => {
   fetchPageData();
 });
+
 watch(
   () => route.params.jobId,
   () => {
     fetchPageData();
   }
 );
-
 </script>
 
 <style scoped>
-/* Copy tất cả styles từ StudentApplications.vue và customize theo nhu cầu */
-/* Tôi sẽ giữ nguyên structure, chỉ thêm một số styles đặc biệt cho employer */
 
 .employer-applications {
   min-height: 100vh;

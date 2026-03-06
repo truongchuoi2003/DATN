@@ -6,6 +6,16 @@ const mongoose = require('mongoose');
 
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
+const EMPLOYER_ALLOWED_TRANSITIONS = {
+  pending: ['reviewing', 'accepted', 'rejected'],
+  reviewing: ['accepted', 'rejected'],
+  accepted: [],
+  rejected: [],
+  withdrawn: [],
+};
+
+const STUDENT_WITHDRAW_ALLOWED = ['pending', 'reviewing'];
+
 const createInteractionLog = async ({
   studentId,
   jobId,
@@ -28,9 +38,9 @@ const createInteractionLog = async ({
 };
 
 const buildSort = (sortQuery) => {
-  // Chỉ cho phép sort các field an toàn
-  const allowedFields = ['createdAt', 'updatedAt', 'appliedAt', 'status'];
-  const sortStr = typeof sortQuery === 'string' && sortQuery.trim() ? sortQuery.trim() : '-createdAt';
+  const allowedFields = ['createdAt', 'updatedAt', 'appliedAt', 'status', 'reviewedAt'];
+  const sortStr =
+    typeof sortQuery === 'string' && sortQuery.trim() ? sortQuery.trim() : '-createdAt';
 
   const direction = sortStr.startsWith('-') ? -1 : 1;
   const field = sortStr.replace(/^-/, '');
@@ -40,6 +50,33 @@ const buildSort = (sortQuery) => {
   }
 
   return { [field]: direction };
+};
+
+const buildEmployerFilter = (userId, status) => {
+  const filter = {
+    employer: userId,
+    status: { $ne: 'withdrawn' },
+  };
+
+  if (status) {
+    filter.status = status;
+  }
+
+  return filter;
+};
+
+const populateApplicationDetail = (query) =>
+  query
+    .populate('student', 'fullName email phone university major gpa skills resumeUrl avatar')
+    .populate('job', 'title location salary jobType level status deadline employer')
+    .populate({
+      path: 'job',
+      populate: { path: 'employer', select: 'companyName logo email companySize industry' },
+    });
+
+const canEmployerTransition = (currentStatus, nextStatus) => {
+  const allowed = EMPLOYER_ALLOWED_TRANSITIONS[currentStatus] || [];
+  return allowed.includes(nextStatus);
 };
 
 // 📋 APPLY FOR JOB (Student only)
@@ -77,7 +114,6 @@ exports.applyForJob = async (req, res) => {
       });
     }
 
-    // (Khuyên dùng) chặn apply job đã hết hạn
     if (job.deadline && new Date(job.deadline) < new Date()) {
       return res.status(400).json({
         success: false,
@@ -105,7 +141,6 @@ exports.applyForJob = async (req, res) => {
       student: userId,
     });
 
-    // ✅ Nếu đã từng rút đơn -> cho phép ứng tuyển lại bằng cách reset đơn cũ
     if (existingApplication) {
       if (existingApplication.status !== 'withdrawn') {
         return res.status(400).json({
@@ -120,17 +155,13 @@ exports.applyForJob = async (req, res) => {
       existingApplication.expectedSalary = expectedSalary || null;
       existingApplication.availableFrom = availableFrom || null;
       existingApplication.additionalInfo = additionalInfo || null;
-
       existingApplication.employer = job.employer._id;
       existingApplication.employerNote = '';
       existingApplication.reviewedAt = null;
-
-      // Dùng appliedAt để đánh dấu lần apply mới (createdAt có thể immutable)
       existingApplication.appliedAt = new Date();
 
       await existingApplication.save();
 
-      // tăng số đơn còn hiệu lực
       await Job.findByIdAndUpdate(job._id, { $inc: { applicationsCount: 1 } });
 
       await createInteractionLog({
@@ -143,18 +174,20 @@ exports.applyForJob = async (req, res) => {
           reapplied: true,
         },
       });
-      await existingApplication.populate([
-        { path: 'student', select: 'fullName email phone university major' },
-        { path: 'job', select: 'title location salary' },
-      ]);
+
+      await populateApplicationDetail(Application.findById(existingApplication._id));
+
+      const refreshedApplication = await populateApplicationDetail(
+        Application.findById(existingApplication._id)
+      );
 
       return res.status(200).json({
         success: true,
         message: 'Ứng tuyển lại thành công! 🎉',
-        application: existingApplication,
-      });}
-      
-    // ✅ Apply lần đầu
+        application: refreshedApplication,
+      });
+    }
+
     const application = new Application({
       job: jobId,
       student: userId,
@@ -168,7 +201,6 @@ exports.applyForJob = async (req, res) => {
     });
 
     await application.save();
-
     await Job.findByIdAndUpdate(job._id, { $inc: { applicationsCount: 1 } });
 
     await createInteractionLog({
@@ -181,15 +213,14 @@ exports.applyForJob = async (req, res) => {
       },
     });
 
-    await application.populate([
-      { path: 'student', select: 'fullName email phone university major' },
-      { path: 'job', select: 'title location salary' },
-    ]);
+    const populatedApplication = await populateApplicationDetail(
+      Application.findById(application._id)
+    );
 
     return res.status(201).json({
       success: true,
       message: 'Ứng tuyển thành công! 🎉',
-      application,
+      application: populatedApplication,
     });
   } catch (error) {
     console.error('❌ Apply for job error:', error);
@@ -209,9 +240,8 @@ exports.getMyApplications = async (req, res) => {
 
     const filter = { student: userId };
 
-    // ✅ Mặc định: ẩn đơn đã rút
     if (status) {
-      filter.status = status; // muốn xem withdrawn: ?status=withdrawn
+      filter.status = status;
     } else {
       filter.status = { $ne: 'withdrawn' };
     }
@@ -222,6 +252,7 @@ exports.getMyApplications = async (req, res) => {
     let query = Application.find(filter)
       .populate({
         path: 'job',
+        select: 'title location salary jobType level status deadline employer',
         populate: { path: 'employer', select: 'companyName logo email' },
       })
       .sort(sortObj);
@@ -250,7 +281,7 @@ exports.getJobApplications = async (req, res) => {
   try {
     const { userId } = req.user;
     const { jobId } = req.params;
-    const { status } = req.query;
+    const { status, limit, sort } = req.query;
 
     if (!isValidObjectId(jobId)) {
       return res.status(400).json({
@@ -279,9 +310,16 @@ exports.getJobApplications = async (req, res) => {
       filter.status = status;
     }
 
-    const applications = await Application.find(filter)
+    const limitNum = Math.min(parseInt(limit || '0', 10) || 0, 50);
+    const sortObj = buildSort(sort);
+
+    let query = Application.find(filter)
       .populate('student', 'fullName email phone university major gpa skills resumeUrl avatar')
-      .sort({ createdAt: -1 });
+      .sort(sortObj);
+
+    if (limitNum > 0) query = query.limit(limitNum);
+
+    const applications = await query;
 
     return res.status(200).json({
       success: true,
@@ -302,21 +340,20 @@ exports.getJobApplications = async (req, res) => {
 exports.getEmployerApplications = async (req, res) => {
   try {
     const { userId } = req.user;
-    const { status } = req.query;
+    const { status, limit, sort } = req.query;
 
-    const filter = {
-      employer: userId,
-      status: { $ne: 'withdrawn' },
-    };
+    const filter = buildEmployerFilter(userId, status);
+    const limitNum = Math.min(parseInt(limit || '0', 10) || 0, 50);
+    const sortObj = buildSort(sort);
 
-    if (status) {
-      filter.status = status;
-    }
-
-    const applications = await Application.find(filter)
+    let query = Application.find(filter)
       .populate('student', 'fullName email phone university major gpa skills resumeUrl avatar')
-      .populate('job', 'title location jobType level status')
-      .sort({ createdAt: -1 });
+      .populate('job', 'title location jobType level status deadline')
+      .sort(sortObj);
+
+    if (limitNum > 0) query = query.limit(limitNum);
+
+    const applications = await query;
 
     return res.status(200).json({
       success: true,
@@ -325,6 +362,62 @@ exports.getEmployerApplications = async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Get employer applications error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message,
+    });
+  }
+};
+
+// 📄 GET APPLICATION DETAIL
+exports.getApplicationDetail = async (req, res) => {
+  try {
+    const { userId, role } = req.user;
+    const { applicationId } = req.params;
+
+    if (!isValidObjectId(applicationId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ApplicationId không hợp lệ',
+      });
+    }
+
+    const application = await populateApplicationDetail(Application.findById(applicationId));
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đơn ứng tuyển',
+      });
+    }
+
+    if (
+      role === 'student' &&
+      application.student._id.toString() !== userId
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền xem đơn này',
+      });
+    }
+
+    if (
+      role === 'employer' &&
+      application.employer.toString() !== userId
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền xem đơn này',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      application,
+    });
+  } catch (error) {
+    console.error('❌ Get application detail error:', error);
     return res.status(500).json({
       success: false,
       message: 'Lỗi server',
@@ -355,9 +448,7 @@ exports.updateApplicationStatus = async (req, res) => {
       });
     }
 
-    const application = await Application.findById(applicationId)
-      .populate('job')
-      .populate('student', 'fullName email');
+    const application = await populateApplicationDetail(Application.findById(applicationId));
 
     if (!application) {
       return res.status(404).json({
@@ -373,19 +464,25 @@ exports.updateApplicationStatus = async (req, res) => {
       });
     }
 
-    if (application.status === 'withdrawn') {
+    if (!canEmployerTransition(application.status, status)) {
       return res.status(400).json({
         success: false,
-        message: 'Không thể cập nhật đơn đã rút',
+        message: `Không thể chuyển từ "${application.status}" sang "${status}"`,
       });
     }
 
     application.status = status;
-    application.employerNote = employerNote || '';
-    application.reviewedAt = new Date();
 
+    if (typeof employerNote === 'string') {
+      application.employerNote = employerNote.trim();
+    }
+
+    application.reviewedAt = new Date();
     await application.save();
-    await application.populate('student', 'fullName email phone university major');
+
+    const updatedApplication = await populateApplicationDetail(
+      Application.findById(application._id)
+    );
 
     return res.status(200).json({
       success: true,
@@ -395,10 +492,69 @@ exports.updateApplicationStatus = async (req, res) => {
           : status === 'rejected'
             ? 'Đã từ chối ứng viên'
             : 'Đã đánh dấu đang xem xét',
-      application,
+      application: updatedApplication,
     });
   } catch (error) {
     console.error('❌ Update application status error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message,
+    });
+  }
+};
+
+// 📝 UPDATE EMPLOYER NOTE ONLY
+exports.updateEmployerNote = async (req, res) => {
+  try {
+    const { userId } = req.user;
+    const { applicationId } = req.params;
+    const { employerNote } = req.body;
+
+    if (!isValidObjectId(applicationId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ApplicationId không hợp lệ',
+      });
+    }
+
+    const application = await populateApplicationDetail(Application.findById(applicationId));
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đơn ứng tuyển',
+      });
+    }
+
+    if (application.employer.toString() !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền cập nhật ghi chú cho đơn này',
+      });
+    }
+
+    if (application.status === 'withdrawn') {
+      return res.status(400).json({
+        success: false,
+        message: 'Không thể lưu ghi chú cho đơn đã rút',
+      });
+    }
+
+    application.employerNote = typeof employerNote === 'string' ? employerNote.trim() : '';
+    await application.save();
+
+    const updatedApplication = await populateApplicationDetail(
+      Application.findById(application._id)
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đã lưu ghi chú',
+      application: updatedApplication,
+    });
+  } catch (error) {
+    console.error('❌ Update employer note error:', error);
     return res.status(500).json({
       success: false,
       message: 'Lỗi server',
@@ -436,29 +592,17 @@ exports.withdrawApplication = async (req, res) => {
       });
     }
 
-    if (application.status === 'accepted') {
+    if (!STUDENT_WITHDRAW_ALLOWED.includes(application.status)) {
       return res.status(400).json({
         success: false,
-        message: 'Không thể rút đơn đã được chấp nhận',
-      });
-    }
-
-    // ✅ Nếu đã rút rồi thì không trừ count lần nữa
-    if (application.status === 'withdrawn') {
-      return res.status(200).json({
-        success: true,
-        message: 'Đơn này đã được rút trước đó',
-        application,
+        message: 'Chỉ có thể rút đơn khi đang chờ xử lý hoặc đang xem xét',
       });
     }
 
     application.status = 'withdrawn';
     await application.save();
 
-    // applicationsCount = số đơn còn hiệu lực => trừ 1
     await Job.findByIdAndUpdate(application.job, { $inc: { applicationsCount: -1 } });
-
-    // chống âm
     await Job.updateOne(
       { _id: application.job, applicationsCount: { $lt: 0 } },
       { $set: { applicationsCount: 0 } }
@@ -484,7 +628,6 @@ exports.getMyApplicationStats = async (req, res) => {
   try {
     const { userId } = req.user;
 
-    // ✅ total mặc định không tính withdrawn
     const total = await Application.countDocuments({
       student: userId,
       status: { $ne: 'withdrawn' },
@@ -500,11 +643,47 @@ exports.getMyApplicationStats = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      stats: statsObj,       // Student.vue đang đọc res.data.stats
-      statistics: statsObj,  // giữ tương thích chỗ khác
+      stats: statsObj,
+      statistics: statsObj,
     });
   } catch (error) {
     console.error('❌ Get statistics error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server',
+      error: error.message,
+    });
+  }
+};
+
+// 📊 GET EMPLOYER APPLICATION STATISTICS
+exports.getEmployerApplicationStats = async (req, res) => {
+  try {
+    const { userId } = req.user;
+
+    const baseFilter = {
+      employer: userId,
+      status: { $ne: 'withdrawn' },
+    };
+
+    const total = await Application.countDocuments(baseFilter);
+    const pending = await Application.countDocuments({ employer: userId, status: 'pending' });
+    const reviewing = await Application.countDocuments({ employer: userId, status: 'reviewing' });
+    const accepted = await Application.countDocuments({ employer: userId, status: 'accepted' });
+    const rejected = await Application.countDocuments({ employer: userId, status: 'rejected' });
+
+    return res.status(200).json({
+      success: true,
+      stats: {
+        total,
+        pending,
+        reviewing,
+        accepted,
+        rejected,
+      },
+    });
+  } catch (error) {
+    console.error('❌ Get employer application stats error:', error);
     return res.status(500).json({
       success: false,
       message: 'Lỗi server',
@@ -526,7 +705,6 @@ exports.checkIfApplied = async (req, res) => {
       });
     }
 
-    // ✅ Chỉ tính là "đã apply" nếu KHÔNG phải withdrawn
     const application = await Application.findOne({
       job: jobId,
       student: userId,

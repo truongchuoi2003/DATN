@@ -339,16 +339,12 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
 import Header from '../components/Header.vue';
 import { useAuth } from '../composables/useAuth';
 import api from '../services/api';
 
-const router = useRouter();
 const { user } = useAuth();
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
-// State
 const loading = ref(true);
 const loadingJobs = ref(false);
 const loadingApps = ref(false);
@@ -359,7 +355,7 @@ const stats = reactive({
   totalApplications: 0,
   pendingApplications: 0,
   acceptedApplications: 0,
-  totalViews: 0
+  totalViews: 0,
 });
 
 const activeJobs = ref([]);
@@ -368,26 +364,27 @@ const recentApplications = ref([]);
 const showDetailModal = ref(false);
 const selectedApplication = ref(null);
 
-// Fetch stats
 const fetchStats = async () => {
   try {
-    const res = await api.get('/jobs/statistics');
-    const s = res.data.statistics;
+    const [jobStatsRes, appStatsRes] = await Promise.all([
+      api.get('/jobs/statistics'),
+      api.get('/applications/employer/stats'),
+    ]);
 
-    stats.totalJobs = s.totalJobs || 0;
-    stats.activeJobs = s.activeJobs || 0;
-    stats.totalViews = s.totalViews || 0;
-    stats.totalApplications = s.totalApplications || 0;
+    const jobStats = jobStatsRes.data.statistics || {};
+    const appStats = appStatsRes.data.stats || {};
 
-    // Nếu muốn chính xác 100% pending/accepted toàn bộ -> nên làm aggregation backend.
-    stats.pendingApplications = 0;
-    stats.acceptedApplications = 0;
+    stats.totalJobs = jobStats.totalJobs || 0;
+    stats.activeJobs = jobStats.activeJobs || 0;
+    stats.totalViews = jobStats.totalViews || 0;
+    stats.totalApplications = appStats.total || 0;
+    stats.pendingApplications = appStats.pending || 0;
+    stats.acceptedApplications = appStats.accepted || 0;
   } catch (error) {
     console.error('❌ Error fetching stats:', error);
   }
 };
 
-// Fetch active jobs
 const fetchActiveJobs = async () => {
   try {
     loadingJobs.value = true;
@@ -395,11 +392,12 @@ const fetchActiveJobs = async () => {
     const res = await api.get('/jobs/my-jobs', { params: { status: 'active' } });
     activeJobs.value = (res.data.jobs || []).slice(0, 3);
 
-    // Optional: tính pendingCount để UI không bị undefined
     await Promise.all(
       activeJobs.value.map(async (job) => {
         try {
-          const r = await api.get(`/applications/job/${job._id}`, { params: { status: 'pending' } });
+          const r = await api.get(`/applications/job/${job._id}`, {
+            params: { status: 'pending' },
+          });
           job.pendingCount = r.data?.applications?.length || 0;
         } catch {
           job.pendingCount = 0;
@@ -413,33 +411,13 @@ const fetchActiveJobs = async () => {
   }
 };
 
-// Fetch recent applications
 const fetchRecentApplications = async () => {
   try {
     loadingApps.value = true;
-
-    const jobsRes = await api.get('/jobs/my-jobs');
-    const jobs = jobsRes.data.jobs || [];
-    const topJobs = jobs.slice(0, 5);
-
-    const appLists = await Promise.all(
-      topJobs.map(async (j) => {
-        try {
-          const r = await api.get(`/applications/job/${j._id}`);
-          return r.data.applications || [];
-        } catch {
-          return [];
-        }
-      })
-    );
-
-    const merged = appLists.flat();
-    merged.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    recentApplications.value = merged.slice(0, 5);
-
-    // Ước lượng theo topJobs (không phải toàn bộ hệ thống)
-    stats.pendingApplications = merged.filter(a => a.status === 'pending').length;
-    stats.acceptedApplications = merged.filter(a => a.status === 'accepted').length;
+    const res = await api.get('/applications/employer', {
+      params: { limit: 5, sort: '-createdAt' },
+    });
+    recentApplications.value = res.data.applications || [];
   } catch (error) {
     console.error('❌ Error fetching applications:', error);
   } finally {
@@ -447,97 +425,88 @@ const fetchRecentApplications = async () => {
   }
 };
 
-
-// Fetch all data
 const fetchAllData = async () => {
   loading.value = true;
-  await fetchStats();
-  await fetchActiveJobs();
-  await fetchRecentApplications();
+  await Promise.all([fetchStats(), fetchActiveJobs(), fetchRecentApplications()]);
   loading.value = false;
 };
 
-// View application detail
-const viewApplication = (app) => {
-  selectedApplication.value = app;
+const viewApplication = async (app) => {
+  try {
+    const res = await api.get(`/applications/${app._id}`);
+    selectedApplication.value = res.data.application || app;
+  } catch (error) {
+    console.error('❌ Error fetching application detail:', error);
+    selectedApplication.value = app;
+  }
   showDetailModal.value = true;
 };
 
-// Close modal
 const closeDetailModal = () => {
   showDetailModal.value = false;
   selectedApplication.value = null;
 };
 
-// Accept application
 const acceptApplication = async (appId) => {
   if (!confirm('Bạn có chắc muốn chấp nhận ứng viên này?')) return;
+
   try {
     await api.put(`/applications/${appId}/status`, { status: 'accepted' });
     alert('✅ Đã chấp nhận ứng viên');
     closeDetailModal();
-    fetchRecentApplications();
-    fetchStats();
+    await fetchAllData();
   } catch (error) {
     alert(error.response?.data?.message || 'Không thể chấp nhận ứng viên');
   }
 };
 
-// Reject application
 const rejectApplication = async (appId) => {
   if (!confirm('Bạn có chắc muốn từ chối ứng viên này?')) return;
+
   try {
     await api.put(`/applications/${appId}/status`, { status: 'rejected' });
     alert('✅ Đã từ chối ứng viên');
     closeDetailModal();
-    fetchRecentApplications();
-    fetchStats();
+    await fetchAllData();
   } catch (error) {
     alert(error.response?.data?.message || 'Không thể từ chối ứng viên');
   }
 };
 
-// Utility functions
 const getInitials = (name) => {
   if (!name) return '?';
-  const parts = name.split(' ');
-  return parts.length >= 2 ? parts[0][0] + parts[parts.length - 1][0] : name.substring(0, 2).toUpperCase();
+  const parts = name.trim().split(/\s+/);
+  return parts.length >= 2
+    ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+    : name.substring(0, 2).toUpperCase();
 };
 
 const getStatusLabel = (status) => {
   const labels = {
-    'pending': 'Chờ xử lý',
-    'reviewing': 'Đang xem',
-    'accepted': 'Đã chấp nhận',
-    'rejected': 'Đã từ chối'
+    pending: 'Chờ xử lý',
+    reviewing: 'Đang xem xét',
+    accepted: 'Đã chấp nhận',
+    rejected: 'Đã từ chối',
   };
   return labels[status] || status;
 };
 
 const formatDate = (date) => {
   if (!date) return '';
-  
-  const now = new Date();
-  const createdDate = new Date(date);
-  const diffTime = Math.abs(now - createdDate);
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  
-  if (diffDays === 0) return 'Hôm nay';
-  if (diffDays === 1) return 'Hôm qua';
-  if (diffDays < 7) return `${diffDays} ngày trước`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} tuần trước`;
-  return createdDate.toLocaleDateString('vi-VN');
+  return new Date(date).toLocaleDateString('vi-VN');
 };
 
 const getFullUrl = (url) => {
   if (!url) return '';
-  return url.startsWith('http') ? url : `http://localhost:4000${url}`;
+  if (url.startsWith('http')) return url;
+
+  const apiBase = api.defaults.baseURL || '';
+  const origin = apiBase.replace(/\/api\/?$/, '');
+
+  return `${origin}${url}`;
 };
 
-// Lifecycle
 onMounted(() => {
-  console.log('🚀 Employer Dashboard mounted');
-  console.log('👤 User:', user.value);
   fetchAllData();
 });
 </script>
