@@ -21,4 +21,14 @@ router.get('/users', adminController.getAllUsers);
 router.put('/users/:role/:userId/reset-password', adminController.resetUserPasswordByAdmin);
 router.put('/users/:role/:userId/toggle-status', adminController.toggleUserStatus);
 
+// Jobs
+router.get('/jobs', adminController.getAllJobs);
+router.get('/jobs/:jobId', adminController.getJobDetailForAdmin);
+router.patch('/jobs/:jobId/toggle-status', adminController.toggleJobStatusByAdmin);
+
+// Reports
+router.get('/reports', adminController.getAllReports);
+router.get('/reports/:reportId', adminController.getReportDetail);
+router.patch('/reports/:reportId/status', adminController.updateReportStatus);
+
 module.exports = router;

@@ -113,7 +113,20 @@ const routes = [
   name: 'AdminUsers',
   component: () => import('../views/AdminUsers.vue'),
   meta: { requiresAuth: true, role: 'admin' }
-},
+  },
+  {
+  path: '/admin/jobs',
+  name: 'AdminJobs',
+  component: () => import('../views/AdminJobs.vue'),
+  meta: { requiresAuth: true, role: 'admin' }
+  },
+  {
+  path: '/admin/reports',
+  name: 'AdminReports',
+  component: () => import('../views/AdminReports.vue'),
+  meta: { requiresAuth: true, role: 'admin' }
+  },
+  
   // ✅ NotFound PHẢI ở cuối
   { path: '/:pathMatch(.*)*', name: 'NotFound', redirect: '/' },
 ];

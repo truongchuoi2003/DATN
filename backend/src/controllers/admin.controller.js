@@ -2,6 +2,7 @@ const Employer = require('../models/Employer.model');
 const Student = require('../models/Student.model');
 const Admin = require('../models/Admin.model');
 const Job = require('../models/Job.model');
+const Report = require('../models/Report.model');
 
 const USER_MODELS = {
   student: Student,
@@ -262,6 +263,197 @@ exports.toggleUserStatus = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Lỗi server',
+      error: error.message,
+    });
+  }
+};
+exports.getAllJobs = async (req, res) => {
+  try {
+    const { status } = req.query;
+
+    const filter = {};
+    if (status && status !== 'all') {
+      filter.status = status;
+    }
+
+    const jobs = await Job.find(filter)
+      .populate('employer', 'companyName email fullName')
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: jobs.length,
+      jobs,
+    });
+  } catch (error) {
+    console.error('❌ Get all jobs for admin error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Không thể tải danh sách jobs',
+      error: error.message,
+    });
+  }
+};
+
+exports.getJobDetailForAdmin = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+
+    const job = await Job.findById(jobId)
+      .populate('employer', 'companyName email fullName phone industry');
+
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy tin tuyển dụng',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      job,
+    });
+  } catch (error) {
+    console.error('❌ Get job detail for admin error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Không thể tải chi tiết job',
+      error: error.message,
+    });
+  }
+};
+
+exports.toggleJobStatusByAdmin = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+
+    const job = await Job.findById(jobId);
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy tin tuyển dụng',
+      });
+    }
+
+    job.status = job.status === 'active' ? 'closed' : 'active';
+    await job.save();
+
+    return res.status(200).json({
+      success: true,
+      message: job.status === 'active'
+        ? 'Admin đã mở lại tin tuyển dụng'
+        : 'Admin đã đóng tin tuyển dụng',
+      job,
+    });
+  } catch (error) {
+    console.error('❌ Toggle job status by admin error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Không thể cập nhật trạng thái job',
+      error: error.message,
+    });
+  }
+};
+exports.getAllReports = async (req, res) => {
+  try {
+    const { status = 'all', targetType = 'all' } = req.query;
+
+    const filter = {};
+    if (status !== 'all') filter.status = status;
+    if (targetType !== 'all') filter.targetType = targetType;
+
+    const reports = await Report.find(filter)
+      .populate('reporterId', 'fullName email companyName phone')
+      .populate('targetId')
+      .populate('relatedJob', 'title')
+      .populate('relatedApplication', 'status createdAt')
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: reports.length,
+      reports,
+    });
+  } catch (error) {
+    console.error('❌ Get all reports error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Không thể tải danh sách reports',
+      error: error.message,
+    });
+  }
+};
+
+exports.getReportDetail = async (req, res) => {
+  try {
+    const { reportId } = req.params;
+
+    const report = await Report.findById(reportId)
+      .populate('reporterId', 'fullName email companyName phone')
+      .populate('targetId')
+      .populate('relatedJob', 'title')
+      .populate('relatedApplication', 'status createdAt')
+      .populate('handledBy', 'fullName email');
+
+    if (!report) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy report',
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      report,
+    });
+  } catch (error) {
+    console.error('❌ Get report detail error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Không thể tải chi tiết report',
+      error: error.message,
+    });
+  }
+};
+
+exports.updateReportStatus = async (req, res) => {
+  try {
+    const { reportId } = req.params;
+    const { status, adminNote = '' } = req.body;
+
+    const allowedStatuses = ['open', 'in_review', 'resolved', 'dismissed'];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Trạng thái report không hợp lệ',
+      });
+    }
+
+    const report = await Report.findById(reportId);
+    if (!report) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy report',
+      });
+    }
+
+    report.status = status;
+    report.adminNote = adminNote;
+    report.handledBy = req.user.userId;
+    report.handledAt = new Date();
+
+    await report.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Cập nhật trạng thái report thành công',
+      report,
+    });
+  } catch (error) {
+    console.error('❌ Update report status error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Không thể cập nhật trạng thái report',
       error: error.message,
     });
   }

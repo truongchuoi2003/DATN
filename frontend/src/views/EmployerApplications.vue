@@ -209,6 +209,12 @@
               >
                 👀 Đánh dấu đang xem
               </button>
+              <button
+                @click="openReportModal(app)"
+                class="btn-action warning"
+              >
+                🚨 Report ứng viên
+              </button>
             </div>
           </div>
         </div>
@@ -314,6 +320,7 @@
           >
             ✅ Chấp nhận
           </button>
+
           <button 
             v-if="selectedApplication.status !== 'rejected'"
             @click="updateStatusWithNote(selectedApplication._id, 'rejected')" 
@@ -321,6 +328,14 @@
           >
             ❌ Từ chối
           </button>
+
+          <button
+            @click="openReportModal(selectedApplication)"
+            class="btn btn-warning"
+          >
+            🚨 Report ứng viên
+          </button>
+
           <button 
             @click="saveNote(selectedApplication._id)"
             class="btn btn-primary"
@@ -362,6 +377,65 @@
         </div>
       </div>
     </div>
+    <!-- Report Candidate Modal -->
+    <div v-if="showReportModal" class="modal" @click="closeReportModal">
+      <div class="modal-content" @click.stop>
+        <button class="btn-close" @click="closeReportModal">✕</button>
+
+        <h2>🚨 Report ứng viên</h2>
+
+        <div class="form-group" v-if="reportingApplication">
+          <label>Ứng viên bị report:</label>
+          <div class="report-target-box">
+            <strong>{{ reportingApplication.student?.fullName || 'Ứng viên' }}</strong>
+            <p>{{ reportingApplication.student?.email || '' }}</p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Lý do report:</label>
+          <select v-model="reportForm.reason">
+            <option value="">-- Chọn lý do --</option>
+            <option value="spam">Spam</option>
+            <option value="fake_information">Thông tin giả</option>
+            <option value="fraud">Lừa đảo</option>
+            <option value="harassment">Quấy rối</option>
+            <option value="unprofessional_behavior">Hành vi thiếu chuyên nghiệp</option>
+            <option value="inappropriate_content">Nội dung không phù hợp</option>
+            <option value="other">Khác</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Mô tả chi tiết:</label>
+          <textarea
+            v-model="reportForm.description"
+            rows="5"
+            maxlength="1000"
+            placeholder="Mô tả rõ lý do bạn report ứng viên này..."
+          ></textarea>
+          <small class="help-text">{{ reportForm.description.length }}/1000 ký tự</small>
+        </div>
+
+        <div class="form-group">
+          <label>Link bằng chứng (không bắt buộc, mỗi dòng 1 link):</label>
+          <textarea
+            v-model="reportEvidenceText"
+            rows="4"
+            placeholder="https://example.com/evidence-1&#10;https://example.com/evidence-2"
+          ></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button @click="closeReportModal" class="btn btn-secondary">
+            Hủy
+          </button>
+          <button @click="submitEmployerReport" class="btn btn-warning">
+            🚨 Gửi report
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -370,6 +444,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Header from '../components/Header.vue';
 import api from '../services/api';
+
 
 const route = useRoute();
 const router = useRouter();
@@ -384,6 +459,13 @@ const showRejectModal = ref(false);
 const rejectNote = ref('');
 const rejectingAppId = ref(null);
 const hasJobId = computed(() => !!route.params.jobId);
+const showReportModal = ref(false);
+const reportingApplication = ref(null);
+const reportEvidenceText = ref('');
+const reportForm = ref({
+  reason: '',
+  description: '',
+});
 
 const pageTitle = computed(() =>
   hasJobId.value ? 'Quản lý ứng viên' : 'Tất cả ứng viên'
@@ -497,6 +579,63 @@ const closeRejectModal = () => {
   showRejectModal.value = false;
   rejectNote.value = '';
   rejectingAppId.value = null;
+};
+
+const openReportModal = (app) => {
+  reportingApplication.value = app;
+  reportForm.value = {
+    reason: '',
+    description: '',
+  };
+  reportEvidenceText.value = '';
+  showReportModal.value = true;
+};
+
+const closeReportModal = () => {
+  showReportModal.value = false;
+  reportingApplication.value = null;
+  reportForm.value = {
+    reason: '',
+    description: '',
+  };
+  reportEvidenceText.value = '';
+};
+
+const submitEmployerReport = async () => {
+  if (!reportingApplication.value?._id) {
+    alert('Không tìm thấy application để report');
+    return;
+  }
+
+  if (!reportForm.value.reason) {
+    alert('Vui lòng chọn lý do report');
+    return;
+  }
+
+  if (!reportForm.value.description.trim()) {
+    alert('Vui lòng nhập mô tả chi tiết');
+    return;
+  }
+
+  try {
+    const evidenceUrls = reportEvidenceText.value
+      .split('\n')
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    await api.post('/reports/employer/candidate', {
+      applicationId: reportingApplication.value._id,
+      reason: reportForm.value.reason,
+      description: reportForm.value.description.trim(),
+      evidenceUrls,
+    });
+
+    alert('✅ Đã gửi report ứng viên thành công!');
+    closeReportModal();
+  } catch (error) {
+    console.error('Error reporting candidate:', error);
+    alert(error.response?.data?.message || 'Không thể gửi report');
+  }
 };
 
 const refreshSelectedApplication = async (appId) => {
@@ -1235,6 +1374,43 @@ watch(
   justify-content: flex-end;
   margin-top: 20px;
   flex-wrap: wrap;
+}
+
+.btn-action.warning {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.btn-warning {
+  background: #f59e0b;
+  color: white;
+}
+
+.form-group select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.3s;
+  background: white;
+}
+
+.form-group select:focus {
+  border-color: #667eea;
+}
+
+.report-target-box {
+  padding: 14px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.report-target-box p {
+  margin: 6px 0 0;
+  color: #64748b;
 }
 
 /* Responsive */
