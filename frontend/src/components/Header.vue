@@ -11,10 +11,66 @@
         <router-link to="/student/profile" class="nav-link" v-if="user?.role === 'student'">
           Hồ sơ
         </router-link>
+
         <router-link to="/employer/profile" class="nav-link" v-if="user?.role === 'employer'">
           Hồ sơ
         </router-link>
-        
+
+        <router-link to="/admin/profile" class="nav-link" v-if="user?.role === 'admin'">
+          Hồ sơ
+        </router-link>
+
+        <!-- Notification Bell -->
+        <div class="notification-wrapper" ref="notificationRef">
+          <button class="notification-btn" @click="toggleNotifications" type="button">
+            <span class="bell">🔔</span>
+            <span v-if="unreadCount > 0" class="notification-badge">
+              {{ unreadCount > 99 ? '99+' : unreadCount }}
+            </span>
+          </button>
+
+          <div v-if="showNotifications" class="notification-dropdown">
+            <div class="notification-header">
+              <h3>Thông báo</h3>
+              <button
+                v-if="notifications.length > 0 && unreadCount > 0"
+                class="mark-all-btn"
+                @click="markAllAsRead"
+                type="button"
+              >
+                Đọc tất cả
+              </button>
+            </div>
+
+            <div v-if="loadingNotifications" class="notification-loading">
+              Đang tải...
+            </div>
+
+            <div v-else-if="notifications.length === 0" class="notification-empty">
+              Chưa có thông báo nào
+            </div>
+
+            <div v-else class="notification-list">
+              <div
+                v-for="item in notifications"
+                :key="item._id"
+                class="notification-item"
+                :class="{ unread: !item.isRead }"
+                @click="handleNotificationClick(item)"
+              >
+                <div class="notification-content">
+                  <div class="notification-title-row">
+                    <h4>{{ item.title }}</h4>
+                    <span v-if="!item.isRead" class="dot"></span>
+                  </div>
+                  <p>{{ item.message }}</p>
+                  <small>{{ formatTime(item.createdAt) }}</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="user-info">
           <span class="welcome">Xin chào, <strong>{{ user?.fullName }}</strong></span>
           <span class="role-badge" :class="user?.role">{{ getRoleName(user?.role) }}</span>
@@ -34,21 +90,31 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAuth } from '../composables/useAuth';
+import api from '../services/api';
 
+const router = useRouter();
 const { user, isLoggedIn, logout } = useAuth();
 
-// ✅ Tính toán route về trang chủ dựa vào role
+const showNotifications = ref(false);
+const notifications = ref([]);
+const unreadCount = ref(0);
+const loadingNotifications = ref(false);
+const notificationRef = ref(null);
+
+let pollingInterval = null;
+
 const homeRoute = computed(() => {
   if (!user.value) return '/login';
-  
+
   const roleRoutes = {
     student: '/student',
     employer: '/employer',
-    admin: '/admin'
+    admin: '/admin',
   };
-  
+
   return roleRoutes[user.value.role] || '/login';
 });
 
@@ -56,7 +122,7 @@ const getRoleName = (role) => {
   const roles = {
     student: 'Sinh viên',
     employer: 'Nhà tuyển dụng',
-    admin: 'Quản trị viên'
+    admin: 'Quản trị viên',
   };
   return roles[role] || role;
 };
@@ -66,6 +132,115 @@ const handleLogout = () => {
     logout();
   }
 };
+
+const fetchUnreadCount = async () => {
+  try {
+    const res = await api.get('/notifications/unread-count');
+    unreadCount.value = res.data?.unreadCount || 0;
+  } catch (error) {
+    console.error('Lỗi tải unread notifications:', error);
+  }
+};
+
+const fetchNotifications = async () => {
+  try {
+    loadingNotifications.value = true;
+    const res = await api.get('/notifications?limit=10');
+    notifications.value = res.data?.notifications || [];
+  } catch (error) {
+    console.error('Lỗi tải notifications:', error);
+  } finally {
+    loadingNotifications.value = false;
+  }
+};
+
+const toggleNotifications = async () => {
+  showNotifications.value = !showNotifications.value;
+
+  if (showNotifications.value) {
+    await fetchNotifications();
+    await fetchUnreadCount();
+  }
+};
+
+const markAllAsRead = async () => {
+  try {
+    await api.patch('/notifications/mark-all-read');
+    notifications.value = notifications.value.map((item) => ({
+      ...item,
+      isRead: true,
+    }));
+    unreadCount.value = 0;
+  } catch (error) {
+    console.error('Lỗi mark all notifications:', error);
+  }
+};
+
+const markOneAsRead = async (notificationId) => {
+  try {
+    await api.patch(`/notifications/${notificationId}/read`);
+  } catch (error) {
+    console.error('Lỗi mark notification as read:', error);
+  }
+};
+
+const handleNotificationClick = async (item) => {
+  if (!item.isRead) {
+    await markOneAsRead(item._id);
+    item.isRead = true;
+    unreadCount.value = Math.max(0, unreadCount.value - 1);
+  }
+
+  showNotifications.value = false;
+
+  if (item.link) {
+    router.push(item.link);
+  }
+};
+
+const formatTime = (dateString) => {
+  if (!dateString) return '';
+
+  const now = new Date();
+  const date = new Date(dateString);
+  const diffMs = now - date;
+
+  const minutes = Math.floor(diffMs / 60000);
+  const hours = Math.floor(diffMs / 3600000);
+  const days = Math.floor(diffMs / 86400000);
+
+  if (minutes < 1) return 'Vừa xong';
+  if (minutes < 60) return `${minutes} phút trước`;
+  if (hours < 24) return `${hours} giờ trước`;
+  if (days < 7) return `${days} ngày trước`;
+
+  return date.toLocaleDateString('vi-VN');
+};
+
+const handleClickOutside = (event) => {
+  if (notificationRef.value && !notificationRef.value.contains(event.target)) {
+    showNotifications.value = false;
+  }
+};
+
+onMounted(async () => {
+  if (isLoggedIn.value) {
+    await fetchUnreadCount();
+
+    pollingInterval = setInterval(() => {
+      fetchUnreadCount();
+    }, 30000);
+  }
+
+  document.addEventListener('click', handleClickOutside);
+});
+
+onBeforeUnmount(() => {
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+  }
+  document.removeEventListener('click', handleClickOutside);
+});
 </script>
 
 <style scoped>
@@ -107,7 +282,7 @@ const handleLogout = () => {
 .nav {
   display: flex;
   align-items: center;
-  gap: 25px;
+  gap: 18px;
 }
 
 .nav-link {
@@ -122,6 +297,145 @@ const handleLogout = () => {
 
 .nav-link:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+.notification-wrapper {
+  position: relative;
+}
+
+.notification-btn {
+  position: relative;
+  border: none;
+  background: rgba(255, 255, 255, 0.18);
+  color: white;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: all 0.25s ease;
+}
+
+.notification-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.bell {
+  display: inline-block;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #ff4d4f;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-dropdown {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  width: 360px;
+  max-height: 420px;
+  overflow: hidden;
+  background: white;
+  color: #1f2937;
+  border-radius: 14px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+  z-index: 999;
+}
+
+.notification-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.notification-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #111827;
+}
+
+.mark-all-btn {
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.notification-loading,
+.notification-empty {
+  padding: 18px 16px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.notification-list {
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.notification-item:hover {
+  background: #f9fafb;
+}
+
+.notification-item.unread {
+  background: #eef4ff;
+}
+
+.notification-content h4 {
+  margin: 0;
+  font-size: 14px;
+  color: #111827;
+}
+
+.notification-content p {
+  margin: 6px 0 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #4b5563;
+}
+
+.notification-content small {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.notification-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #2563eb;
+  flex-shrink: 0;
 }
 
 .user-info {
@@ -182,14 +496,25 @@ const handleLogout = () => {
   height: 16px;
 }
 
+@media (max-width: 900px) {
+  .nav {
+    gap: 12px;
+  }
+
+  .welcome {
+    display: none;
+  }
+
+  .notification-dropdown {
+    width: 320px;
+    right: -20px;
+  }
+}
+
 @media (max-width: 768px) {
   .container {
     flex-direction: column;
     gap: 15px;
-  }
-
-  .welcome {
-    font-size: 12px;
   }
 }
 </style>

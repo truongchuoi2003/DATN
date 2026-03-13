@@ -3,6 +3,7 @@ const Student = require('../models/Student.model');
 const Admin = require('../models/Admin.model');
 const Job = require('../models/Job.model');
 const Report = require('../models/Report.model');
+const { createNotification } = require('../utils/notification.service');
 
 const USER_MODELS = {
   student: Student,
@@ -19,14 +20,14 @@ exports.getPendingEmployers = async (req, res) => {
       .select('-password')
       .sort({ createdAt: -1 });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       count: employers.length,
       employers,
     });
   } catch (error) {
     console.error('❌ Get pending employers error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Lỗi server',
       error: error.message,
@@ -41,14 +42,14 @@ exports.getAllEmployers = async (req, res) => {
       .select('-password')
       .sort({ createdAt: -1 });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       count: employers.length,
       employers,
     });
   } catch (error) {
     console.error('❌ Get all employers error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Lỗi server',
       error: error.message,
@@ -74,14 +75,29 @@ exports.verifyEmployer = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    await createNotification({
+      recipientId: employer._id,
+      recipientRole: 'employer',
+      recipientModel: 'Employer',
+      title: 'Tài khoản nhà tuyển dụng đã được duyệt',
+      message:
+        'Admin đã xác thực tài khoản nhà tuyển dụng của bạn. Bạn có thể tiếp tục đăng tin và sử dụng hệ thống.',
+      type: 'verification',
+      link: '/employer',
+      metadata: {
+        employerId: employer._id.toString(),
+        verified: true,
+      },
+    });
+
+    return res.status(200).json({
       success: true,
       message: 'Xác thực thành công',
       employer,
     });
   } catch (error) {
     console.error('❌ Verify employer error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Lỗi server',
       error: error.message,
@@ -107,14 +123,29 @@ exports.rejectEmployer = async (req, res) => {
       });
     }
 
-    res.status(200).json({
+    await createNotification({
+      recipientId: employer._id,
+      recipientRole: 'employer',
+      recipientModel: 'Employer',
+      title: 'Yêu cầu xác thực chưa được duyệt',
+      message:
+        'Admin đã từ chối yêu cầu xác thực tài khoản nhà tuyển dụng của bạn. Vui lòng kiểm tra lại thông tin hồ sơ.',
+      type: 'verification',
+      link: '/employer/profile',
+      metadata: {
+        employerId: employer._id.toString(),
+        verified: false,
+      },
+    });
+
+    return res.status(200).json({
       success: true,
       message: 'Đã từ chối xác thực',
       employer,
     });
   } catch (error) {
     console.error('❌ Reject employer error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Lỗi server',
       error: error.message,
@@ -130,7 +161,7 @@ exports.getStatistics = async (req, res) => {
     const verifiedEmployers = await Employer.countDocuments({ verified: true });
     const pendingEmployers = await Employer.countDocuments({ verified: false });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       statistics: {
         totalStudents,
@@ -141,7 +172,7 @@ exports.getStatistics = async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Get statistics error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Lỗi server',
       error: error.message,
@@ -267,6 +298,7 @@ exports.toggleUserStatus = async (req, res) => {
     });
   }
 };
+
 exports.getAllJobs = async (req, res) => {
   try {
     const { status } = req.query;
@@ -340,9 +372,10 @@ exports.toggleJobStatusByAdmin = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: job.status === 'active'
-        ? 'Admin đã mở lại tin tuyển dụng'
-        : 'Admin đã đóng tin tuyển dụng',
+      message:
+        job.status === 'active'
+          ? 'Admin đã mở lại tin tuyển dụng'
+          : 'Admin đã đóng tin tuyển dụng',
       job,
     });
   } catch (error) {
@@ -354,6 +387,7 @@ exports.toggleJobStatusByAdmin = async (req, res) => {
     });
   }
 };
+
 exports.getAllReports = async (req, res) => {
   try {
     const { status = 'all', targetType = 'all' } = req.query;
@@ -443,6 +477,27 @@ exports.updateReportStatus = async (req, res) => {
     report.handledAt = new Date();
 
     await report.save();
+
+    const reportStatusTextMap = {
+      open: 'đã được mở lại',
+      in_review: 'đang được xem xét',
+      resolved: 'đã được xử lý',
+      dismissed: 'đã bị từ chối',
+    };
+
+    await createNotification({
+      recipientId: report.reporterId,
+      recipientRole: report.reporterRole,
+      recipientModel: report.reporterModel,
+      title: 'Cập nhật trạng thái report',
+      message: `Report của bạn ${reportStatusTextMap[status] || 'đã được cập nhật'}.`,
+      type: 'report',
+      link: report.reporterRole === 'student' ? '/student' : '/employer',
+      metadata: {
+        reportId: report._id.toString(),
+        status,
+      },
+    });
 
     return res.status(200).json({
       success: true,

@@ -29,6 +29,7 @@ app.use('/api/jobs', require('./routes/job.route'));
 app.use('/api/applications', require('./routes/application.route'));
 app.use('/api/recommendations', require('./routes/recommendation.route'));
 app.use('/api/reports', require('./routes/report.route'));
+app.use('/api/notifications', require('./routes/notification.route'));
 
 // Health
 app.get('/api/health', (req, res) => res.json({ status: 'OK' }));

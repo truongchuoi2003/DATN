@@ -3,18 +3,22 @@ const Job = require('../models/Job.model');
 const Student = require('../models/Student.model');
 const Interaction = require('../models/Interaction.model');
 const mongoose = require('mongoose');
+const { createNotification } = require('../utils/notification.service');
 
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 const EMPLOYER_ALLOWED_TRANSITIONS = {
-  pending: ['reviewing', 'accepted', 'rejected'],
-  reviewing: ['accepted', 'rejected'],
-  accepted: [],
+  pending: ['reviewing', 'shortlisted', 'rejected'],
+  reviewing: ['shortlisted', 'interviewing', 'rejected'],
+  shortlisted: ['interviewing', 'offered', 'rejected'],
+  interviewing: ['offered', 'hired', 'rejected'],
+  offered: ['hired', 'rejected'],
+  hired: [],
   rejected: [],
   withdrawn: [],
 };
 
-const STUDENT_WITHDRAW_ALLOWED = ['pending', 'reviewing'];
+const STUDENT_WITHDRAW_ALLOWED = ['pending', 'reviewing', 'shortlisted'];
 
 const createInteractionLog = async ({
   studentId,
@@ -79,7 +83,7 @@ const canEmployerTransition = (currentStatus, nextStatus) => {
   return allowed.includes(nextStatus);
 };
 
-// 📋 APPLY FOR JOB (Student only)
+// APPLY FOR JOB
 exports.applyForJob = async (req, res) => {
   try {
     const { userId, role } = req.user;
@@ -159,9 +163,19 @@ exports.applyForJob = async (req, res) => {
       existingApplication.employerNote = '';
       existingApplication.reviewedAt = null;
       existingApplication.appliedAt = new Date();
+      existingApplication.interview = {
+        status: 'none',
+        scheduledAt: null,
+        mode: 'online',
+        location: '',
+        meetingLink: '',
+        note: '',
+        scheduledBy: null,
+        respondedAt: null,
+        cancelledAt: null,
+      };
 
       await existingApplication.save();
-
       await Job.findByIdAndUpdate(job._id, { $inc: { applicationsCount: 1 } });
 
       await createInteractionLog({
@@ -175,7 +189,21 @@ exports.applyForJob = async (req, res) => {
         },
       });
 
-      await populateApplicationDetail(Application.findById(existingApplication._id));
+      await createNotification({
+        recipientId: job.employer._id,
+        recipientRole: 'employer',
+        recipientModel: 'Employer',
+        title: 'Có đơn ứng tuyển lại',
+        message: `${student.fullName} đã ứng tuyển lại vào vị trí "${job.title}".`,
+        type: 'application',
+        link: `/employer/applications/${job._id}`,
+        metadata: {
+          applicationId: existingApplication._id.toString(),
+          jobId: job._id.toString(),
+          studentId: student._id.toString(),
+          reapplied: true,
+        },
+      });
 
       const refreshedApplication = await populateApplicationDetail(
         Application.findById(existingApplication._id)
@@ -198,6 +226,9 @@ exports.applyForJob = async (req, res) => {
       availableFrom: availableFrom || null,
       additionalInfo: additionalInfo || null,
       appliedAt: new Date(),
+      interview: {
+        status: 'none',
+      },
     });
 
     await application.save();
@@ -210,6 +241,21 @@ exports.applyForJob = async (req, res) => {
       source: 'web',
       metadata: {
         applicationId: application._id.toString(),
+      },
+    });
+
+    await createNotification({
+      recipientId: job.employer._id,
+      recipientRole: 'employer',
+      recipientModel: 'Employer',
+      title: 'Có đơn ứng tuyển mới',
+      message: `${student.fullName} vừa ứng tuyển vào vị trí "${job.title}".`,
+      type: 'application',
+      link: `/employer/applications/${job._id}`,
+      metadata: {
+        applicationId: application._id.toString(),
+        jobId: job._id.toString(),
+        studentId: student._id.toString(),
       },
     });
 
@@ -232,7 +278,7 @@ exports.applyForJob = async (req, res) => {
   }
 };
 
-// 📋 GET MY APPLICATIONS (Student)
+// GET MY APPLICATIONS
 exports.getMyApplications = async (req, res) => {
   try {
     const { userId } = req.user;
@@ -276,7 +322,7 @@ exports.getMyApplications = async (req, res) => {
   }
 };
 
-// 📋 GET JOB APPLICATIONS (Employer)
+// GET APPLICATIONS OF A JOB
 exports.getJobApplications = async (req, res) => {
   try {
     const { userId } = req.user;
@@ -306,9 +352,7 @@ exports.getJobApplications = async (req, res) => {
     }
 
     const filter = { job: jobId };
-    if (status) {
-      filter.status = status;
-    }
+    if (status) filter.status = status;
 
     const limitNum = Math.min(parseInt(limit || '0', 10) || 0, 50);
     const sortObj = buildSort(sort);
@@ -336,7 +380,7 @@ exports.getJobApplications = async (req, res) => {
   }
 };
 
-// 📋 GET ALL APPLICATIONS OF EMPLOYER
+// GET ALL APPLICATIONS OF EMPLOYER
 exports.getEmployerApplications = async (req, res) => {
   try {
     const { userId } = req.user;
@@ -370,7 +414,7 @@ exports.getEmployerApplications = async (req, res) => {
   }
 };
 
-// 📄 GET APPLICATION DETAIL
+// GET APPLICATION DETAIL
 exports.getApplicationDetail = async (req, res) => {
   try {
     const { userId, role } = req.user;
@@ -392,20 +436,14 @@ exports.getApplicationDetail = async (req, res) => {
       });
     }
 
-    if (
-      role === 'student' &&
-      application.student._id.toString() !== userId
-    ) {
+    if (role === 'student' && application.student._id.toString() !== userId) {
       return res.status(403).json({
         success: false,
         message: 'Bạn không có quyền xem đơn này',
       });
     }
 
-    if (
-      role === 'employer' &&
-      application.employer.toString() !== userId
-    ) {
+    if (role === 'employer' && application.employer.toString() !== userId) {
       return res.status(403).json({
         success: false,
         message: 'Bạn không có quyền xem đơn này',
@@ -426,7 +464,7 @@ exports.getApplicationDetail = async (req, res) => {
   }
 };
 
-// ✅ UPDATE APPLICATION STATUS (Employer)
+// UPDATE APPLICATION STATUS
 exports.updateApplicationStatus = async (req, res) => {
   try {
     const { userId } = req.user;
@@ -440,7 +478,15 @@ exports.updateApplicationStatus = async (req, res) => {
       });
     }
 
-    const validStatuses = ['reviewing', 'accepted', 'rejected'];
+    const validStatuses = [
+      'reviewing',
+      'shortlisted',
+      'interviewing',
+      'offered',
+      'hired',
+      'rejected',
+    ];
+
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
@@ -477,8 +523,36 @@ exports.updateApplicationStatus = async (req, res) => {
       application.employerNote = employerNote.trim();
     }
 
+    if (status === 'interviewing' && application.interview?.status === 'none') {
+      application.interview.status = 'scheduled';
+    }
+
     application.reviewedAt = new Date();
     await application.save();
+
+    const statusTextMap = {
+      reviewing: 'đang được xem xét',
+      shortlisted: 'đã qua vòng lọc hồ sơ',
+      interviewing: 'đã vào vòng phỏng vấn',
+      offered: 'đã nhận offer',
+      hired: 'đã được tuyển',
+      rejected: 'đã bị từ chối',
+    };
+
+    await createNotification({
+      recipientId: application.student._id,
+      recipientRole: 'student',
+      recipientModel: 'Student',
+      title: 'Cập nhật trạng thái ứng tuyển',
+      message: `Đơn ứng tuyển cho vị trí "${application.job?.title}" ${statusTextMap[status] || 'đã được cập nhật'}.`,
+      type: 'application_status',
+      link: '/student/applications',
+      metadata: {
+        applicationId: application._id.toString(),
+        jobId: application.job?._id?.toString?.() || '',
+        status,
+      },
+    });
 
     const updatedApplication = await populateApplicationDetail(
       Application.findById(application._id)
@@ -486,12 +560,7 @@ exports.updateApplicationStatus = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message:
-        status === 'accepted'
-          ? 'Đã chấp nhận ứng viên'
-          : status === 'rejected'
-            ? 'Đã từ chối ứng viên'
-            : 'Đã đánh dấu đang xem xét',
+      message: 'Đã cập nhật trạng thái ứng viên',
       application: updatedApplication,
     });
   } catch (error) {
@@ -504,7 +573,7 @@ exports.updateApplicationStatus = async (req, res) => {
   }
 };
 
-// 📝 UPDATE EMPLOYER NOTE ONLY
+// UPDATE EMPLOYER NOTE
 exports.updateEmployerNote = async (req, res) => {
   try {
     const { userId } = req.user;
@@ -563,7 +632,317 @@ exports.updateEmployerNote = async (req, res) => {
   }
 };
 
-// 🗑️ WITHDRAW APPLICATION (Student)
+// SCHEDULE INTERVIEW
+exports.scheduleInterview = async (req, res) => {
+  try {
+    const { userId } = req.user;
+    const { applicationId } = req.params;
+    const { scheduledAt, mode, location, meetingLink, note } = req.body;
+
+    if (!isValidObjectId(applicationId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ApplicationId không hợp lệ',
+      });
+    }
+
+    const application = await populateApplicationDetail(Application.findById(applicationId));
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đơn ứng tuyển',
+      });
+    }
+
+    if (application.employer.toString() !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền lên lịch phỏng vấn cho đơn này',
+      });
+    }
+
+    if (application.status === 'withdrawn' || application.status === 'rejected') {
+      return res.status(400).json({
+        success: false,
+        message: 'Không thể lên lịch phỏng vấn cho đơn đã rút hoặc đã từ chối',
+      });
+    }
+
+    if (!scheduledAt) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng chọn thời gian phỏng vấn',
+      });
+    }
+
+    const interviewDate = new Date(scheduledAt);
+    if (Number.isNaN(interviewDate.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thời gian phỏng vấn không hợp lệ',
+      });
+    }
+
+    if (interviewDate <= new Date()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thời gian phỏng vấn phải ở tương lai',
+      });
+    }
+
+    if (!['online', 'offline'].includes(mode)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Hình thức phỏng vấn không hợp lệ',
+      });
+    }
+
+    if (mode === 'online' && !meetingLink?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phỏng vấn online cần có link meeting',
+      });
+    }
+
+    if (mode === 'offline' && !location?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phỏng vấn offline cần có địa điểm',
+      });
+    }
+
+    application.interview = {
+      scheduledAt: interviewDate,
+      mode,
+      location: mode === 'offline' ? String(location || '').trim() : '',
+      meetingLink: mode === 'online' ? String(meetingLink || '').trim() : '',
+      note: String(note || '').trim(),
+      status: 'scheduled',
+      scheduledBy: userId,
+      respondedAt: null,
+      cancelledAt: null,
+    };
+
+    if (application.status === 'pending') {
+      application.status = 'reviewing';
+    } else if (application.status === 'reviewing' || application.status === 'shortlisted') {
+      application.status = 'interviewing';
+    }
+
+    application.reviewedAt = new Date();
+    await application.save();
+
+    await createNotification({
+      recipientId: application.student._id,
+      recipientRole: 'student',
+      recipientModel: 'Student',
+      title: 'Bạn có lịch phỏng vấn mới',
+      message: `Nhà tuyển dụng đã lên lịch phỏng vấn cho vị trí "${application.job?.title}" vào ${interviewDate.toLocaleString('vi-VN')}.`,
+      type: 'application_status',
+      link: '/student/applications',
+      metadata: {
+        applicationId: application._id.toString(),
+        jobId: application.job?._id?.toString?.() || '',
+        interviewStatus: 'scheduled',
+      },
+    });
+
+    const updatedApplication = await populateApplicationDetail(
+      Application.findById(application._id)
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đã lên lịch phỏng vấn thành công',
+      application: updatedApplication,
+    });
+  } catch (error) {
+    console.error('❌ Schedule interview error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Không thể lên lịch phỏng vấn',
+      error: error.message,
+    });
+  }
+};
+
+// RESPOND TO INTERVIEW
+exports.respondToInterview = async (req, res) => {
+  try {
+    const { userId } = req.user;
+    const { applicationId } = req.params;
+    const { action } = req.body;
+
+    if (!isValidObjectId(applicationId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ApplicationId không hợp lệ',
+      });
+    }
+
+    if (!['accepted', 'declined'].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phản hồi không hợp lệ',
+      });
+    }
+
+    const application = await populateApplicationDetail(Application.findById(applicationId));
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đơn ứng tuyển',
+      });
+    }
+
+    if (application.student._id.toString() !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền phản hồi lịch phỏng vấn này',
+      });
+    }
+
+    if (!application.interview || application.interview.status !== 'scheduled') {
+      return res.status(400).json({
+        success: false,
+        message: 'Hiện không có lịch phỏng vấn chờ phản hồi',
+      });
+    }
+
+    application.interview.status = action;
+    application.interview.respondedAt = new Date();
+
+    if (action === 'accepted' && application.status === 'shortlisted') {
+      application.status = 'interviewing';
+    }
+
+    await application.save();
+
+    await createNotification({
+      recipientId: application.employer,
+      recipientRole: 'employer',
+      recipientModel: 'Employer',
+      title:
+        action === 'accepted'
+          ? 'Ứng viên đã xác nhận lịch phỏng vấn'
+          : 'Ứng viên đã từ chối lịch phỏng vấn',
+      message:
+        action === 'accepted'
+          ? `${application.student?.fullName} đã xác nhận lịch phỏng vấn cho vị trí "${application.job?.title}".`
+          : `${application.student?.fullName} đã từ chối lịch phỏng vấn cho vị trí "${application.job?.title}".`,
+      type: 'application_status',
+      link: `/employer/applications/${application.job?._id?.toString?.() || ''}`,
+      metadata: {
+        applicationId: application._id.toString(),
+        interviewStatus: action,
+      },
+    });
+
+    const updatedApplication = await populateApplicationDetail(
+      Application.findById(application._id)
+    );
+
+    return res.status(200).json({
+      success: true,
+      message:
+        action === 'accepted'
+          ? 'Bạn đã xác nhận lịch phỏng vấn'
+          : 'Bạn đã từ chối lịch phỏng vấn',
+      application: updatedApplication,
+    });
+  } catch (error) {
+    console.error('❌ Respond to interview error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Không thể phản hồi lịch phỏng vấn',
+      error: error.message,
+    });
+  }
+};
+
+// CANCEL INTERVIEW
+exports.cancelInterview = async (req, res) => {
+  try {
+    const { userId } = req.user;
+    const { applicationId } = req.params;
+
+    if (!isValidObjectId(applicationId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ApplicationId không hợp lệ',
+      });
+    }
+
+    const application = await populateApplicationDetail(Application.findById(applicationId));
+
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đơn ứng tuyển',
+      });
+    }
+
+    if (application.employer.toString() !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền hủy lịch phỏng vấn của đơn này',
+      });
+    }
+
+    if (!application.interview || application.interview.status === 'none') {
+      return res.status(400).json({
+        success: false,
+        message: 'Đơn này chưa có lịch phỏng vấn',
+      });
+    }
+
+    if (application.interview.status === 'cancelled') {
+      return res.status(400).json({
+        success: false,
+        message: 'Lịch phỏng vấn này đã bị hủy trước đó',
+      });
+    }
+
+    application.interview.status = 'cancelled';
+    application.interview.cancelledAt = new Date();
+    await application.save();
+
+    await createNotification({
+      recipientId: application.student._id,
+      recipientRole: 'student',
+      recipientModel: 'Student',
+      title: 'Lịch phỏng vấn đã bị hủy',
+      message: `Nhà tuyển dụng đã hủy lịch phỏng vấn cho vị trí "${application.job?.title}".`,
+      type: 'application_status',
+      link: '/student/applications',
+      metadata: {
+        applicationId: application._id.toString(),
+        interviewStatus: 'cancelled',
+      },
+    });
+
+    const updatedApplication = await populateApplicationDetail(
+      Application.findById(application._id)
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đã hủy lịch phỏng vấn',
+      application: updatedApplication,
+    });
+  } catch (error) {
+    console.error('❌ Cancel interview error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Không thể hủy lịch phỏng vấn',
+      error: error.message,
+    });
+  }
+};
+
+// WITHDRAW APPLICATION
 exports.withdrawApplication = async (req, res) => {
   try {
     const { userId } = req.user;
@@ -595,7 +974,7 @@ exports.withdrawApplication = async (req, res) => {
     if (!STUDENT_WITHDRAW_ALLOWED.includes(application.status)) {
       return res.status(400).json({
         success: false,
-        message: 'Chỉ có thể rút đơn khi đang chờ xử lý hoặc đang xem xét',
+        message: 'Chỉ có thể rút đơn khi đang chờ xử lý, đang xem xét hoặc đã shortlist',
       });
     }
 
@@ -623,7 +1002,7 @@ exports.withdrawApplication = async (req, res) => {
   }
 };
 
-// 📊 GET APPLICATION STATISTICS (Student)
+// STUDENT STATS
 exports.getMyApplicationStats = async (req, res) => {
   try {
     const { userId } = req.user;
@@ -635,16 +1014,40 @@ exports.getMyApplicationStats = async (req, res) => {
 
     const pending = await Application.countDocuments({ student: userId, status: 'pending' });
     const reviewing = await Application.countDocuments({ student: userId, status: 'reviewing' });
-    const accepted = await Application.countDocuments({ student: userId, status: 'accepted' });
+    const shortlisted = await Application.countDocuments({ student: userId, status: 'shortlisted' });
+    const interviewing = await Application.countDocuments({ student: userId, status: 'interviewing' });
+    const offered = await Application.countDocuments({ student: userId, status: 'offered' });
+    const hired = await Application.countDocuments({ student: userId, status: 'hired' });
+    const accepted = offered + hired;
     const rejected = await Application.countDocuments({ student: userId, status: 'rejected' });
     const withdrawn = await Application.countDocuments({ student: userId, status: 'withdrawn' });
 
-    const statsObj = { total, pending, reviewing, accepted, rejected, withdrawn };
-
     return res.status(200).json({
       success: true,
-      stats: statsObj,
-      statistics: statsObj,
+      stats: {
+        total,
+        pending,
+        reviewing,
+        shortlisted,
+        interviewing,
+        offered,
+        hired,
+        accepted,
+        rejected,
+        withdrawn,
+      },
+      statistics: {
+        total,
+        pending,
+        reviewing,
+        shortlisted,
+        interviewing,
+        offered,
+        hired,
+        accepted,
+        rejected,
+        withdrawn,
+      },
     });
   } catch (error) {
     console.error('❌ Get statistics error:', error);
@@ -656,20 +1059,22 @@ exports.getMyApplicationStats = async (req, res) => {
   }
 };
 
-// 📊 GET EMPLOYER APPLICATION STATISTICS
+// EMPLOYER STATS
 exports.getEmployerApplicationStats = async (req, res) => {
   try {
     const { userId } = req.user;
 
-    const baseFilter = {
+    const total = await Application.countDocuments({
       employer: userId,
       status: { $ne: 'withdrawn' },
-    };
+    });
 
-    const total = await Application.countDocuments(baseFilter);
     const pending = await Application.countDocuments({ employer: userId, status: 'pending' });
     const reviewing = await Application.countDocuments({ employer: userId, status: 'reviewing' });
-    const accepted = await Application.countDocuments({ employer: userId, status: 'accepted' });
+    const shortlisted = await Application.countDocuments({ employer: userId, status: 'shortlisted' });
+    const interviewing = await Application.countDocuments({ employer: userId, status: 'interviewing' });
+    const offered = await Application.countDocuments({ employer: userId, status: 'offered' });
+    const hired = await Application.countDocuments({ employer: userId, status: 'hired' });
     const rejected = await Application.countDocuments({ employer: userId, status: 'rejected' });
 
     return res.status(200).json({
@@ -678,7 +1083,10 @@ exports.getEmployerApplicationStats = async (req, res) => {
         total,
         pending,
         reviewing,
-        accepted,
+        shortlisted,
+        interviewing,
+        offered,
+        hired,
         rejected,
       },
     });
@@ -692,7 +1100,7 @@ exports.getEmployerApplicationStats = async (req, res) => {
   }
 };
 
-// ✅ CHECK IF APPLIED (Student)
+// CHECK IF APPLIED
 exports.checkIfApplied = async (req, res) => {
   try {
     const { userId } = req.user;
