@@ -2,28 +2,23 @@
   <div class="dashboard">
     <Header />
 
-    <!-- Hero Section -->
     <section class="hero-section">
       <div class="container">
         <div class="hero-content">
-          <h1>Xin chào, {{ user?.fullName }}! 👋</h1>
+          <h1>Xin chào, {{ displayUser?.fullName }}! 👋</h1>
           <p>Chào mừng bạn đến với DATN Platform - Nơi bắt đầu sự nghiệp của bạn</p>
         </div>
       </div>
     </section>
 
-    <!-- Main Content -->
     <main class="main-content">
       <div class="container">
-        <!-- Loading State -->
         <div v-if="loading" class="loading-state">
           <div class="spinner"></div>
           <p>Đang tải dữ liệu...</p>
         </div>
 
-        <!-- Main Content -->
         <div v-else>
-          <!-- Stats Cards -->
           <div class="stats-grid">
             <div class="stat-card">
               <div class="stat-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
@@ -66,11 +61,8 @@
             </div>
           </div>
 
-          <!-- Main Grid -->
           <div class="dashboard-grid">
-            <!-- Left Column -->
             <div class="left-column">
-              <!-- Profile Completion -->
               <div class="card">
                 <div class="card-header">
                   <h2>Hồ sơ của bạn</h2>
@@ -87,7 +79,6 @@
                   </div>
                   <p class="progress-text">Hoàn thiện hồ sơ để tăng cơ hội tìm được việc làm phù hợp</p>
 
-                  <!-- Missing Info -->
                   <div v-if="missingFields.length > 0" class="missing-info">
                     <p class="missing-title">⚠️ Thiếu thông tin:</p>
                     <ul class="missing-list">
@@ -101,7 +92,6 @@
                 </div>
               </div>
 
-              <!-- Recent Applications -->
               <div class="card">
                 <div class="card-header">
                   <h2>Đơn ứng tuyển gần đây</h2>
@@ -110,13 +100,11 @@
                   </router-link>
                 </div>
                 <div class="card-body">
-                  <!-- Loading Applications -->
                   <div v-if="loadingApps" class="loading-mini">
                     <div class="spinner-mini"></div>
                     <p>Đang tải...</p>
                   </div>
 
-                  <!-- Empty State -->
                   <div v-else-if="recentApplications.length === 0" class="empty-state-mini">
                     <p>📭 Chưa có đơn ứng tuyển nào</p>
                     <router-link to="/student/jobs" class="btn btn-sm btn-outline">
@@ -124,7 +112,6 @@
                     </router-link>
                   </div>
 
-                  <!-- Applications List -->
                   <div v-else class="application-list">
                     <div
                       v-for="app in recentApplications"
@@ -150,9 +137,7 @@
               </div>
             </div>
 
-            <!-- Right Column -->
             <div class="right-column">
-              <!-- Recommended Jobs -->
               <div class="card">
                 <div class="card-header">
                   <h2>Việc làm phù hợp</h2>
@@ -174,18 +159,15 @@
                 </div>
 
                 <div class="card-body">
-                  <!-- Loading Jobs -->
                   <div v-if="loadingJobs" class="loading-mini">
                     <div class="spinner-mini"></div>
                     <p>Đang tải...</p>
                   </div>
 
-                  <!-- Empty State -->
                   <div v-else-if="recommendedJobs.length === 0" class="empty-state-mini">
                     <p>📭 Chưa có công việc phù hợp</p>
                   </div>
 
-                  <!-- Jobs List -->
                   <div v-else class="job-list">
                     <div
                       v-for="job in recommendedJobs"
@@ -200,7 +182,7 @@
                         </div>
                         <div class="job-title-area">
                           <h4>{{ job.title }}</h4>
-                          <p>{{ job.employer?.companyName }}</p>
+                          <p>{{ getCompanyName(job) }}</p>
                         </div>
                       </div>
 
@@ -218,6 +200,7 @@
 
                       <div class="job-footer">
                         <span class="salary">{{ formatSalary(job.salary) }}</span>
+
                         <router-link
                           :to="`/student/jobs/${job._id}`"
                           class="btn btn-sm btn-outline"
@@ -228,7 +211,6 @@
                     </div>
                   </div>
 
-                  <!-- ✅ Mini Map cho Recommended Jobs -->
                   <div
                     v-if="showRecommendMap && mapRecommendedJobs.length > 0"
                     class="recommend-map-section"
@@ -254,7 +236,6 @@
                 </div>
               </div>
 
-              <!-- Quick Actions -->
               <div class="card">
                 <div class="card-header">
                   <h2>Hành động nhanh</h2>
@@ -263,7 +244,7 @@
                   <div class="quick-actions">
                     <router-link to="/student/profile" class="action-btn">
                       <span class="action-icon">📄</span>
-                      <span>{{ user?.resumeUrl ? 'Cập nhật CV' : 'Tải CV lên' }}</span>
+                      <span>{{ displayUser?.resumeUrl ? 'Cập nhật CV' : 'Tải CV lên' }}</span>
                     </router-link>
                     <router-link to="/student/jobs" class="action-btn">
                       <span class="action-icon">🔍</span>
@@ -291,20 +272,18 @@
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
 import Header from '../components/Header.vue';
 import JobsMap from '../components/JobsMap.vue';
 import { useAuth } from '../composables/useAuth';
 import axios from 'axios';
 
-const router = useRouter();
-const { user } = useAuth();
+const { user, refreshUser, updateUser } = useAuth();
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
-// State
 const loading = ref(true);
 const loadingApps = ref(false);
 const loadingJobs = ref(false);
+const profileData = ref(null);
 
 const stats = reactive({
   total: 0,
@@ -317,11 +296,9 @@ const recentApplications = ref([]);
 const recommendedJobs = ref([]);
 const totalJobs = ref(0);
 
-// ✅ Map state (dashboard)
 const showRecommendMap = ref(true);
 const selectedRecommendJobId = ref(null);
 
-// Map helpers
 const CITY_CENTER = {
   'Hà Nội': [21.02776, 105.83416],
   'TP. Hồ Chí Minh': [10.77689, 106.70098],
@@ -330,7 +307,8 @@ const CITY_CENTER = {
   'Cần Thơ': [10.04516, 105.78309],
 };
 
-// Leaflet cần [lat, lng], DB thường [lng, lat]
+const displayUser = computed(() => profileData.value || user.value || {});
+
 function toLatLng(job) {
   const coords = job?.location?.coordinates;
   if (Array.isArray(coords) && coords.length === 2) {
@@ -351,9 +329,8 @@ const mapRecommendedJobs = computed(() => {
     .filter(Boolean);
 });
 
-// Center ưu tiên vị trí student (nếu có), không có thì theo job đầu tiên, fallback HCM
 const recommendMapCenter = computed(() => {
-  const ucoords = user.value?.location?.coordinates;
+  const ucoords = displayUser.value?.location?.coordinates;
   if (Array.isArray(ucoords) && ucoords.length === 2) {
     const [lng, lat] = ucoords;
     if (typeof lng === 'number' && typeof lat === 'number') return [lat, lng];
@@ -369,60 +346,74 @@ function handleRecommendMarkerClick(job) {
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-// Calculate profile completion
-const profileCompletion = computed(() => {
-  if (!user.value) return 0;
+const hasValue = (value) => {
+  if (Array.isArray(value)) return value.length > 0;
+  return value !== null && value !== undefined && String(value).trim() !== '';
+};
 
-  let score = 0;
-  const fields = [
-    { field: user.value.fullName, weight: 10 },
-    { field: user.value.phone, weight: 10 },
-    { field: user.value.email, weight: 10 },
-    { field: user.value.birthday, weight: 10 },
-    { field: user.value.address, weight: 10 },
-    { field: user.value.university, weight: 15 },
-    { field: user.value.major, weight: 10 },
-    { field: user.value.resumeUrl, weight: 25 }
+const profileRequirements = computed(() => {
+  const currentUser = displayUser.value || {};
+
+  return [
+    { label: 'Họ và tên', ok: hasValue(currentUser.fullName) },
+    { label: 'Số điện thoại', ok: hasValue(currentUser.phone) },
+    { label: 'Ngày sinh', ok: hasValue(currentUser.birthday) },
+    { label: 'Địa chỉ', ok: hasValue(currentUser.address) },
+    { label: 'Trường đại học', ok: hasValue(currentUser.university) },
+    { label: 'Chuyên ngành', ok: hasValue(currentUser.major) },
+    { label: 'Kỹ năng', ok: hasValue(currentUser.skills) },
+    { label: 'Loại hình công việc mong muốn', ok: hasValue(currentUser.preferredJobTypes) },
+    { label: 'Nhóm nghề quan tâm', ok: hasValue(currentUser.preferredCategories) },
+    { label: 'Vị trí mong muốn', ok: hasValue(currentUser.desiredJobTitles) },
+    { label: 'Khu vực mong muốn làm việc', ok: hasValue(currentUser.preferredLocations) },
+    { label: 'CV', ok: hasValue(currentUser.resumeUrl) },
   ];
-
-  fields.forEach(({ field, weight }) => {
-    if (field) score += weight;
-  });
-
-  return Math.min(100, Math.round(score));
 });
 
-// Calculate missing fields
+const profileCompletion = computed(() => {
+  const requirements = profileRequirements.value;
+  if (!requirements.length) return 0;
+  const completedCount = requirements.filter((item) => item.ok).length;
+  return Math.round((completedCount / requirements.length) * 100);
+});
+
 const missingFields = computed(() => {
-  if (!user.value) return [];
-
-  const missing = [];
-  if (!user.value.resumeUrl) missing.push('CV chưa được tải lên');
-  if (!user.value.university) missing.push('Trường đại học');
-  if (!user.value.major) missing.push('Chuyên ngành');
-  if (!user.value.birthday) missing.push('Ngày sinh');
-  if (!user.value.address) missing.push('Địa chỉ');
-  if (!user.value.phone) missing.push('Số điện thoại');
-
-  return missing;
+  return profileRequirements.value
+    .filter((item) => !item.ok)
+    .map((item) => item.label === 'CV' ? 'CV chưa được tải lên' : item.label);
 });
 
-// Fetch statistics
+const fetchProfileData = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const res = await axios.get(`${API_URL}/profile`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    profileData.value = res.data.profile || null;
+
+    if (profileData.value) {
+      updateUser(profileData.value);
+      refreshUser();
+    }
+  } catch (error) {
+    console.error('❌ Error fetching profile:', error);
+  }
+};
+
 const fetchStats = async () => {
   try {
     const token = localStorage.getItem('token');
     const res = await axios.get(`${API_URL}/applications/my-stats`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` }
     });
 
-    console.log('✅ Stats fetched:', res.data);
     Object.assign(stats, res.data.stats || res.data.statistics || {});
   } catch (error) {
     console.error('❌ Error fetching stats:', error);
   }
 };
 
-// Fetch recent applications
 const fetchRecentApplications = async () => {
   try {
     loadingApps.value = true;
@@ -430,11 +421,10 @@ const fetchRecentApplications = async () => {
     const res = await axios.get(
       `${API_URL}/applications/my-applications?limit=3&sort=-createdAt`,
       {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` }
       }
     );
 
-    console.log('✅ Recent applications fetched:', res.data);
     recentApplications.value = res.data.applications || [];
   } catch (error) {
     console.error('❌ Error fetching applications:', error);
@@ -443,21 +433,18 @@ const fetchRecentApplications = async () => {
   }
 };
 
-// Fetch recommended jobs
 const fetchRecommendedJobs = async () => {
   try {
     loadingJobs.value = true;
     const token = localStorage.getItem('token');
 
     const res = await axios.get(`${API_URL}/recommendations/jobs?limit=3`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` }
     });
 
-    console.log('✅ Recommended jobs fetched:', res.data);
     recommendedJobs.value = res.data.jobs || [];
     totalJobs.value = res.data.count || (res.data.jobs?.length || 0);
 
-    // reset selection nếu cần
     if (selectedRecommendJobId.value) {
       const stillExists = recommendedJobs.value.some((j) => String(j._id) === String(selectedRecommendJobId.value));
       if (!stillExists) selectedRecommendJobId.value = null;
@@ -465,10 +452,8 @@ const fetchRecommendedJobs = async () => {
   } catch (error) {
     console.error('❌ Error fetching recommend jobs:', error);
 
-    // Fallback về public jobs để dashboard không bị trống
     try {
       const fallback = await axios.get(`${API_URL}/jobs/public?limit=3`);
-      console.log('✅ Fallback public jobs fetched:', fallback.data);
       recommendedJobs.value = fallback.data.jobs || [];
       totalJobs.value = fallback.data.total || (fallback.data.jobs?.length || 0);
     } catch (fallbackError) {
@@ -481,11 +466,11 @@ const fetchRecommendedJobs = async () => {
   }
 };
 
-// Fetch all data
 const fetchAllData = async () => {
   loading.value = true;
 
   await Promise.all([
+    fetchProfileData(),
     fetchStats(),
     fetchRecentApplications(),
     fetchRecommendedJobs()
@@ -494,7 +479,6 @@ const fetchAllData = async () => {
   loading.value = false;
 };
 
-// Utility functions
 const getInitials = (name) => {
   if (!name) return '?';
   const parts = name.split(' ');
@@ -504,12 +488,20 @@ const getInitials = (name) => {
   return name.substring(0, 2).toUpperCase();
 };
 
+const getCompanyName = (job) => {
+  return (
+    job?.displayCompanyName ||
+    job?.employer?.companyName ||
+    'Nhà tuyển dụng'
+  );
+};
+
 const getStatusLabel = (status) => {
   const labels = {
-    'pending': 'Đang chờ',
-    'accepted': 'Chấp nhận',
-    'rejected': 'Từ chối',
-    'withdrawn': 'Đã rút'
+    pending: 'Đang chờ',
+    accepted: 'Chấp nhận',
+    rejected: 'Từ chối',
+    withdrawn: 'Đã rút'
   };
   return labels[status] || status;
 };
@@ -551,10 +543,8 @@ const getRandomGradient = () => {
   return gradients[Math.floor(Math.random() * gradients.length)];
 };
 
-// Lifecycle
 onMounted(() => {
-  console.log('🚀 Student Dashboard mounted');
-  console.log('👤 User:', user.value);
+  refreshUser();
   fetchAllData();
 });
 </script>
@@ -575,7 +565,6 @@ onMounted(() => {
   padding: 0 20px;
 }
 
-/* Hero Section */
 .hero-section {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
@@ -593,7 +582,6 @@ onMounted(() => {
   opacity: 0.9;
 }
 
-/* Loading State */
 .loading-state {
   text-align: center;
   padding: 80px 20px;
@@ -634,7 +622,6 @@ onMounted(() => {
   color: #999;
 }
 
-/* Stats Grid */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -679,7 +666,6 @@ onMounted(() => {
   font-size: 14px;
 }
 
-/* Dashboard Grid */
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -687,7 +673,6 @@ onMounted(() => {
   margin-bottom: 30px;
 }
 
-/* Card */
 .card {
   background: white;
   border-radius: 12px;
@@ -731,7 +716,6 @@ onMounted(() => {
   text-decoration: underline;
 }
 
-/* Badge */
 .badge {
   padding: 5px 12px;
   border-radius: 20px;
@@ -743,7 +727,6 @@ onMounted(() => {
 .badge-success { background: #d4edda; color: #155724; }
 .badge-danger  { background: #f8d7da; color: #721c24; }
 
-/* Progress Bar */
 .progress-bar {
   width: 100%;
   height: 8px;
@@ -765,7 +748,6 @@ onMounted(() => {
   margin-bottom: 15px;
 }
 
-/* Missing Info */
 .missing-info {
   background: #fff3cd;
   padding: 15px;
@@ -799,7 +781,6 @@ onMounted(() => {
   left: 8px;
 }
 
-/* Buttons */
 .btn {
   padding: 10px 20px;
   border: none;
@@ -838,7 +819,6 @@ onMounted(() => {
   color: white;
 }
 
-/* Application List */
 .application-list {
   display: flex;
   flex-direction: column;
@@ -890,7 +870,6 @@ onMounted(() => {
   margin-bottom: 5px;
 }
 
-/* Job list */
 .job-list {
   display: flex;
   flex-direction: column;
@@ -972,7 +951,6 @@ onMounted(() => {
   color: #2c3e50;
 }
 
-/* ✅ Mini map section */
 .recommend-map-section {
   margin-top: 18px;
   padding-top: 16px;
@@ -990,7 +968,6 @@ onMounted(() => {
   height: 320px;
 }
 
-/* Override chiều cao trong JobsMap.vue */
 .recommend-map-wrap :deep(.jobs-map) {
   height: 320px !important;
   min-height: 320px !important;
@@ -1002,7 +979,6 @@ onMounted(() => {
   color: #777;
 }
 
-/* Responsive */
 @media (max-width: 1024px) {
   .dashboard-grid {
     grid-template-columns: 1fr;

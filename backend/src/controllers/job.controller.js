@@ -2,6 +2,10 @@ const Job = require('../models/Job.model');
 const Employer = require('../models/Employer.model');
 const Interaction = require('../models/Interaction.model');
 const mongoose = require('mongoose');
+const {
+  serializeJobForClient,
+  serializeJobListForClient,
+} = require('../utils/jobResponse.helper');
 
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -293,14 +297,19 @@ exports.getMySavedJobs = async (req, res) => {
       });
     }
 
+    const now = new Date();
+
     const jobs = await Job.find({
       _id: { $in: jobIds },
       status: 'active',
+      isVerified: true,
+      deadline: { $gte: now },
     })
-      .populate('employer', 'companyName logo website')
+      .populate('employer', 'companyName logo website description industry companySize email')
       .sort({ createdAt: -1 });
 
-    const jobMap = new Map(jobs.map((job) => [job._id.toString(), job]));
+    const normalizedJobs = serializeJobListForClient(jobs);
+    const jobMap = new Map(normalizedJobs.map((job) => [job._id.toString(), job]));
     const orderedJobs = jobIds
       .map((id) => jobMap.get(id.toString()))
       .filter(Boolean);
@@ -405,7 +414,7 @@ exports.getJobById = async (req, res) => {
     const { jobId } = req.params;
     const { userId } = req.user;
 
-    console.log('🔍 Fetching job:', jobId, 'for user:', userId); // Debug log
+    console.log('🔍 Fetching job:', jobId, 'for user:', userId);
 
     const job = await Job.findById(jobId).populate('employer', 'companyName email logo website');
 
@@ -417,7 +426,7 @@ exports.getJobById = async (req, res) => {
       });
     }
 
-    console.log('✅ Job found, employer:', job.employer._id.toString()); // Debug log
+    console.log('✅ Job found, employer:', job.employer._id.toString());
 
     // Kiểm tra quyền truy cập
     if (job.employer._id.toString() !== userId) {
@@ -428,7 +437,7 @@ exports.getJobById = async (req, res) => {
       });
     }
 
-    console.log('✅ Sending job data'); // Debug log
+    console.log('✅ Sending job data');
 
     res.status(200).json({
       success: true,
@@ -583,13 +592,13 @@ exports.getJobStatistics = async (req, res) => {
     const totalJobs = await Job.countDocuments({ employer: userId });
     const activeJobs = await Job.countDocuments({ employer: userId, status: 'active' });
     const closedJobs = await Job.countDocuments({ employer: userId, status: 'closed' });
-    
+
     // Tổng views và applications
     const stats = await Job.aggregate([
-      { 
-        $match: { 
-          employer: new mongoose.Types.ObjectId(userId) // ✅ SỬA
-        } 
+      {
+        $match: {
+          employer: new mongoose.Types.ObjectId(userId),
+        },
       },
       {
         $group: {
@@ -621,7 +630,6 @@ exports.getJobStatistics = async (req, res) => {
 };
 
 // 📋 GET ALL PUBLIC JOBS (Không cần login)
-// 📋 GET ALL PUBLIC JOBS (Không cần login)
 exports.getAllPublicJobs = async (req, res) => {
   try {
     const {
@@ -641,8 +649,13 @@ exports.getAllPublicJobs = async (req, res) => {
 
     const currentPage = Math.max(parseInt(page, 10) || 1, 1);
     const pageSize = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 100);
+    const now = new Date();
 
-    const filter = { status: 'active' };
+    const filter = {
+      status: 'active',
+      isVerified: true,
+      deadline: { $gte: now },
+    };
 
     // Search by title or description
     if (search) {
@@ -691,7 +704,7 @@ exports.getAllPublicJobs = async (req, res) => {
       }
     }
 
-    // ✅ Lọc thật sự theo bán kính (backend geospatial filter)
+    // Filter theo bán kính
     const hasAnyGeoParam = lat !== undefined || lng !== undefined || radiusKm !== undefined;
 
     if (hasAnyGeoParam) {
@@ -724,20 +737,21 @@ exports.getAllPublicJobs = async (req, res) => {
     const skip = (currentPage - 1) * pageSize;
 
     const jobs = await Job.find(filter)
-      .populate('employer', 'companyName logo website')
+      .populate('employer', 'companyName logo website description industry companySize email')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(pageSize);
 
     const total = await Job.countDocuments(filter);
+    const normalizedJobs = serializeJobListForClient(jobs);
 
     res.status(200).json({
       success: true,
-      count: jobs.length,
+      count: normalizedJobs.length,
       total,
       page: currentPage,
       totalPages: Math.ceil(total / pageSize),
-      jobs,
+      jobs: normalizedJobs,
     });
   } catch (error) {
     console.error('❌ Get public jobs error:', error);
@@ -754,7 +768,6 @@ exports.getPublicJobDetail = async (req, res) => {
   try {
     const { jobId } = req.params;
 
-    // ✅ Chặn sớm nếu jobId không phải ObjectId hợp lệ
     if (!mongoose.Types.ObjectId.isValid(jobId)) {
       return res.status(400).json({
         success: false,
@@ -763,7 +776,7 @@ exports.getPublicJobDetail = async (req, res) => {
     }
 
     const job = await Job.findById(jobId)
-      .populate('employer', 'companyName logo website description industry companySize');
+      .populate('employer', 'companyName logo website description industry companySize email');
 
     if (!job) {
       return res.status(404).json({
@@ -772,13 +785,26 @@ exports.getPublicJobDetail = async (req, res) => {
       });
     }
 
+    if (
+      job.status !== 'active' ||
+      !job.isVerified ||
+      (job.deadline && new Date(job.deadline) < new Date())
+    ) {
+      return res.status(404).json({
+        success: false,
+        message: 'Tin tuyển dụng này không còn hiển thị công khai',
+      });
+    }
+
     // Tăng views
     job.views += 1;
     await job.save();
 
+    const normalizedJob = serializeJobForClient(job);
+
     res.status(200).json({
       success: true,
-      job,
+      job: normalizedJob,
     });
   } catch (error) {
     console.error('❌ Get public job detail error:', error);

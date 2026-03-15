@@ -1,55 +1,87 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 
-export function useAuth() {
-  const router = useRouter();
-  
-  // Lấy thông tin user từ localStorage
-  const getUser = () => {
+const getUserFromStorage = () => {
+  try {
     const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
-  };
+  } catch (error) {
+    console.error('Lỗi đọc user từ localStorage:', error);
+    return null;
+  }
+};
 
-  const user = ref(getUser());
-  const token = ref(localStorage.getItem('token'));
+const userState = ref(getUserFromStorage());
+const tokenState = ref(localStorage.getItem('token'));
 
-  // Check đã login chưa
-  const isLoggedIn = computed(() => !!token.value);
+let storageListenerInitialized = false;
 
-  // Hàm logout
+const syncAuthFromStorage = () => {
+  userState.value = getUserFromStorage();
+  tokenState.value = localStorage.getItem('token');
+};
+
+const initStorageListener = () => {
+  if (storageListenerInitialized || typeof window === 'undefined') return;
+
+  window.addEventListener('storage', (event) => {
+    if (event.key === 'user' || event.key === 'token') {
+      syncAuthFromStorage();
+    }
+  });
+
+  storageListenerInitialized = true;
+};
+
+export function useAuth() {
+  const router = useRouter();
+
+  initStorageListener();
+
+  const isLoggedIn = computed(() => !!tokenState.value);
+
   const logout = () => {
-    // Xóa token và user khỏi localStorage
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    
-    // Reset state
-    token.value = null;
-    user.value = null;
-    
-    // Redirect về trang login
+
+    tokenState.value = null;
+    userState.value = null;
+
     router.push('/login');
   };
 
-  // Hàm login (lưu thông tin sau khi đăng nhập thành công)
   const setAuth = (authToken, userData) => {
     localStorage.setItem('token', authToken);
     localStorage.setItem('user', JSON.stringify(userData));
-    token.value = authToken;
-    user.value = userData;
+
+    tokenState.value = authToken;
+    userState.value = userData;
   };
 
-  // Refresh user data từ localStorage
   const refreshUser = () => {
-    user.value = getUser();
-    token.value = localStorage.getItem('token');
+    syncAuthFromStorage();
+  };
+
+  const updateUser = (userData) => {
+    const nextUser = {
+      ...(getUserFromStorage() || {}),
+      ...(userData || {}),
+    };
+
+    localStorage.setItem('user', JSON.stringify(nextUser));
+    userState.value = nextUser;
+    tokenState.value = localStorage.getItem('token');
+
+    return nextUser;
   };
 
   return {
-    user,
-    token,
+    user: userState,
+    token: tokenState,
     isLoggedIn,
     logout,
     setAuth,
-    refreshUser
+    refreshUser,
+    updateUser,
   };
 }

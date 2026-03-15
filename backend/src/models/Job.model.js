@@ -7,11 +7,12 @@ const normalizeStringArray = (arr) => {
 
 const jobSchema = new mongoose.Schema(
   {
-    // 👤 Thông tin nhà tuyển dụng
+    // 👤 Nhà tuyển dụng nội bộ
     employer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Employer',
       required: true,
+      index: true,
     },
 
     // 📋 Thông tin công việc
@@ -37,9 +38,9 @@ const jobSchema = new mongoose.Schema(
     benefits: {
       type: String,
       maxlength: 2000,
+      default: '',
     },
 
-    // ✅ NEW: Ngành học phù hợp (để match với student.major)
     acceptableMajors: [
       {
         type: String,
@@ -47,7 +48,6 @@ const jobSchema = new mongoose.Schema(
       },
     ],
 
-    // ✅ NEW: Hình thức làm việc
     workMode: {
       type: String,
       enum: ['onsite', 'remote', 'hybrid'],
@@ -64,7 +64,6 @@ const jobSchema = new mongoose.Schema(
         type: String,
         required: true,
       },
-      // Tọa độ cho map (optional)
       coordinates: {
         type: [Number], // [lng, lat]
         index: '2dsphere',
@@ -111,7 +110,6 @@ const jobSchema = new mongoose.Schema(
       enum: ['no-experience', '0-1-year', '1-3-years', '3-5-years', '5+-years'],
     },
 
-    // 🔧 Kỹ năng (field cũ - đang dùng trong UI/filters)
     skills: [
       {
         type: String,
@@ -119,7 +117,6 @@ const jobSchema = new mongoose.Schema(
       },
     ],
 
-    // ✅ NEW: Tách required/preferred để scoring tốt hơn
     requiredSkills: [
       {
         type: String,
@@ -134,7 +131,6 @@ const jobSchema = new mongoose.Schema(
       },
     ],
 
-    // Nhóm ngành nghề (Backend/Frontend/DA/Tester…)
     categories: [
       {
         type: String,
@@ -142,7 +138,6 @@ const jobSchema = new mongoose.Schema(
       },
     ],
 
-    // ⏰ Thời hạn
     deadline: {
       type: Date,
       required: true,
@@ -154,7 +149,6 @@ const jobSchema = new mongoose.Schema(
       min: 1,
     },
 
-    // 📊 Trạng thái
     status: {
       type: String,
       default: 'active',
@@ -166,7 +160,6 @@ const jobSchema = new mongoose.Schema(
       default: true,
     },
 
-    // 📈 Thống kê
     views: {
       type: Number,
       default: 0,
@@ -182,9 +175,6 @@ const jobSchema = new mongoose.Schema(
   }
 );
 
-// ✅ Đồng bộ dữ liệu để không phá code cũ:
-// - Nếu UI chỉ gửi "skills", ta tự map sang "requiredSkills"
-// - Nếu sau này bạn chỉ dùng requiredSkills, vẫn giữ "skills" cho filter/search cũ
 jobSchema.pre('validate', function () {
   this.skills = normalizeStringArray(this.skills);
   this.requiredSkills = normalizeStringArray(this.requiredSkills);
@@ -192,18 +182,15 @@ jobSchema.pre('validate', function () {
   this.categories = normalizeStringArray(this.categories);
   this.acceptableMajors = normalizeStringArray(this.acceptableMajors);
 
-  // Nếu requiredSkills trống mà skills có => coi skills là requiredSkills
   if ((!this.requiredSkills || this.requiredSkills.length === 0) && this.skills.length > 0) {
     this.requiredSkills = [...this.skills];
   }
 
-  // Nếu skills trống mà requiredSkills có => đổ ngược để filter cũ vẫn chạy
   if ((!this.skills || this.skills.length === 0) && this.requiredSkills.length > 0) {
     this.skills = [...this.requiredSkills];
   }
 });
 
-// Index để search nhanh
 jobSchema.index({ employer: 1, status: 1 });
 jobSchema.index({ title: 'text', description: 'text', requirements: 'text' });
 jobSchema.index({ 'location.city': 1, jobType: 1 });

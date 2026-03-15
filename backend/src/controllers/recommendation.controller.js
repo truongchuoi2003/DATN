@@ -3,6 +3,7 @@ const Job = require('../models/Job.model');
 const Student = require('../models/Student.model');
 const Application = require('../models/Application.model');
 const Interaction = require('../models/Interaction.model');
+const { serializeJobListForClient } = require('../utils/jobResponse.helper');
 require('../models/Employer.model');
 
 // =========================
@@ -1043,6 +1044,7 @@ exports.getRecommendedJobs = async (req, res) => {
       });
 
     const selected = diversifyJobs(ranked, limit);
+    const normalizedSelected = serializeJobListForClient(selected);
 
     return res.status(200).json({
       success: true,

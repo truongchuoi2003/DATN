@@ -7,20 +7,32 @@
         </router-link>
       </div>
 
+      <!-- ===== NAV KHI ĐÃ ĐĂNG NHẬP ===== -->
       <nav v-if="isLoggedIn" class="nav">
-        <router-link to="/student/profile" class="nav-link" v-if="user?.role === 'student'">
+        <router-link
+          to="/student/profile"
+          class="nav-link"
+          v-if="user?.role === 'student'"
+        >
           Hồ sơ
         </router-link>
 
-        <router-link to="/employer/profile" class="nav-link" v-if="user?.role === 'employer'">
+        <router-link
+          to="/employer/profile"
+          class="nav-link"
+          v-if="user?.role === 'employer'"
+        >
           Hồ sơ
         </router-link>
 
-        <router-link to="/admin/profile" class="nav-link" v-if="user?.role === 'admin'">
+        <router-link
+          to="/admin/profile"
+          class="nav-link"
+          v-if="user?.role === 'admin'"
+        >
           Hồ sơ
         </router-link>
 
-        <!-- Notification Bell -->
         <div class="notification-wrapper" ref="notificationRef">
           <button class="notification-btn" @click="toggleNotifications" type="button">
             <span class="bell">🔔</span>
@@ -72,18 +84,56 @@
         </div>
 
         <div class="user-info">
-          <span class="welcome">Xin chào, <strong>{{ user?.fullName }}</strong></span>
-          <span class="role-badge" :class="user?.role">{{ getRoleName(user?.role) }}</span>
+          <div class="header-avatar">
+            <img v-if="user?.avatar" :src="getFullAssetUrl(user.avatar)" alt="avatar" />
+            <span v-else>{{ getInitials(user?.fullName) }}</span>
+          </div>
+
+          <div class="user-text">
+            <span class="welcome">
+              Xin chào, <strong>{{ user?.fullName }}</strong>
+            </span>
+            <span class="role-badge" :class="user?.role">
+              {{ getRoleName(user?.role) }}
+            </span>
+          </div>
         </div>
 
         <button @click="handleLogout" class="logout-btn">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
             <polyline points="16 17 21 12 16 7"></polyline>
             <line x1="21" y1="12" x2="9" y2="12"></line>
           </svg>
           Đăng xuất
         </button>
+      </nav>
+
+      <!-- ===== NAV KHI CHƯA ĐĂNG NHẬP ===== -->
+      <nav v-else class="nav">
+        <router-link to="/" class="nav-link">
+          Việc làm
+        </router-link>
+
+        <router-link to="/home" class="nav-link">
+          Giới thiệu
+        </router-link>
+
+        <router-link to="/login" class="nav-link">
+          Đăng nhập
+        </router-link>
+
+        <router-link to="/register" class="nav-link nav-link-primary">
+          Đăng ký
+        </router-link>
       </nav>
     </div>
   </header>
@@ -107,7 +157,7 @@ const notificationRef = ref(null);
 let pollingInterval = null;
 
 const homeRoute = computed(() => {
-  if (!user.value) return '/login';
+  if (!user.value) return '/';
 
   const roleRoutes = {
     student: '/student',
@@ -115,7 +165,7 @@ const homeRoute = computed(() => {
     admin: '/admin',
   };
 
-  return roleRoutes[user.value.role] || '/login';
+  return roleRoutes[user.value.role] || '/';
 });
 
 const getRoleName = (role) => {
@@ -223,6 +273,21 @@ const handleClickOutside = (event) => {
   }
 };
 
+const getInitials = (name) => {
+  if (!name) return '?';
+  const parts = name.trim().split(' ');
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+};
+
+const getFullAssetUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  return `http://localhost:4000${url}`;
+};
+
 onMounted(async () => {
   if (isLoggedIn.value) {
     await fetchUnreadCount();
@@ -258,6 +323,37 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 20px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.header-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.user-text {
+  display: flex;
+  flex-direction: column;
 }
 
 .logo-link {
@@ -269,7 +365,7 @@ onBeforeUnmount(() => {
 
 .logo-link:hover {
   opacity: 0.9;
-  transform: scale(1.05);
+  transform: scale(1.03);
 }
 
 .logo h1 {
@@ -283,6 +379,8 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 18px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .nav-link {
@@ -297,6 +395,15 @@ onBeforeUnmount(() => {
 
 .nav-link:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+.nav-link-primary {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.nav-link-primary:hover {
+  background: rgba(255, 255, 255, 0.28);
 }
 
 .notification-wrapper {
@@ -496,6 +603,8 @@ onBeforeUnmount(() => {
   height: 16px;
 }
 
+
+
 @media (max-width: 900px) {
   .nav {
     gap: 12px;
@@ -515,6 +624,10 @@ onBeforeUnmount(() => {
   .container {
     flex-direction: column;
     gap: 15px;
+  }
+
+  .nav {
+    justify-content: center;
   }
 }
 </style>

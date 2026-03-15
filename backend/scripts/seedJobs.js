@@ -23,58 +23,144 @@ const CITY_COORDS = {
 
 const DISTRICTS_BY_CITY = {
   'Hà Nội': ['Cầu Giấy', 'Đống Đa', 'Hai Bà Trưng', 'Ba Đình', 'Thanh Xuân', 'Nam Từ Liêm'],
-  'TP. Hồ Chí Minh': ['Quận 1', 'Quận 3', 'Quận Bình Thạnh', 'Quận 7', 'TP. Thủ Đức', 'Quận Phú Nhuận'],
+  'TP. Hồ Chí Minh': ['Quận 1', 'Quận 3', 'Quận Bình Thạnh', 'Quận 7', 'TP. Thủ Đức', 'Phú Nhuận'],
   'Đà Nẵng': ['Hải Châu', 'Thanh Khê', 'Sơn Trà', 'Ngũ Hành Sơn'],
   'Hải Phòng': ['Lê Chân', 'Ngô Quyền', 'Hồng Bàng', 'Kiến An'],
   'Cần Thơ': ['Ninh Kiều', 'Bình Thủy', 'Cái Răng', 'Ô Môn'],
 };
 
-const ALL_CITIES = Object.keys(CITY_COORDS);
+function randomItem(arr = []) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function jitterCoordinates([lng, lat], range = 0.02) {
+  const lngOffset = (Math.random() - 0.5) * range;
+  const latOffset = (Math.random() - 0.5) * range;
+  return [Number((lng + lngOffset).toFixed(6)), Number((lat + latOffset).toFixed(6))];
+}
+
+function splitSkillsForJob(skills) {
+  const uniqueSkills = [...new Set((skills || []).map((x) => String(x).trim()).filter(Boolean))];
+
+  if (uniqueSkills.length <= 3) {
+    return {
+      skills: uniqueSkills,
+      requiredSkills: uniqueSkills,
+      preferredSkills: [],
+    };
+  }
+
+  const requiredSkills = uniqueSkills.slice(0, 4);
+  const preferredSkills = uniqueSkills.slice(4);
+
+  return {
+    skills: uniqueSkills,
+    requiredSkills,
+    preferredSkills,
+  };
+}
+
+function buildAddress(city) {
+  const district = randomItem(DISTRICTS_BY_CITY[city] || ['Trung tâm']);
+  return `${district}, ${city}`;
+}
+
+function buildSalary([minBase, maxBase], jobType, level) {
+  let min = minBase;
+  let max = maxBase;
+
+  if (jobType === 'part-time') {
+    min = Math.max(2500000, Math.round(minBase * 0.7));
+    max = Math.max(min + 1000000, Math.round(maxBase * 0.75));
+  }
+
+  if (jobType === 'internship') {
+    min = Math.max(2500000, Math.round(minBase * 0.75));
+    max = Math.max(min + 1500000, Math.round(maxBase * 0.8));
+  }
+
+  if (level === 'junior') {
+    min += 1000000;
+    max += 2000000;
+  }
+
+  return {
+    min,
+    max,
+    currency: 'VND',
+    negotiable: false,
+  };
+}
+
+function buildWorkMode(jobType, preferredModes = []) {
+  if (preferredModes.length) return randomItem(preferredModes);
+  if (jobType === 'part-time') return Math.random() < 0.5 ? 'hybrid' : 'onsite';
+  if (jobType === 'internship') return Math.random() < 0.25 ? 'remote' : 'hybrid';
+  return 'onsite';
+}
+
+function buildAcceptableMajors(template) {
+  return [...new Set([...(template.acceptableMajors || []), ...(template.extraMajors || [])])];
+}
 
 const JOB_TEMPLATES = [
   {
     code: 'frontend',
     titles: [
+      'Frontend Intern',
       'Thực tập Frontend Developer',
-      'Part-time Frontend Developer',
-      'Frontend Intern (Vue/React)',
       'Web Frontend Intern',
+      'Part-time Frontend Developer',
     ],
-    skills: ['javascript', 'html', 'css', 'vue', 'react', 'git'],
     categories: ['IT', 'Frontend', 'Web'],
+    acceptableMajors: ['Công nghệ thông tin', 'Hệ thống thông tin'],
+    skills: ['javascript', 'html', 'css', 'vue', 'git', 'responsive design'],
     description:
-      'Tham gia phát triển giao diện web, phối hợp cùng backend và designer để hoàn thiện tính năng cho sản phẩm.',
+      'Tham gia phát triển giao diện web, làm việc cùng backend và designer để hoàn thiện các module của sản phẩm.',
     requirements:
-      'Có kiến thức HTML/CSS/JavaScript, biết Vue hoặc React, tư duy UI tốt và tinh thần học hỏi.',
+      'Có kiến thức HTML, CSS, JavaScript; biết Vue là lợi thế, có khả năng cắt giao diện responsive.',
     benefits:
-      'Mentor 1-1, review code định kỳ, có cơ hội lên chính thức sau kỳ thực tập.',
-    jobTypes: ['internship', 'part-time', 'full-time', 'contract', 'freelance'],
-    levels: ['intern', 'fresher', 'junior'],
-    experiences: ['no-experience', '0-1-year', '1-3-years'],
-    salaryRange: [3000000, 12000000],
-    targetCities: ['TP. Hồ Chí Minh', 'Hà Nội', 'Đà Nẵng'],
+      'Có mentor review code, được hướng dẫn Git workflow và có cơ hội lên thực tập sinh chính thức lâu dài.',
+    jobTypes: ['internship', 'part-time'],
+    levels: ['intern', 'fresher'],
+    experiences: ['no-experience', '0-1-year'],
+    salaryRange: [4000000, 9000000],
+    targetCities: ['TP. Hồ Chí Minh', 'Đà Nẵng', 'Hà Nội'],
+    workModes: ['hybrid', 'remote'],
   },
   {
     code: 'node-backend',
     titles: [
       'Backend Developer Intern',
-      'Part-time Node.js Developer',
-      'Junior Backend Developer',
       'Node.js API Intern',
+      'Part-time Node.js Developer',
+      'Backend Intern (Express)',
     ],
-    skills: ['nodejs', 'express', 'mongodb', 'api', 'javascript', 'git'],
     categories: ['IT', 'Backend', 'API'],
+    acceptableMajors: ['Công nghệ thông tin', 'Hệ thống thông tin'],
+    skills: ['nodejs', 'express', 'mongodb', 'api', 'javascript', 'git'],
     description:
-      'Phát triển API, làm việc với database, hỗ trợ xây dựng backend cho ứng dụng web/mobile.',
+      'Tham gia xây dựng API, xử lý dữ liệu và hỗ trợ backend cho website nội bộ.',
     requirements:
-      'Biết Node.js/Express cơ bản, hiểu REST API, có kiến thức database là lợi thế.',
+      'Biết Node.js, Express, MongoDB cơ bản, hiểu REST API và có khả năng đọc tài liệu kỹ thuật.',
     benefits:
-      'Review code định kỳ, môi trường thực chiến, học kiến trúc backend và deploy cơ bản.',
-    jobTypes: ['internship', 'part-time', 'full-time', 'contract'],
-    levels: ['intern', 'fresher', 'junior'],
-    experiences: ['no-experience', '0-1-year', '1-3-years'],
-    salaryRange: [3500000, 14000000],
-    targetCities: ['TP. Hồ Chí Minh', 'Hà Nội', 'Đà Nẵng'],
+      'Được training backend thực chiến, có review code định kỳ và hướng dẫn deploy cơ bản.',
+    jobTypes: ['internship', 'part-time'],
+    levels: ['intern', 'fresher'],
+    experiences: ['no-experience', '0-1-year'],
+    salaryRange: [4500000, 10000000],
+    targetCities: ['TP. Hồ Chí Minh', 'Hà Nội'],
+    workModes: ['hybrid', 'onsite'],
   },
   {
     code: 'java-backend',
@@ -84,366 +170,202 @@ const JOB_TEMPLATES = [
       'Junior Java Developer',
       'Backend Java/Spring Fresher',
     ],
-    skills: ['java', 'spring', 'spring boot', 'sql', 'api', 'git', 'docker'],
     categories: ['IT', 'Backend', 'API'],
+    acceptableMajors: ['Công nghệ thông tin', 'Hệ thống thông tin'],
+    skills: ['java', 'spring', 'spring boot', 'sql', 'git', 'docker'],
     description:
-      'Xây dựng API bằng Java/Spring, làm việc với SQL và tham gia các module backend thực tế.',
+      'Xây dựng API bằng Java/Spring Boot, hỗ trợ xử lý database và phát triển các module backend.',
     requirements:
-      'Nắm Java core, OOP, SQL; biết Spring hoặc Spring Boot là lợi thế lớn.',
+      'Nắm Java core, OOP, SQL; biết Spring hoặc Spring Boot là một lợi thế lớn.',
     benefits:
-      'Được hướng dẫn code chuẩn backend, tham gia dự án thật, có cơ hội lên fresher.',
-    jobTypes: ['internship', 'full-time', 'part-time'],
+      'Được tham gia dự án nội bộ, học quy trình backend và cơ hội lên fresher nếu làm tốt.',
+    jobTypes: ['internship', 'full-time'],
     levels: ['intern', 'fresher', 'junior'],
     experiences: ['no-experience', '0-1-year', '1-3-years'],
-    salaryRange: [5000000, 16000000],
+    salaryRange: [6000000, 15000000],
     targetCities: ['TP. Hồ Chí Minh', 'Hà Nội'],
+    workModes: ['onsite', 'hybrid'],
   },
   {
     code: 'dotnet',
     titles: [
       '.NET Developer Intern',
       'C# Developer Intern',
+      'Software Engineer Intern',
       'Junior .NET Developer',
-      'Software Engineer Intern (.NET)',
     ],
-    skills: ['c#', '.net', 'asp.net', 'sql', 'winforms', 'api', 'git'],
     categories: ['IT', 'Backend', 'Software'],
+    acceptableMajors: ['Hệ thống thông tin', 'Công nghệ thông tin'],
+    skills: ['c#', '.net', 'asp.net', 'sql', 'winforms', 'git'],
     description:
-      'Phát triển ứng dụng .NET/C#, bảo trì module phần mềm nội bộ và hỗ trợ xử lý dữ liệu.',
+      'Phát triển phần mềm nội bộ bằng C#/.NET, hỗ trợ xử lý dữ liệu và bảo trì các module hiện có.',
     requirements:
-      'Biết C#, OOP, SQL; hiểu .NET hoặc WinForms/ASP.NET là lợi thế.',
+      'Biết C#, OOP, SQL; có kiến thức .NET hoặc WinForms/ASP.NET là điểm cộng.',
     benefits:
-      'Môi trường thực chiến, có mentor review code, lộ trình phát triển rõ ràng.',
-    jobTypes: ['internship', 'full-time', 'part-time'],
+      'Được làm việc với sản phẩm thật, có mentor hướng dẫn và quy trình rõ ràng.',
+    jobTypes: ['internship', 'full-time'],
     levels: ['intern', 'fresher', 'junior'],
     experiences: ['no-experience', '0-1-year', '1-3-years'],
-    salaryRange: [4500000, 15000000],
+    salaryRange: [5500000, 14500000],
     targetCities: ['Cần Thơ', 'TP. Hồ Chí Minh', 'Hà Nội'],
+    workModes: ['onsite', 'hybrid'],
   },
   {
     code: 'qa',
     titles: [
       'QA Tester Intern',
-      'Part-time Manual Tester',
-      'Junior QA/QC Tester',
+      'Manual Tester Intern',
       'Tester Fresher',
+      'Part-time QA Support',
     ],
-    skills: ['testing', 'testcase', 'bug-report', 'jira', 'excel'],
     categories: ['IT', 'QA', 'Testing'],
+    acceptableMajors: ['Công nghệ thông tin', 'Hệ thống thông tin'],
+    skills: ['testing', 'testcase', 'bug-report', 'jira', 'excel'],
     description:
-      'Kiểm thử chức năng web/app, viết test case, ghi nhận lỗi và phối hợp với dev để xử lý.',
+      'Hỗ trợ kiểm thử chức năng website/app, viết test case và phối hợp cùng dev để xử lý lỗi.',
     requirements:
-      'Cẩn thận, tư duy logic tốt, biết viết test case là lợi thế.',
+      'Cẩn thận, tư duy logic tốt, biết viết test case hoặc bug report là lợi thế.',
     benefits:
-      'Training quy trình QA, tham gia dự án thật, lộ trình lên QA chính thức.',
+      'Được training quy trình QA, tham gia dự án thật và học cách quản lý lỗi bài bản.',
     jobTypes: ['internship', 'part-time'],
-    levels: ['intern', 'fresher', 'junior'],
+    levels: ['intern', 'fresher'],
     experiences: ['no-experience', '0-1-year'],
-    salaryRange: [2500000, 9000000],
+    salaryRange: [3500000, 8000000],
     targetCities: ['Hà Nội', 'TP. Hồ Chí Minh', 'Đà Nẵng'],
+    workModes: ['onsite', 'hybrid'],
   },
   {
-    code: 'data-bi',
+    code: 'data',
     titles: [
       'Data Analyst Intern',
       'BI Analyst Intern',
       'Power BI Intern',
       'Data Reporting Intern',
     ],
-    skills: ['python', 'sql', 'excel', 'power bi', 'pandas', 'dashboard'],
     categories: ['Data', 'Data Analyst', 'BI'],
+    acceptableMajors: ['Khoa học dữ liệu', 'Công nghệ thông tin', 'Hệ thống thông tin'],
+    skills: ['python', 'pandas', 'sql', 'excel', 'power bi', 'dashboard'],
     description:
-      'Hỗ trợ làm sạch dữ liệu, phân tích số liệu, xây dashboard và tạo báo cáo trực quan.',
+      'Hỗ trợ làm sạch dữ liệu, xây dashboard, trực quan hóa số liệu và tạo báo cáo cho bộ phận kinh doanh.',
     requirements:
       'Biết Excel tốt, có nền tảng SQL; biết Power BI hoặc Python là điểm cộng lớn.',
     benefits:
-      'Được hướng dẫn xây dashboard thực tế, làm báo cáo dữ liệu cho team kinh doanh.',
-    jobTypes: ['internship', 'part-time', 'full-time'],
-    levels: ['intern', 'fresher', 'junior'],
-    experiences: ['no-experience', '0-1-year', '1-3-years'],
-    salaryRange: [4000000, 14000000],
-    targetCities: ['Hà Nội', 'Hải Phòng', 'TP. Hồ Chí Minh'],
+      'Được hướng dẫn trực quan hóa dữ liệu, làm dashboard thật và học quy trình báo cáo số liệu.',
+    jobTypes: ['internship', 'part-time'],
+    levels: ['intern', 'fresher'],
+    experiences: ['no-experience', '0-1-year'],
+    salaryRange: [4500000, 11000000],
+    targetCities: ['Hải Phòng', 'Hà Nội', 'TP. Hồ Chí Minh'],
+    workModes: ['remote', 'hybrid'],
   },
   {
     code: 'marketing',
     titles: [
+      'Content Marketing Intern',
+      'Social Media Intern',
       'Marketing Intern',
       'Part-time Digital Marketing',
-      'Content Marketing CTV',
-      'Social Media Intern',
     ],
-    skills: ['marketing', 'content', 'seo', 'facebook ads', 'tiktok', 'canva'],
     categories: ['Marketing', 'Content', 'Digital'],
+    acceptableMajors: ['Marketing', 'Quản trị kinh doanh'],
+    skills: ['marketing', 'content', 'seo', 'facebook ads', 'canva', 'tiktok'],
     description:
-      'Hỗ trợ triển khai nội dung social media, tối ưu bài viết, hỗ trợ chiến dịch digital marketing.',
+      'Hỗ trợ triển khai nội dung social media, tối ưu bài viết và theo dõi hiệu quả chiến dịch marketing.',
     requirements:
-      'Yêu thích viết lách, sáng tạo nội dung, biết Canva là lợi thế.',
+      'Yêu thích sáng tạo nội dung, biết Canva; hiểu SEO hoặc social media là điểm cộng.',
     benefits:
-      'Làm việc linh hoạt, học thực chiến content/SEO, hỗ trợ dấu mộc thực tập.',
-    jobTypes: ['internship', 'part-time', 'full-time', 'contract', 'freelance'],
-    levels: ['intern', 'fresher', 'junior'],
-    experiences: ['no-experience', '0-1-year', '1-3-years'],
-    salaryRange: [2500000, 10000000],
+      'Làm việc linh hoạt, có thể hỗ trợ dấu mộc thực tập và được hướng dẫn làm content thực chiến.',
+    jobTypes: ['internship', 'part-time', 'freelance'],
+    levels: ['intern', 'fresher'],
+    experiences: ['no-experience', '0-1-year'],
+    salaryRange: [3000000, 8500000],
     targetCities: ['Hà Nội', 'TP. Hồ Chí Minh', 'Đà Nẵng'],
+    workModes: ['onsite', 'hybrid'],
   },
   {
     code: 'design',
     titles: [
-      'Design Intern',
-      'Part-time Graphic Designer',
       'UI/UX Intern',
-      'Graphic Design Fresher',
+      'Graphic Designer Intern',
+      'Design Intern',
+      'Part-time Designer',
     ],
-    skills: ['design', 'figma', 'photoshop', 'illustrator', 'canva', 'uiux'],
     categories: ['Design', 'UI/UX', 'Creative'],
+    acceptableMajors: ['Thiết kế đồ họa', 'Công nghệ thông tin'],
+    skills: ['figma', 'photoshop', 'canva', 'design', 'ui', 'ux'],
     description:
-      'Thiết kế banner/poster/social post, hỗ trợ UI màn hình web/app theo guideline.',
+      'Thiết kế giao diện cơ bản cho web/app và hỗ trợ làm ấn phẩm truyền thông số cho dự án.',
     requirements:
-      'Biết Figma/Photoshop/Illustrator cơ bản. Có portfolio là điểm cộng.',
+      'Biết Figma hoặc Photoshop, có tư duy bố cục và màu sắc tốt, có portfolio là lợi thế.',
     benefits:
-      'Được review thiết kế, tham gia dự án thật, làm việc cùng team sản phẩm.',
-    jobTypes: ['internship', 'part-time', 'full-time', 'contract', 'freelance'],
-    levels: ['intern', 'fresher', 'junior'],
-    experiences: ['no-experience', '0-1-year'],
-    salaryRange: [3000000, 11000000],
-    targetCities: ['Đà Nẵng', 'Hà Nội', 'TP. Hồ Chí Minh'],
-  },
-  {
-    code: 'business-ops',
-    titles: [
-      'Business Operations Intern',
-      'Business Development Intern',
-      'Operations Intern',
-      'Sales Admin Intern',
-    ],
-    skills: ['excel', 'communication', 'presentation', 'teamwork', 'sales', 'reporting'],
-    categories: ['Business', 'Sales', 'Operations'],
-    description:
-      'Hỗ trợ vận hành kinh doanh, tổng hợp báo cáo, làm việc với các bộ phận để theo dõi tiến độ.',
-    requirements:
-      'Giao tiếp tốt, tư duy sắp xếp công việc, sử dụng Excel/PowerPoint khá.',
-    benefits:
-      'Học cách vận hành doanh nghiệp, có cơ hội phát triển lên business analyst/sales ops.',
-    jobTypes: ['internship', 'part-time', 'full-time'],
-    levels: ['intern', 'fresher', 'junior'],
-    experiences: ['no-experience', '0-1-year', '1-3-years'],
-    salaryRange: [3000000, 10000000],
-    targetCities: ['Hà Nội', 'TP. Hồ Chí Minh', 'Hải Phòng'],
-  },
-  {
-    code: 'accounting',
-    titles: [
-      'Thực tập Kế toán',
-      'Part-time Nhập liệu kế toán',
-      'Cộng tác viên kế toán',
-      'Accounting Admin Intern',
-    ],
-    skills: ['excel', 'accounting', 'data entry', 'word'],
-    categories: ['Kế toán', 'Tài chính', 'Văn phòng'],
-    description:
-      'Hỗ trợ nhập liệu chứng từ, tổng hợp số liệu và làm báo cáo đơn giản bằng Excel.',
-    requirements:
-      'Cẩn thận, trung thực, dùng Excel tốt. Học ngành kế toán/tài chính là lợi thế.',
-    benefits:
-      'Môi trường văn phòng ổn định, phù hợp sinh viên năm 2-4.',
-    jobTypes: ['part-time', 'internship', 'contract'],
+      'Môi trường sáng tạo, có feedback thường xuyên và cơ hội tham gia nhiều đầu việc thực tế.',
+    jobTypes: ['internship', 'part-time', 'freelance'],
     levels: ['intern', 'fresher'],
-    experiences: ['no-experience', '0-1-year'],
-    salaryRange: [2500000, 8000000],
-    targetCities: ['Hà Nội', 'Hải Phòng', 'Cần Thơ'],
-  },
-  {
-    code: 'cskh-sales',
-    titles: [
-      'Nhân viên CSKH Part-time',
-      'Tư vấn viên bán thời gian',
-      'Part-time Chat Support',
-      'Sales Support Intern',
-    ],
-    skills: ['communication', 'customer service', 'sales', 'excel'],
-    categories: ['CSKH', 'Sales', 'Văn phòng'],
-    description:
-      'Hỗ trợ khách hàng qua chat/điện thoại, tư vấn sản phẩm và nhập thông tin đơn hàng.',
-    requirements:
-      'Giao tiếp tốt, có trách nhiệm. Không yêu cầu kinh nghiệm.',
-    benefits:
-      'Ca linh hoạt, phù hợp sinh viên, có thưởng theo hiệu suất.',
-    jobTypes: ['part-time', 'full-time', 'contract'],
-    levels: ['intern', 'fresher', 'junior'],
     experiences: ['no-experience', '0-1-year'],
     salaryRange: [3000000, 9000000],
-    targetCities: ['TP. Hồ Chí Minh', 'Cần Thơ', 'Hà Nội'],
+    targetCities: ['Đà Nẵng', 'TP. Hồ Chí Minh', 'Hà Nội'],
+    workModes: ['remote', 'hybrid'],
   },
   {
-    code: 'fnb',
+    code: 'operations',
     titles: [
-      'Nhân viên phục vụ Part-time',
-      'Barista Part-time',
-      'Thu ngân ca tối',
-      'Phục vụ ca cuối tuần',
+      'Business Operations Intern',
+      'Operations Intern',
+      'Sales Admin Intern',
+      'Business Support Intern',
     ],
-    skills: ['customer service', 'communication', 'teamwork'],
-    categories: ['F&B', 'Dịch vụ', 'Part-time'],
+    categories: ['Business', 'Operations', 'Sales'],
+    acceptableMajors: ['Quản trị kinh doanh', 'Marketing'],
+    skills: ['excel', 'reporting', 'communication', 'teamwork', 'presentation'],
     description:
-      'Phục vụ khách hàng, hỗ trợ quầy, giữ vệ sinh khu vực làm việc và phối hợp theo ca.',
+      'Hỗ trợ tổng hợp dữ liệu, làm báo cáo, chuẩn bị tài liệu và phối hợp vận hành nội bộ.',
     requirements:
-      'Nhanh nhẹn, đúng giờ, có thể làm ca tối/cuối tuần.',
+      'Sử dụng Excel khá, giao tiếp tốt, cẩn thận và có khả năng phối hợp công việc nhóm.',
     benefits:
-      'Phù hợp sinh viên, sắp ca linh hoạt, hỗ trợ đào tạo ban đầu.',
-    jobTypes: ['part-time'],
+      'Học quy trình vận hành doanh nghiệp, được đào tạo cách lập báo cáo và theo dõi công việc.',
+    jobTypes: ['internship', 'part-time'],
     levels: ['intern', 'fresher'],
     experiences: ['no-experience', '0-1-year'],
-    salaryRange: [2500000, 7000000],
-    targetCities: ['Đà Nẵng', 'TP. Hồ Chí Minh', 'Cần Thơ'],
+    salaryRange: [3000000, 8000000],
+    targetCities: ['Hà Nội', 'Hải Phòng', 'TP. Hồ Chí Minh'],
+    workModes: ['onsite', 'hybrid'],
+  },
+  {
+    code: 'business-development',
+    titles: [
+      'Business Development Intern',
+      'Part-time Sales Support',
+      'Sales Admin Intern',
+      'Customer Support Intern',
+    ],
+    categories: ['Business', 'Sales', 'Operations'],
+    acceptableMajors: ['Quản trị kinh doanh', 'Marketing'],
+    skills: ['communication', 'sales', 'excel', 'reporting', 'teamwork'],
+    description:
+      'Hỗ trợ chăm sóc khách hàng, tổng hợp dữ liệu bán hàng và hỗ trợ bộ phận phát triển kinh doanh.',
+    requirements:
+      'Giao tiếp tốt, nhanh nhẹn, biết Excel cơ bản và có tinh thần học hỏi.',
+    benefits:
+      'Được học quy trình sales thực tế, phối hợp nhiều phòng ban và cải thiện kỹ năng làm việc.',
+    jobTypes: ['internship', 'part-time'],
+    levels: ['intern', 'fresher'],
+    experiences: ['no-experience', '0-1-year'],
+    salaryRange: [3000000, 8500000],
+    targetCities: ['Hà Nội', 'TP. Hồ Chí Minh', 'Hải Phòng', 'Cần Thơ'],
+    workModes: ['onsite', 'hybrid'],
   },
 ];
 
-function randomItem(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function randomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function randomBool(prob = 0.5) {
-  return Math.random() < prob;
-}
-
-function addDays(date, days) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
-function jitterCoordinates([lng, lat]) {
-  const lngOffset = (Math.random() - 0.5) * 0.08;
-  const latOffset = (Math.random() - 0.5) * 0.08;
-  return [Number((lng + lngOffset).toFixed(6)), Number((lat + latOffset).toFixed(6))];
-}
-
-function buildAddress(city) {
-  const streets = [
-    'Nguyễn Huệ',
-    'Lê Lợi',
-    'Hai Bà Trưng',
-    'Điện Biên Phủ',
-    'Cách Mạng Tháng 8',
-    'Trần Hưng Đạo',
-  ];
-  const districts = DISTRICTS_BY_CITY[city] || ['Trung tâm'];
-  return `${randomInt(10, 999)} ${randomItem(streets)}, ${randomItem(districts)}, ${city}`;
-}
-
-function buildSalary([minBase, maxBase], jobType) {
-  let min = randomInt(minBase, Math.floor((minBase + maxBase) / 2));
-  let max = randomInt(min + 500000, maxBase);
-
-  if (jobType === 'full-time') {
-    min += 1000000;
-    max += 2000000;
-  }
-
-  if (jobType === 'contract') {
-    min += 500000;
-    max += 1500000;
-  }
+function parseArgs() {
+  const args = process.argv.slice(2);
+  const reset = args.includes('--reset');
+  const countArg = args.find((a) => a.startsWith('--count='));
+  const count = countArg ? Number(countArg.split('=')[1]) : 40;
 
   return {
-    min,
-    max,
-    currency: 'VND',
-    negotiable: jobType === 'freelance' ? randomBool(0.55) : randomBool(0.18),
+    reset,
+    count: Number.isFinite(count) ? Math.max(10, count) : 40,
   };
-}
-
-function buildAcceptableMajors(tpl) {
-  const cats = (tpl.categories || []).map((c) => String(c).toLowerCase());
-
-  if (
-    cats.includes('it') ||
-    cats.includes('backend') ||
-    cats.includes('frontend') ||
-    cats.includes('web') ||
-    cats.includes('api') ||
-    cats.includes('software')
-  ) {
-    return [
-      'Công nghệ thông tin',
-      'Khoa học máy tính',
-      'Hệ thống thông tin',
-      'Kỹ thuật phần mềm',
-      'An toàn thông tin',
-    ];
-  }
-
-  if (cats.includes('data') || cats.includes('bi') || cats.includes('data analyst')) {
-    return [
-      'Khoa học dữ liệu',
-      'Công nghệ thông tin',
-      'Hệ thống thông tin',
-      'Toán tin',
-      'Thống kê',
-    ];
-  }
-
-  if (cats.includes('marketing') || cats.includes('content') || cats.includes('digital')) {
-    return ['Marketing', 'Quản trị kinh doanh', 'Truyền thông', 'Thương mại điện tử'];
-  }
-
-  if (cats.includes('design') || cats.includes('ui/ux') || cats.includes('creative')) {
-    return [
-      'Thiết kế đồ họa',
-      'Thiết kế',
-      'Mỹ thuật ứng dụng',
-      'Truyền thông đa phương tiện',
-    ];
-  }
-
-  if (cats.includes('business') || cats.includes('sales') || cats.includes('operations')) {
-    return ['Quản trị kinh doanh', 'Kinh tế', 'Thương mại', 'Marketing'];
-  }
-
-  if (cats.includes('kế toán') || cats.includes('tài chính')) {
-    return ['Kế toán', 'Tài chính', 'Kiểm toán', 'Ngân hàng'];
-  }
-
-  return [];
-}
-
-function buildWorkMode(jobType) {
-  const r = Math.random();
-
-  if (jobType === 'internship' || jobType === 'part-time') {
-    if (r < 0.30) return 'remote';
-    if (r < 0.72) return 'hybrid';
-    return 'onsite';
-  }
-
-  if (r < 0.12) return 'remote';
-  if (r < 0.42) return 'hybrid';
-  return 'onsite';
-}
-
-function splitSkillsForJob(skills) {
-  const s = Array.isArray(skills) ? skills : [];
-
-  if (s.length <= 3) {
-    return { requiredSkills: [...s], preferredSkills: [] };
-  }
-
-  const requiredCount = Math.max(3, Math.min(4, s.length - 1));
-  const requiredSkills = s.slice(0, requiredCount);
-  const preferredSkills = s.slice(requiredCount);
-
-  return { requiredSkills, preferredSkills };
-}
-
-function pickCityForTemplate(tpl) {
-  const cities = Array.isArray(tpl.targetCities) && tpl.targetCities.length
-    ? tpl.targetCities
-    : ALL_CITIES;
-  return randomItem(cities);
 }
 
 async function ensureDemoEmployers() {
@@ -455,12 +377,14 @@ async function ensureDemoEmployers() {
       phone: '0900000001',
       address: 'TP. Thủ Đức, TP. Hồ Chí Minh',
       companyName: 'Tech One',
+      companySize: '11-50',
       industry: 'Công nghệ',
       website: 'https://techone.example.com',
-      description: 'Công ty công nghệ tuyển thực tập sinh và fresher IT.',
+      description: 'Công ty công nghệ chuyên tuyển thực tập sinh và fresher ngành IT.',
       location: { type: 'Point', coordinates: jitterCoordinates(CITY_COORDS['TP. Hồ Chí Minh']) },
       verified: true,
       isActive: true,
+      emailVerified: true,
     },
     {
       fullName: 'HR Bright Media',
@@ -469,12 +393,14 @@ async function ensureDemoEmployers() {
       phone: '0900000002',
       address: 'Cầu Giấy, Hà Nội',
       companyName: 'Bright Media',
+      companySize: '11-50',
       industry: 'Marketing',
       website: 'https://brightmedia.example.com',
-      description: 'Agency digital marketing và content.',
+      description: 'Agency digital marketing và content cho SME.',
       location: { type: 'Point', coordinates: jitterCoordinates(CITY_COORDS['Hà Nội']) },
       verified: true,
       isActive: true,
+      emailVerified: true,
     },
     {
       fullName: 'HR Bean Cafe',
@@ -483,12 +409,14 @@ async function ensureDemoEmployers() {
       phone: '0900000003',
       address: 'Hải Châu, Đà Nẵng',
       companyName: 'Bean Cafe',
+      companySize: '11-50',
       industry: 'F&B',
       website: 'https://beancafe.example.com',
-      description: 'Chuỗi quán cà phê tuyển part-time sinh viên.',
+      description: 'Chuỗi cửa hàng đồ uống tuyển part-time và hỗ trợ vận hành sinh viên.',
       location: { type: 'Point', coordinates: jitterCoordinates(CITY_COORDS['Đà Nẵng']) },
       verified: true,
       isActive: true,
+      emailVerified: true,
     },
     {
       fullName: 'HR Office Pro',
@@ -497,12 +425,14 @@ async function ensureDemoEmployers() {
       phone: '0900000004',
       address: 'Lê Chân, Hải Phòng',
       companyName: 'Office Pro',
-      industry: 'Dịch vụ văn phòng',
+      companySize: '51-200',
+      industry: 'Dịch vụ doanh nghiệp',
       website: 'https://officepro.example.com',
-      description: 'Cung cấp dịch vụ vận hành và tuyển dụng nhân sự văn phòng.',
+      description: 'Doanh nghiệp dịch vụ văn phòng, vận hành và hỗ trợ báo cáo.',
       location: { type: 'Point', coordinates: jitterCoordinates(CITY_COORDS['Hải Phòng']) },
       verified: true,
       isActive: true,
+      emailVerified: true,
     },
     {
       fullName: 'HR Mekong Store',
@@ -511,23 +441,21 @@ async function ensureDemoEmployers() {
       phone: '0900000005',
       address: 'Ninh Kiều, Cần Thơ',
       companyName: 'Mekong Store',
+      companySize: '11-50',
       industry: 'Bán lẻ',
       website: 'https://mekongstore.example.com',
-      description: 'Cửa hàng bán lẻ tuyển nhân viên CSKH và nhập liệu part-time.',
+      description: 'Đơn vị bán lẻ và vận hành cửa hàng tuyển sinh viên part-time, intern.',
       location: { type: 'Point', coordinates: jitterCoordinates(CITY_COORDS['Cần Thơ']) },
       verified: true,
       isActive: true,
+      emailVerified: true,
     },
   ];
 
-  for (const e of demoEmployers) {
-    try {
-      const exists = await Employer.findOne({ email: e.email.toLowerCase() });
-      if (!exists) {
-        await Employer.create(e);
-      }
-    } catch (err) {
-      console.warn(`⚠️ Không tạo được employer ${e.email}: ${err.message}`);
+  for (const item of demoEmployers) {
+    const exists = await Employer.findOne({ email: item.email.toLowerCase() }).select('_id');
+    if (!exists) {
+      await Employer.create(item);
     }
   }
 
@@ -538,73 +466,57 @@ async function ensureDemoEmployers() {
   if (!employers.length) {
     employers = await Employer.find({ isActive: { $ne: false } })
       .select('_id companyName email location')
-      .limit(10);
+      .limit(5);
+  }
 
-    if (employers.length) {
-      console.log(`ℹ️ Không lấy được employer demo, dùng ${employers.length} employer có sẵn.`);
-    }
+  if (!employers.length) {
+    throw new Error('Không có employer nào để seed job.');
   }
 
   return employers;
 }
 
-function generateOneJob(employers, tpl, index) {
-  const employer = randomItem(employers);
-  const city = pickCityForTemplate(tpl);
-  const jobType = randomItem(tpl.jobTypes);
-  const level = randomItem(tpl.levels);
-  const experience = randomItem(tpl.experiences);
-
-  let status = 'active';
-  const statusRoll = Math.random();
-  if (statusRoll > 0.92) status = 'closed';
-
-  const makeExpiredByDeadline = status === 'active' && Math.random() < 0.08;
-  const deadline = makeExpiredByDeadline
-    ? addDays(new Date(), -randomInt(1, 10))
-    : addDays(new Date(), randomInt(10, 45));
-
-  const title = `${randomItem(tpl.titles)} #${index + 1}`;
-
-  const shuffledSkills = [...tpl.skills].sort(() => Math.random() - 0.5);
-  const pickedSkills =
-    shuffledSkills.length <= 4
-      ? shuffledSkills
-      : shuffledSkills.slice(0, randomInt(4, Math.min(6, shuffledSkills.length)));
-
-  const { requiredSkills, preferredSkills } = splitSkillsForJob(pickedSkills);
-  const acceptableMajors = buildAcceptableMajors(tpl);
-  const workMode = buildWorkMode(jobType);
+function generateOneJob({ employers, template, index }) {
+  const employer = employers[index % employers.length];
+  const city = template.targetCities[index % template.targetCities.length];
+  const jobType = template.jobTypes[index % template.jobTypes.length];
+  const level = template.levels[index % template.levels.length];
+  const experience = template.experiences[index % template.experiences.length];
+  const title = `${template.titles[index % template.titles.length]} #${index + 1}`;
+  const createdAt = addDays(new Date(), -(index % 14));
+  const workMode = buildWorkMode(jobType, template.workModes);
+  const skillSet = splitSkillsForJob(template.skills);
+  const acceptableMajors = buildAcceptableMajors(template);
 
   return {
     employer: employer._id,
     title,
-    description: tpl.description,
-    requirements: tpl.requirements,
-    benefits: tpl.benefits,
+    description: template.description,
+    requirements: template.requirements,
+    benefits: template.benefits,
+    acceptableMajors,
+    workMode,
     location: {
       address: buildAddress(city),
       city,
       coordinates: jitterCoordinates(CITY_COORDS[city]),
     },
-    salary: buildSalary(tpl.salaryRange, jobType),
+    salary: buildSalary(template.salaryRange, jobType, level),
     jobType,
     level,
     experience,
-    skills: pickedSkills,
-    requiredSkills,
-    preferredSkills,
-    acceptableMajors,
-    workMode,
-    categories: [...new Set([...tpl.categories, 'seed-demo'])],
-    deadline,
-    slots: randomInt(1, 5),
-    status,
+    skills: skillSet.skills,
+    requiredSkills: skillSet.requiredSkills,
+    preferredSkills: skillSet.preferredSkills,
+    categories: [...new Set([...template.categories, 'seed-demo'])],
+    deadline: addDays(new Date(), 20 + (index % 20)),
+    slots: randomInt(1, 4),
+    status: 'active',
     isVerified: true,
-    views: randomInt(10, 180),
-    applicationsCount: randomInt(0, 20),
-    createdAt: addDays(new Date(), -randomInt(0, 14)),
-    updatedAt: new Date(),
+    views: 0,
+    applicationsCount: 0,
+    createdAt,
+    updatedAt: createdAt,
   };
 }
 
@@ -612,14 +524,14 @@ function buildBalancedJobs(employers, count) {
   const jobs = [];
 
   for (let i = 0; i < count; i += 1) {
-    const tpl = JOB_TEMPLATES[i % JOB_TEMPLATES.length];
-    jobs.push(generateOneJob(employers, tpl, i));
+    const template = JOB_TEMPLATES[i % JOB_TEMPLATES.length];
+    jobs.push(generateOneJob({ employers, template, index: i }));
   }
 
   return jobs;
 }
 
-async function seedJobs({ count = 90, reset = false }) {
+async function seedJobs({ count = 40, reset = false } = {}) {
   if (!process.env.MONGO_URI) {
     throw new Error('Thiếu MONGO_URI trong backend/.env');
   }
@@ -627,32 +539,27 @@ async function seedJobs({ count = 90, reset = false }) {
   await mongoose.connect(process.env.MONGO_URI);
   console.log('✅ Đã kết nối MongoDB');
 
-  if (reset) {
-    const rs = await Job.deleteMany({ categories: 'seed-demo' });
-    console.log(`🧹 Đã xoá ${rs.deletedCount} job seed cũ`);
-  }
-
   const employers = await ensureDemoEmployers();
-  if (!employers.length) {
-    throw new Error(
-      'Không thể tạo/lấy employer demo. Hãy kiểm tra schema Employer hoặc tạo sẵn 1 employer.'
-    );
+
+  if (reset) {
+    const rs = await Job.deleteMany({
+      categories: 'seed-demo',
+    });
+    console.log(`🧹 Đã xoá ${rs.deletedCount} seed jobs cũ`);
   }
 
   const jobs = buildBalancedJobs(employers, count);
-  const inserted = await Job.insertMany(jobs);
+  const result = await Job.insertMany(jobs, { ordered: false });
 
-  console.log(`🎉 Seed thành công ${inserted.length} jobs`);
-  console.log('📌 Dùng categories = "seed-demo" để lọc/xoá lại sau này');
+  console.log(`🎉 Seed job xong | created: ${result.length}`);
+  console.log(`🏢 Employers dùng để seed: ${employers.length}`);
+  console.log('📌 Toàn bộ job seed đều: active + verified + còn hạn + applicationsCount = 0');
 
   await mongoose.disconnect();
   console.log('🔌 Đã ngắt kết nối MongoDB');
 }
 
-const args = process.argv.slice(2);
-const countArg = args.find((a) => a.startsWith('--count='));
-const count = countArg ? Number(countArg.split('=')[1]) : 90;
-const reset = args.includes('--reset');
+const { count, reset } = parseArgs();
 
 seedJobs({ count, reset }).catch(async (err) => {
   console.error('❌ Lỗi seed jobs:', err);

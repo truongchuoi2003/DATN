@@ -1,16 +1,57 @@
+const fs = require('fs');
+const path = require('path');
 const Student = require('../models/Student.model');
 const Employer = require('../models/Employer.model');
 const Admin = require('../models/Admin.model');
 
+const getUploadedFile = (req, fieldName) => {
+  if (!req?.files) return null;
+  const files = req.files[fieldName];
+  return Array.isArray(files) && files.length > 0 ? files[0] : null;
+};
+
+const removeOldUploadedFile = (fileUrl) => {
+  try {
+    if (!fileUrl || typeof fileUrl !== 'string') return;
+    if (!fileUrl.startsWith('/uploads/')) return;
+
+    const filePath = path.join(__dirname, '../../', fileUrl.replace(/^\/+/, ''));
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  } catch (error) {
+    console.error('⚠️ Không thể xoá file cũ:', error.message);
+  }
+};
+
+const normalizeStringArray = (value, allowedValues = null) => {
+  let arr = value;
+
+  if (typeof arr === 'string') {
+    arr = arr
+      .split(',')
+      .map((x) => x.trim())
+      .filter(Boolean);
+  }
+
+  if (!Array.isArray(arr)) return [];
+
+  let normalized = [...new Set(arr.map((x) => String(x).trim()).filter(Boolean))];
+
+  if (Array.isArray(allowedValues) && allowedValues.length > 0) {
+    normalized = normalized.filter((x) => allowedValues.includes(x));
+  }
+
+  return normalized;
+};
+
 // 👤 GET PROFILE
 exports.getProfile = async (req, res) => {
   try {
-    const { userId, role } = req.user; // Từ JWT token
+    const { userId, role } = req.user;
 
-    let user;
     let Model;
 
-    // Chọn Model dựa vào role
     if (role === 'student') {
       Model = Student;
     } else if (role === 'employer') {
@@ -19,8 +60,7 @@ exports.getProfile = async (req, res) => {
       Model = Admin;
     }
 
-    // Tìm user và loại bỏ password
-    user = await Model.findById(userId).select('-password');
+    const user = await Model.findById(userId).select('-password');
 
     if (!user) {
       return res.status(404).json({
@@ -43,34 +83,19 @@ exports.getProfile = async (req, res) => {
   }
 };
 
-// ✏️ UPDATE PROFILE (✅ ĐÃ SỬA - HỖ TRỢ UPLOAD FILE)
+// ✏️ UPDATE PROFILE
 exports.updateProfile = async (req, res) => {
   try {
     const { userId, role } = req.user;
-    const updateData = req.body;
+    const updateData = { ...req.body };
 
     console.log('📝 Update profile request:', {
       userId,
       role,
-      hasFile: !!req.file,
-      fileName: req.file?.filename,
-      body: updateData
+      files: Object.keys(req.files || {}),
+      bodyKeys: Object.keys(updateData || {}),
     });
 
-    // ✅ XỬ LÝ FILE UPLOAD (CV hoặc logo)
-    if (req.file) {
-      if (role === 'student') {
-        // Student upload CV
-        updateData.resumeUrl = `/uploads/${req.file.filename}`;
-        console.log('✅ CV uploaded:', updateData.resumeUrl);
-      } else if (role === 'employer') {
-        // Employer upload logo
-        updateData.logo = `/uploads/${req.file.filename}`;
-        console.log('✅ Logo uploaded:', updateData.logo);
-      }
-    }
-
-    // Không cho phép update các field nhạy cảm
     delete updateData.password;
     delete updateData.email;
     delete updateData.role;
@@ -83,45 +108,109 @@ exports.updateProfile = async (req, res) => {
     } else if (role === 'admin') {
       Model = Admin;
     }
-    // ✅ Chuẩn hóa preferredJobTypes cho student
-    if (role === 'student' && updateData.preferredJobTypes !== undefined) {
-      const allowedJobTypes = ['full-time', 'part-time', 'internship', 'contract', 'freelance'];
 
-      // Hỗ trợ cả array hoặc string (VD "internship,part-time")
-      let normalized = updateData.preferredJobTypes;
-
-      if (typeof normalized === 'string') {
-        normalized = normalized
-          .split(',')
-          .map((x) => x.trim())
-          .filter(Boolean);
-      }
-
-      if (!Array.isArray(normalized)) {
-        normalized = [];
-      }
-
-      updateData.preferredJobTypes = [...new Set(normalized)]
-        .filter((x) => allowedJobTypes.includes(x));
-    }
-    const user = await Model.findByIdAndUpdate(
-      userId,
-      updateData,
-      { new: true, runValidators: true }
-    ).select('-password');
-
-    if (!user) {
+    const existingUser = await Model.findById(userId);
+    if (!existingUser) {
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy người dùng',
       });
     }
 
+    const resumeFile = getUploadedFile(req, 'resume');
+    const avatarFile = getUploadedFile(req, 'avatar');
+    const logoFile = getUploadedFile(req, 'logo');
+
+    // ✅ Xử lý upload theo role
+    if (role === 'student') {
+      if (resumeFile) {
+        removeOldUploadedFile(existingUser.resumeUrl);
+        updateData.resumeUrl = `/uploads/${resumeFile.filename}`;
+      }
+
+      if (avatarFile) {
+        removeOldUploadedFile(existingUser.avatar);
+        updateData.avatar = `/uploads/${avatarFile.filename}`;
+      }
+    }
+
+    if (role === 'employer' && logoFile) {
+      removeOldUploadedFile(existingUser.logo);
+      updateData.logo = `/uploads/${logoFile.filename}`;
+    }
+
+    // ✅ Chuẩn hóa mảng cho student
+    if (role === 'student') {
+      const allowedJobTypes = ['full-time', 'part-time', 'internship', 'contract', 'freelance'];
+      const allowedWorkModes = ['onsite', 'remote', 'hybrid'];
+
+      if (updateData.skills !== undefined) {
+        updateData.skills = normalizeStringArray(updateData.skills);
+      }
+
+      if (updateData.preferredCategories !== undefined) {
+        updateData.preferredCategories = normalizeStringArray(updateData.preferredCategories);
+      }
+
+      if (updateData.desiredJobTitles !== undefined) {
+        updateData.desiredJobTitles = normalizeStringArray(updateData.desiredJobTitles);
+      }
+
+      if (updateData.preferredLocations !== undefined) {
+        updateData.preferredLocations = normalizeStringArray(updateData.preferredLocations);
+      }
+
+      if (updateData.projects !== undefined) {
+        updateData.projects = normalizeStringArray(updateData.projects);
+      }
+
+      if (updateData.projectTechnologies !== undefined) {
+        updateData.projectTechnologies = normalizeStringArray(updateData.projectTechnologies);
+      }
+
+      if (updateData.certifications !== undefined) {
+        updateData.certifications = normalizeStringArray(updateData.certifications);
+      }
+
+      if (updateData.preferredJobTypes !== undefined) {
+        updateData.preferredJobTypes = normalizeStringArray(
+          updateData.preferredJobTypes,
+          allowedJobTypes
+        );
+      }
+
+      if (updateData.preferredWorkModes !== undefined) {
+        updateData.preferredWorkModes = normalizeStringArray(
+          updateData.preferredWorkModes,
+          allowedWorkModes
+        );
+      }
+
+      if (updateData.graduationYear !== undefined && updateData.graduationYear !== '') {
+        updateData.graduationYear = Number(updateData.graduationYear);
+      }
+
+      if (updateData.gpa !== undefined && updateData.gpa !== '') {
+        updateData.gpa = Number(updateData.gpa);
+      }
+    }
+
+    const user = await Model.findByIdAndUpdate(userId, updateData, {
+      new: true,
+      runValidators: true,
+    }).select('-password');
+
     console.log('✅ Profile updated successfully');
 
     res.status(200).json({
       success: true,
-      message: req.file ? 'Tải file lên thành công' : 'Cập nhật profile thành công',
+      message: avatarFile
+        ? 'Tải ảnh đại diện thành công'
+        : resumeFile
+        ? 'Tải CV thành công'
+        : logoFile
+        ? 'Tải logo thành công'
+        : 'Cập nhật profile thành công',
       profile: user,
     });
   } catch (error) {
@@ -141,7 +230,6 @@ exports.changePassword = async (req, res) => {
     const { userId, role } = req.user;
     const { currentPassword, newPassword } = req.body;
 
-    // Validate input
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
@@ -174,7 +262,6 @@ exports.changePassword = async (req, res) => {
       });
     }
 
-    // Verify current password
     const isMatch = await user.comparePassword(currentPassword);
     if (!isMatch) {
       return res.status(401).json({
@@ -183,7 +270,6 @@ exports.changePassword = async (req, res) => {
       });
     }
 
-    // Update password
     user.password = newPassword;
     await user.save();
 

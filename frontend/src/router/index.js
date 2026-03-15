@@ -5,7 +5,10 @@ import ChangePassword from '../views/ChangePassword.vue';
 
 
 const routes = [
-  { path: '/', redirect: '/login' },
+  // ===== PUBLIC =====
+  { path: '/', name: 'PublicJobs', component: () => import('../views/PublicJobs.vue') },
+  { path: '/home', name: 'PublicHome', component: () => import('../views/PublicHome.vue') },
+  { path: '/jobs/public/:jobId', name: 'PublicJobDetail', component: () => import('../views/PublicJobDetail.vue') },
 
   { path: '/login', name: 'Login', component: Login, meta: { guest: true } },
   { path: '/register', name: 'Register', component: Register, meta: { guest: true } },
@@ -36,8 +39,6 @@ const routes = [
     component: () => import('@/views/JobDetail.vue'),
     meta: { requiresAuth: true, role: 'student' }
   },
-
-  // ✅ TRANG CÓ NÚT “RÚT ĐƠN”
   {
     path: '/student/applications',
     name: 'StudentApplications',
@@ -76,7 +77,7 @@ const routes = [
     component: () => import('../views/JobEdit.vue'),
     meta: { requiresAuth: true, role: 'employer' }
   },
-    {
+  {
     path: '/employer/applications',
     name: 'EmployerApplicationsAll',
     component: () => import('../views/EmployerApplications.vue'),
@@ -109,25 +110,24 @@ const routes = [
     meta: { requiresAuth: true, role: 'admin' }
   },
   {
-  path: '/admin/users',
-  name: 'AdminUsers',
-  component: () => import('../views/AdminUsers.vue'),
-  meta: { requiresAuth: true, role: 'admin' }
+    path: '/admin/users',
+    name: 'AdminUsers',
+    component: () => import('../views/AdminUsers.vue'),
+    meta: { requiresAuth: true, role: 'admin' }
   },
   {
-  path: '/admin/jobs',
-  name: 'AdminJobs',
-  component: () => import('../views/AdminJobs.vue'),
-  meta: { requiresAuth: true, role: 'admin' }
+    path: '/admin/jobs',
+    name: 'AdminJobs',
+    component: () => import('../views/AdminJobs.vue'),
+    meta: { requiresAuth: true, role: 'admin' }
   },
   {
-  path: '/admin/reports',
-  name: 'AdminReports',
-  component: () => import('../views/AdminReports.vue'),
-  meta: { requiresAuth: true, role: 'admin' }
+    path: '/admin/reports',
+    name: 'AdminReports',
+    component: () => import('../views/AdminReports.vue'),
+    meta: { requiresAuth: true, role: 'admin' }
   },
-  
-  // ✅ NotFound PHẢI ở cuối
+
   { path: '/:pathMatch(.*)*', name: 'NotFound', redirect: '/' },
 ];
 
@@ -136,7 +136,6 @@ const router = createRouter({
   routes
 });
 
-// Navigation Guard
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token');
   const user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null;

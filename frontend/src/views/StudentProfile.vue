@@ -1,68 +1,55 @@
 <template>
   <div class="profile-page">
     <Header />
-    
+
     <div class="container">
       <div class="profile-layout">
-        <!-- Sidebar -->
         <aside class="profile-sidebar">
           <div class="profile-card">
             <div class="avatar-section">
-              <div class="avatar-large">
-                {{ getInitials(profile?.fullName) }}
-              </div>
-              <button class="btn-upload">
-                📷 Thay ảnh
-              </button>
+              <UploadAvatar
+                :current-avatar="profile?.avatar || ''"
+                :full-name="profile?.fullName || ''"
+                @uploaded="handleAvatarUploaded"
+              />
             </div>
-            
+
             <h2>{{ profile?.fullName }}</h2>
             <p class="email">{{ profile?.email }}</p>
             <span class="role-badge">Sinh viên</span>
-            
+
             <div class="profile-stats">
               <div class="stat-item">
-                <span class="stat-value">75%</span>
+                <span class="stat-value">{{ profileCompletion }}%</span>
                 <span class="stat-label">Hoàn thành</span>
               </div>
               <div class="stat-item">
-                <span class="stat-value">12</span>
-                <span class="stat-label">Ứng tuyển</span>
+                <span class="stat-value">{{ completedRequirementCount }}/{{ profileRequirements.length }}</span>
+                <span class="stat-label">Mục đã đủ</span>
               </div>
             </div>
           </div>
 
           <nav class="profile-nav">
-            <button 
-              :class="{ active: activeTab === 'info' }"
-              @click="activeTab = 'info'"
-            >
+            <button :class="{ active: activeTab === 'info' }" @click="activeTab = 'info'">
               👤 Thông tin cá nhân
             </button>
-            <button 
-              :class="{ active: activeTab === 'education' }"
-              @click="activeTab = 'education'"
-            >
+            <button :class="{ active: activeTab === 'education' }" @click="activeTab = 'education'">
               🎓 Học vấn
             </button>
-            <button 
-              :class="{ active: activeTab === 'skills' }"
-              @click="activeTab = 'skills'"
-            >
+            <button :class="{ active: activeTab === 'skills' }" @click="activeTab = 'skills'">
               ⭐ Kỹ năng
             </button>
             <router-link
               to="/change-password"
-              class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700"
+              class="nav-link-like"
             >
               Đổi mật khẩu
             </router-link>
           </nav>
         </aside>
 
-        <!-- Main Content -->
         <main class="profile-main">
-          <!-- Personal Info -->
           <div v-if="activeTab === 'info'" class="content-section">
             <div class="section-header">
               <h2>Thông tin cá nhân</h2>
@@ -70,66 +57,42 @@
                 ✏️ Chỉnh sửa
               </button>
               <div v-else class="edit-actions">
-                <button @click="handleSave" class="btn btn-primary">
-                  💾 Lưu
-                </button>
-                <button @click="handleCancel" class="btn btn-outline">
-                  ✕ Hủy
-                </button>
+                <button @click="handleSave" class="btn btn-primary">💾 Lưu</button>
+                <button @click="handleCancel" class="btn btn-outline">✕ Hủy</button>
               </div>
             </div>
 
             <div class="form-grid">
               <div class="form-group">
                 <label>Họ và tên</label>
-                <input 
-                  v-model="formData.fullName" 
-                  :disabled="!editMode"
-                  type="text"
-                />
+                <input v-model="formData.fullName" :disabled="!editMode" type="text" />
               </div>
 
               <div class="form-group">
                 <label>Email</label>
-                <input 
-                  v-model="formData.email" 
-                  disabled
-                  type="email"
-                />
+                <input v-model="formData.email" disabled type="email" />
                 <small>Email không thể thay đổi</small>
               </div>
 
               <div class="form-group">
                 <label>Số điện thoại</label>
-                <input 
-                  v-model="formData.phone" 
-                  :disabled="!editMode"
-                  type="tel"
-                />
+                <input v-model="formData.phone" :disabled="!editMode" type="tel" />
               </div>
 
               <div class="form-group">
                 <label>Ngày sinh</label>
-                <input 
-                  v-model="formData.birthday" 
-                  :disabled="!editMode"
-                  type="date"
-                />
+                <input v-model="formData.birthday" :disabled="!editMode" type="date" />
               </div>
 
               <div class="form-group full-width">
                 <label>Địa chỉ</label>
-                <input 
-                  v-model="formData.address" 
-                  :disabled="!editMode"
-                  type="text"
-                />
+                <input v-model="formData.address" :disabled="!editMode" type="text" />
               </div>
 
               <div class="form-group full-width">
                 <label>Giới thiệu bản thân</label>
-                <textarea 
-                  v-model="formData.bio" 
+                <textarea
+                  v-model="formData.bio"
                   :disabled="!editMode"
                   rows="4"
                   placeholder="Viết một vài dòng giới thiệu về bản thân..."
@@ -142,7 +105,6 @@
             </div>
           </div>
 
-          <!-- Education -->
           <div v-if="activeTab === 'education'" class="content-section">
             <div class="section-header">
               <h2>Học vấn</h2>
@@ -150,70 +112,54 @@
                 ✏️ Chỉnh sửa
               </button>
               <div v-else class="edit-actions">
-                <button @click="handleSave" class="btn btn-primary">
-                  💾 Lưu
-                </button>
-                <button @click="handleCancel" class="btn btn-outline">
-                  ✕ Hủy
-                </button>
+                <button @click="handleSave" class="btn btn-primary">💾 Lưu</button>
+                <button @click="handleCancel" class="btn btn-outline">✕ Hủy</button>
               </div>
             </div>
 
             <div class="form-grid">
               <div class="form-group">
                 <label>Mã sinh viên</label>
-                <input 
-                  v-model="formData.studentId" 
-                  :disabled="!editMode"
-                  type="text"
-                />
+                <input v-model="formData.studentId" :disabled="!editMode" type="text" />
               </div>
 
               <div class="form-group">
                 <label>Trường đại học</label>
-                <input 
-                  v-model="formData.university" 
-                  :disabled="!editMode"
-                  type="text"
-                />
+                <input v-model="formData.university" :disabled="!editMode" type="text" />
               </div>
 
               <div class="form-group">
                 <label>Ngành học</label>
-                <input 
-                  v-model="formData.major" 
-                  :disabled="!editMode"
-                  type="text"
-                />
+                <input v-model="formData.major" :disabled="!editMode" type="text" />
               </div>
-              
+
               <div class="form-group">
-              <label>Năm học hiện tại</label>
-              <select v-model="formData.academicYear" :disabled="!editMode">
-                <option value="1">Năm 1</option>
-                <option value="2">Năm 2</option>
-                <option value="3">Năm 3</option>
-                <option value="4">Năm 4</option>
-                <option value="5">Năm 5</option>
-                <option value="graduated">Đã tốt nghiệp</option>
-              </select>
-            </div>
+                <label>Năm học hiện tại</label>
+                <select v-model="formData.academicYear" :disabled="!editMode">
+                  <option value="1">Năm 1</option>
+                  <option value="2">Năm 2</option>
+                  <option value="3">Năm 3</option>
+                  <option value="4">Năm 4</option>
+                  <option value="5">Năm 5</option>
+                  <option value="graduated">Đã tốt nghiệp</option>
+                </select>
+              </div>
 
               <div class="form-group">
                 <label>Năm tốt nghiệp</label>
-                <input 
-                  v-model="formData.graduationYear" 
+                <input
+                  v-model="formData.graduationYear"
                   :disabled="!editMode"
                   type="number"
                   min="2020"
-                  max="2030"
+                  max="2035"
                 />
               </div>
 
               <div class="form-group">
                 <label>GPA</label>
-                <input 
-                  v-model="formData.gpa" 
+                <input
+                  v-model="formData.gpa"
                   :disabled="!editMode"
                   type="number"
                   step="0.01"
@@ -222,13 +168,11 @@
                 />
               </div>
 
-              <!-- ✅ THÊM: Loại hình công việc mong muốn (giữ nguyên style hiện có) -->
               <div class="form-group full-width">
                 <label>Loại hình công việc mong muốn</label>
-
                 <div class="skills-list">
-                  <div 
-                    v-for="item in preferredJobTypeOptions" 
+                  <div
+                    v-for="item in preferredJobTypeOptions"
                     :key="item.value"
                     class="skill-tag"
                     :style="formData.preferredJobTypes.includes(item.value)
@@ -236,7 +180,7 @@
                       : ''"
                   >
                     <span>{{ item.label }}</span>
-                    <button 
+                    <button
                       v-if="editMode"
                       type="button"
                       @click="togglePreferredJobType(item.value)"
@@ -244,13 +188,11 @@
                       :style="formData.preferredJobTypes.includes(item.value)
                         ? 'background: #dc3545;'
                         : 'background: #28a745;'"
-                      :title="formData.preferredJobTypes.includes(item.value) ? 'Bỏ chọn' : 'Chọn'"
                     >
                       {{ formData.preferredJobTypes.includes(item.value) ? '✕' : '+' }}
                     </button>
                   </div>
                 </div>
-
                 <small>Chọn 1 hoặc nhiều loại hình để hệ thống gợi ý chính xác hơn</small>
               </div>
 
@@ -307,7 +249,6 @@
                       :style="formData.preferredWorkModes.includes(item.value)
                         ? 'background: #dc3545;'
                         : 'background: #28a745;'"
-                      :title="formData.preferredWorkModes.includes(item.value) ? 'Bỏ chọn' : 'Chọn'"
                     >
                       {{ formData.preferredWorkModes.includes(item.value) ? '✕' : '+' }}
                     </button>
@@ -391,7 +332,6 @@
             </div>
           </div>
 
-          <!-- Skills -->
           <div v-if="activeTab === 'skills'" class="content-section">
             <div class="section-header">
               <h2>Kỹ năng</h2>
@@ -399,29 +339,20 @@
                 ✏️ Chỉnh sửa
               </button>
               <div v-else class="edit-actions">
-                <button @click="handleSave" class="btn btn-primary">
-                  💾 Lưu
-                </button>
-                <button @click="handleCancel" class="btn btn-outline">
-                  ✕ Hủy
-                </button>
+                <button @click="handleSave" class="btn btn-primary">💾 Lưu</button>
+                <button @click="handleCancel" class="btn btn-outline">✕ Hủy</button>
               </div>
             </div>
-            <div v-if="activeTab === 'skills'" class="content-section">
-             <!-- Existing skills content -->
-    
-            <!-- ✅ THÊM COMPONENT UPLOAD CV -->
-            <UploadCV @uploaded="handleCVUploaded" />
-            </div>
+
             <div class="skills-section">
               <div class="skills-list">
-                <div 
-                  v-for="(skill, index) in formData.skills" 
+                <div
+                  v-for="(skill, index) in formData.skills"
                   :key="index"
                   class="skill-tag"
                 >
                   <span>{{ skill }}</span>
-                  <button 
+                  <button
                     v-if="editMode"
                     @click="removeSkill(index)"
                     class="btn-remove"
@@ -432,17 +363,21 @@
               </div>
 
               <div v-if="editMode" class="add-skill">
-                <input 
+                <input
                   v-model="newSkill"
                   @keyup.enter="addSkill"
                   type="text"
                   placeholder="Thêm kỹ năng mới (Enter để thêm)"
                 />
-                <button @click="addSkill" class="btn btn-primary">
-                  ➕ Thêm
-                </button>
+                <button @click="addSkill" class="btn btn-primary">➕ Thêm</button>
               </div>
             </div>
+
+            <UploadCV @uploaded="handleCVUploaded" />
+          </div>
+
+          <div v-if="message" class="alert" :class="{ success: isSuccess, error: !isSuccess }">
+            {{ message }}
           </div>
         </main>
       </div>
@@ -451,13 +386,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
 import Header from '../components/Header.vue';
 import api from '../services/api';
 import UploadCV from '@/components/UploadCV.vue';
+import UploadAvatar from '@/components/UploadAvatar.vue';
 import { useAuth } from '../composables/useAuth';
 
-const { refreshUser } = useAuth();
+const { refreshUser, updateUser } = useAuth();
 
 const activeTab = ref('info');
 const editMode = ref(false);
@@ -466,10 +402,39 @@ const isSuccess = ref(false);
 const profile = ref(null);
 const newSkill = ref('');
 
-const passwordMessage = ref('');
-const passwordSuccess = ref(false);
+const hasValue = (value) => {
+  if (Array.isArray(value)) return value.length > 0;
+  return value !== null && value !== undefined && String(value).trim() !== '';
+};
 
-// ✅ options cho loại hình công việc mong muốn
+const profileRequirements = computed(() => {
+  const currentProfile = profile.value || {};
+
+  return [
+    { label: 'Họ và tên', ok: hasValue(currentProfile.fullName) },
+    { label: 'Số điện thoại', ok: hasValue(currentProfile.phone) },
+    { label: 'Ngày sinh', ok: hasValue(currentProfile.birthday) },
+    { label: 'Địa chỉ', ok: hasValue(currentProfile.address) },
+    { label: 'Trường đại học', ok: hasValue(currentProfile.university) },
+    { label: 'Chuyên ngành', ok: hasValue(currentProfile.major) },
+    { label: 'Kỹ năng', ok: hasValue(currentProfile.skills) },
+    { label: 'Loại hình công việc mong muốn', ok: hasValue(currentProfile.preferredJobTypes) },
+    { label: 'Nhóm nghề quan tâm', ok: hasValue(currentProfile.preferredCategories) },
+    { label: 'Vị trí mong muốn', ok: hasValue(currentProfile.desiredJobTitles) },
+    { label: 'Khu vực mong muốn làm việc', ok: hasValue(currentProfile.preferredLocations) },
+    { label: 'CV', ok: hasValue(currentProfile.resumeUrl) },
+  ];
+});
+
+const completedRequirementCount = computed(() => {
+  return profileRequirements.value.filter((item) => item.ok).length;
+});
+
+const profileCompletion = computed(() => {
+  if (!profileRequirements.value.length) return 0;
+  return Math.round((completedRequirementCount.value / profileRequirements.value.length) * 100);
+});
+
 const preferredJobTypeOptions = [
   { value: 'internship', label: 'Internship' },
   { value: 'part-time', label: 'Part-time' },
@@ -478,7 +443,6 @@ const preferredJobTypeOptions = [
   { value: 'contract', label: 'Contract' },
 ];
 
-// ✅ options cho hình thức làm việc
 const preferredWorkModeOptions = [
   { value: 'onsite', label: 'Onsite' },
   { value: 'remote', label: 'Remote' },
@@ -507,47 +471,26 @@ const formData = reactive({
   birthday: '',
   address: '',
   bio: '',
-
   studentId: '',
   university: '',
   major: '',
   academicYear: '1',
   graduationYear: null,
   gpa: null,
-
   skills: [],
   preferredJobTypes: [],
   preferredWorkModes: [],
-
-  // ✅ các trường mới cho recommend
   preferredCategoriesText: '',
   desiredJobTitlesText: '',
   preferredLocationsText: '',
   projectsText: '',
   projectTechnologiesText: '',
   certificationsText: '',
-
-  // ✅ link hồ sơ
   resumeUrl: '',
   portfolioUrl: '',
   githubUrl: '',
   linkedinUrl: '',
 });
-
-const passwordForm = reactive({
-  currentPassword: '',
-  newPassword: '',
-  confirmPassword: '',
-});
-
-const getInitials = (name) => {
-  if (!name) return '?';
-  const parts = name.split(' ');
-  if (parts.length >= 2) {
-    return parts[0][0] + parts[parts.length - 1][0];
-  }
-  return name.substring(0, 2).toUpperCase();
-};
 
 const fetchProfile = async () => {
   try {
@@ -561,25 +504,21 @@ const fetchProfile = async () => {
       birthday: profile.value.birthday ? profile.value.birthday.split('T')[0] : '',
       address: profile.value.address || '',
       bio: profile.value.bio || '',
-
       studentId: profile.value.studentId || '',
       university: profile.value.university || '',
       major: profile.value.major || '',
       academicYear: profile.value.academicYear || '1',
       graduationYear: profile.value.graduationYear || null,
       gpa: profile.value.gpa || null,
-
       skills: profile.value.skills || [],
       preferredJobTypes: profile.value.preferredJobTypes || [],
       preferredWorkModes: profile.value.preferredWorkModes || [],
-
       preferredCategoriesText: joinArrayToText(profile.value.preferredCategories || []),
       desiredJobTitlesText: joinArrayToText(profile.value.desiredJobTitles || []),
       preferredLocationsText: joinArrayToText(profile.value.preferredLocations || []),
       projectsText: joinArrayToText(profile.value.projects || []),
       projectTechnologiesText: joinArrayToText(profile.value.projectTechnologies || []),
       certificationsText: joinArrayToText(profile.value.certifications || []),
-
       resumeUrl: profile.value.resumeUrl || '',
       portfolioUrl: profile.value.portfolioUrl || '',
       githubUrl: profile.value.githubUrl || '',
@@ -600,33 +539,27 @@ const handleSave = async () => {
       birthday: formData.birthday || null,
       address: formData.address,
       bio: formData.bio,
-
       studentId: formData.studentId,
       university: formData.university,
       major: formData.major,
       academicYear: formData.academicYear,
       graduationYear: formData.graduationYear ? Number(formData.graduationYear) : null,
       gpa: formData.gpa !== null && formData.gpa !== '' ? Number(formData.gpa) : null,
-
       skills: Array.isArray(formData.skills)
         ? [...new Set(formData.skills)].filter(Boolean)
         : [],
-
       preferredJobTypes: Array.isArray(formData.preferredJobTypes)
         ? [...new Set(formData.preferredJobTypes)].filter(Boolean)
         : [],
-
       preferredWorkModes: Array.isArray(formData.preferredWorkModes)
         ? [...new Set(formData.preferredWorkModes)].filter(Boolean)
         : [],
-
       preferredCategories: parseTextToArray(formData.preferredCategoriesText),
       desiredJobTitles: parseTextToArray(formData.desiredJobTitlesText),
       preferredLocations: parseTextToArray(formData.preferredLocationsText),
       projects: parseTextToArray(formData.projectsText),
       projectTechnologies: parseTextToArray(formData.projectTechnologiesText),
       certifications: parseTextToArray(formData.certificationsText),
-
       resumeUrl: formData.resumeUrl,
       portfolioUrl: formData.portfolioUrl,
       githubUrl: formData.githubUrl,
@@ -636,16 +569,7 @@ const handleSave = async () => {
     const res = await api.put('/profile', payload);
 
     profile.value = res.data.profile;
-
-    // ✅ đồng bộ localStorage nếu app đang dùng dữ liệu user từ localStorage
-    const oldUser = JSON.parse(localStorage.getItem('user') || '{}');
-    localStorage.setItem(
-      'user',
-      JSON.stringify({
-        ...oldUser,
-        ...res.data.profile,
-      })
-    );
+    updateUser(res.data.profile);
     refreshUser();
 
     message.value = 'Cập nhật thành công! ✅';
@@ -685,7 +609,6 @@ const removeSkill = (index) => {
 
 const togglePreferredJobType = (value) => {
   if (!editMode.value) return;
-
   const index = formData.preferredJobTypes.indexOf(value);
   if (index >= 0) {
     formData.preferredJobTypes.splice(index, 1);
@@ -696,7 +619,6 @@ const togglePreferredJobType = (value) => {
 
 const togglePreferredWorkMode = (value) => {
   if (!editMode.value) return;
-
   const index = formData.preferredWorkModes.indexOf(value);
   if (index >= 0) {
     formData.preferredWorkModes.splice(index, 1);
@@ -705,52 +627,29 @@ const togglePreferredWorkMode = (value) => {
   }
 };
 
-const handleChangePassword = async () => {
-  try {
-    passwordMessage.value = '';
+const handleCVUploaded = async (cvUrl) => {
+  formData.resumeUrl = cvUrl || '';
+  message.value = 'CV đã được tải lên thành công ✅';
+  isSuccess.value = true;
+  await fetchProfile();
 
-    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
-      passwordMessage.value = 'Vui lòng điền đầy đủ thông tin';
-      passwordSuccess.value = false;
-      return;
-    }
-
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      passwordMessage.value = 'Mật khẩu mới không khớp';
-      passwordSuccess.value = false;
-      return;
-    }
-
-    if (passwordForm.newPassword.length < 6) {
-      passwordMessage.value = 'Mật khẩu mới phải có ít nhất 6 ký tự';
-      passwordSuccess.value = false;
-      return;
-    }
-
-    await api.put('/profile/change-password', {
-      currentPassword: passwordForm.currentPassword,
-      newPassword: passwordForm.newPassword,
-    });
-
-    passwordMessage.value = 'Đổi mật khẩu thành công! ✅';
-    passwordSuccess.value = true;
-
-    passwordForm.currentPassword = '';
-    passwordForm.newPassword = '';
-    passwordForm.confirmPassword = '';
-
-    setTimeout(() => {
-      passwordMessage.value = '';
-    }, 3000);
-  } catch (error) {
-    passwordMessage.value = error.response?.data?.message || 'Đổi mật khẩu thất bại';
-    passwordSuccess.value = false;
-  }
+  setTimeout(() => {
+    message.value = '';
+  }, 3000);
 };
 
-const handleCVUploaded = (cvUrl) => {
-  formData.resumeUrl = cvUrl || '';
-  message.value = 'CV đã được tải lên, nhớ bấm "Lưu" để cập nhật hồ sơ ✅';
+const handleAvatarUploaded = async (avatarUrl) => {
+  if (!profile.value) return;
+
+  profile.value = {
+    ...profile.value,
+    avatar: avatarUrl,
+  };
+
+  updateUser({ avatar: avatarUrl });
+  refreshUser();
+
+  message.value = 'Ảnh đại diện đã được cập nhật ✅';
   isSuccess.value = true;
 
   setTimeout(() => {
@@ -781,7 +680,6 @@ onMounted(() => {
   gap: 30px;
 }
 
-/* Sidebar */
 .profile-sidebar {
   display: flex;
   flex-direction: column;
@@ -798,34 +696,6 @@ onMounted(() => {
 
 .avatar-section {
   margin-bottom: 20px;
-}
-
-.avatar-large {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 48px;
-  font-weight: bold;
-  margin: 0 auto 15px;
-}
-
-.btn-upload {
-  padding: 8px 16px;
-  background: #f0f0f0;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.btn-upload:hover {
-  background: #e0e0e0;
 }
 
 .profile-card h2 {
@@ -886,7 +756,8 @@ onMounted(() => {
   gap: 5px;
 }
 
-.profile-nav button {
+.profile-nav button,
+.nav-link-like {
   padding: 12px 15px;
   background: transparent;
   border: none;
@@ -896,9 +767,11 @@ onMounted(() => {
   transition: all 0.3s;
   font-size: 14px;
   color: #666;
+  text-decoration: none;
 }
 
-.profile-nav button:hover {
+.profile-nav button:hover,
+.nav-link-like:hover {
   background: #f5f5f5;
 }
 
@@ -907,7 +780,6 @@ onMounted(() => {
   color: white;
 }
 
-/* Main Content */
 .profile-main {
   background: white;
   border-radius: 12px;
@@ -988,7 +860,8 @@ onMounted(() => {
 }
 
 .form-group input,
-.form-group textarea {
+.form-group textarea,
+.form-group select {
   padding: 12px 15px;
   border: 2px solid #e0e0e0;
   border-radius: 8px;
@@ -998,13 +871,15 @@ onMounted(() => {
 }
 
 .form-group input:disabled,
-.form-group textarea:disabled {
+.form-group textarea:disabled,
+.form-group select:disabled {
   background: #f5f5f5;
   cursor: not-allowed;
 }
 
 .form-group input:focus,
-.form-group textarea:focus {
+.form-group textarea:focus,
+.form-group select:focus {
   outline: none;
   border-color: #667eea;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
@@ -1035,7 +910,6 @@ onMounted(() => {
   border: 1px solid #f5c6cb;
 }
 
-/* Skills */
 .skills-section {
   margin-bottom: 30px;
 }
@@ -1070,11 +944,6 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s;
-}
-
-.btn-remove:hover {
-  transform: scale(1.1);
 }
 
 .add-skill {
@@ -1090,73 +959,6 @@ onMounted(() => {
   font-size: 14px;
 }
 
-.cv-upload {
-  padding-top: 30px;
-  border-top: 1px solid #f0f0f0;
-}
-
-.cv-upload h3 {
-  font-size: 18px;
-  margin-bottom: 15px;
-  color: #2c3e50;
-}
-
-.upload-area {
-  border: 2px dashed #e0e0e0;
-  border-radius: 8px;
-  padding: 40px;
-  text-align: center;
-  transition: all 0.3s;
-}
-
-.upload-area:hover {
-  border-color: #667eea;
-  background: #f8f9ff;
-}
-
-.upload-label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-}
-
-.upload-icon {
-  font-size: 48px;
-}
-
-.upload-hint {
-  font-size: 12px;
-  color: #999;
-}
-
-.cv-link {
-  margin-top: 15px;
-  font-size: 14px;
-  color: #666;
-}
-
-.cv-link a {
-  color: #667eea;
-  text-decoration: none;
-  font-weight: 600;
-}
-
-.cv-link a:hover {
-  text-decoration: underline;
-}
-
-/* Password Form */
-.password-form {
-  max-width: 500px;
-}
-
-.password-form .form-group {
-  margin-bottom: 20px;
-}
-
-/* Responsive */
 @media (max-width: 968px) {
   .profile-layout {
     grid-template-columns: 1fr;

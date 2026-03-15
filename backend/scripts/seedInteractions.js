@@ -17,20 +17,6 @@ const SEED_STUDENT_EMAILS = [
   'student7@gmail.com',
 ];
 
-function randomItem(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function randomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function addDays(date, days) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
 function normalizeText(str = '') {
   return String(str)
     .toLowerCase()
@@ -43,16 +29,24 @@ function uniqueNormalized(arr = []) {
   return [...new Set((arr || []).map((x) => normalizeText(x)).filter(Boolean))];
 }
 
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function shuffle(arr = []) {
+  return [...arr].sort(() => Math.random() - 0.5);
+}
+
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
 function parseArgs() {
   const args = process.argv.slice(2);
-  const reset = args.includes('--reset');
-
-  const countArg = args.find((a) => a.startsWith('--count='));
-  const count = countArg ? Number(countArg.split('=')[1]) : 42;
-
   return {
-    reset,
-    count: Number.isFinite(count) ? count : 42,
+    reset: args.includes('--reset'),
   };
 }
 
@@ -80,6 +74,7 @@ function scoreStudentJobAffinity(student, job) {
   const jobType = normalizeText(job.jobType || '');
   const workMode = normalizeText(job.workMode || '');
   const jobTitle = normalizeText(job.title || '');
+  const level = normalizeText(job.level || '');
 
   const matchedRequired = jobRequiredSkills.filter((s) => studentSkills.includes(s));
   const matchedPreferred = jobPreferredSkills.filter((s) => studentSkills.includes(s));
@@ -89,13 +84,14 @@ function scoreStudentJobAffinity(student, job) {
   score += matchedPreferred.length * 3;
   score += matchedCategories.length * 5;
 
+  if (studentMajor && jobMajors.includes(studentMajor)) score += 6;
   if (studentLocations.includes(jobCity)) score += 5;
   if (studentJobTypes.includes(jobType)) score += 5;
   if (studentWorkModes.includes(workMode)) score += 3;
-  if (studentMajor && jobMajors.includes(studentMajor)) score += 6;
 
-  if (desiredTitles.some((t) => t && jobTitle.includes(t))) score += 8;
-  else if (
+  if (desiredTitles.some((t) => t && jobTitle.includes(t))) {
+    score += 8;
+  } else if (
     desiredTitles.some((t) =>
       t.split(' ').some((token) => token && token.length >= 3 && jobTitle.includes(token))
     )
@@ -103,75 +99,254 @@ function scoreStudentJobAffinity(student, job) {
     score += 4;
   }
 
-  // sinh viên chưa nhiều kỹ năng vẫn nên có khả năng apply vào job student-friendly
-  const level = normalizeText(job.level || '');
   if (['intern', 'fresher'].includes(level)) score += 2;
 
-  // tránh zero-probability
   score += 1;
-
   return score;
 }
 
-function pickWeightedJob(student, jobs, excludeJobIds = new Set()) {
-  const available = jobs.filter((j) => !excludeJobIds.has(String(j._id)));
-  if (!available.length) return null;
+function pickUniqueJobs(sortedItems, count, excludeIds = new Set()) {
+  const picked = [];
 
-  const weighted = available.map((job) => ({
-    job,
-    weight: scoreStudentJobAffinity(student, job),
-  }));
-
-  const totalWeight = weighted.reduce((sum, item) => sum + item.weight, 0);
-
-  let threshold = Math.random() * totalWeight;
-  for (const item of weighted) {
-    threshold -= item.weight;
-    if (threshold <= 0) return item.job;
+  for (const item of sortedItems) {
+    const id = String(item.job._id);
+    if (excludeIds.has(id)) continue;
+    picked.push(item);
+    excludeIds.add(id);
+    if (picked.length >= count) break;
   }
 
-  return weighted[weighted.length - 1].job;
+  return picked;
 }
 
-function pickApplicationStatus(affinityScore) {
-  // job càng hợp thì càng dễ có status tích cực
-  const r = Math.random();
+function buildStudentInteractionPlan(student, jobs) {
+  const scored = jobs
+    .map((job) => ({ job, score: scoreStudentJobAffinity(student, job) }))
+    .sort((a, b) => b.score - a.score);
 
-  if (affinityScore >= 22) {
-    if (r < 0.45) return 'pending';
-    if (r < 0.78) return 'reviewing';
-    if (r < 0.93) return 'accepted';
-    if (r < 0.98) return 'rejected';
-    return 'withdrawn';
+  const used = new Set();
+
+  const strongPool = scored.filter((x) => x.score >= 22);
+  const mediumPool = scored.filter((x) => x.score >= 13 && x.score < 22);
+  const weakPool = scored.filter((x) => x.score < 13);
+
+  const strong = pickUniqueJobs(strongPool, 4, used);
+  const medium = pickUniqueJobs(mediumPool, 3, used);
+
+  let weak = pickUniqueJobs(weakPool, 2, used);
+  if (weak.length < 2) {
+    const fallbackWeak = pickUniqueJobs([...scored].reverse(), 2 - weak.length, used);
+    weak = [...weak, ...fallbackWeak];
   }
 
-  if (affinityScore >= 12) {
-    if (r < 0.42) return 'pending';
-    if (r < 0.72) return 'reviewing';
-    if (r < 0.84) return 'accepted';
-    if (r < 0.94) return 'rejected';
-    return 'withdrawn';
-  }
-
-  if (r < 0.28) return 'pending';
-  if (r < 0.48) return 'reviewing';
-  if (r < 0.58) return 'accepted';
-  if (r < 0.83) return 'rejected';
-  return 'withdrawn';
+  return { strong, medium, weak };
 }
 
-function buildExpectedSalary(student) {
-  const min = Number(student.salaryExpectation?.min || 0);
-  const max = Number(student.salaryExpectation?.max || 0);
-
-  if (min > 0 && max > min) {
-    return randomInt(min, max);
-  }
-
-  return randomInt(3000000, 12000000);
+function buildTimeline() {
+  const today = new Date();
+  return {
+    old: addDays(today, -randomInt(12, 18)),
+    mid: addDays(today, -randomInt(6, 11)),
+    recent: addDays(today, -randomInt(2, 5)),
+    latest: addDays(today, -randomInt(0, 2)),
+  };
 }
 
-async function seedApplications({ reset, count }) {
+function makeInteraction({
+  studentId,
+  jobId,
+  type,
+  source = 'web',
+  value,
+  createdAt,
+  metadata = {},
+}) {
+  return {
+    student: studentId,
+    job: jobId,
+    interactionType: type,
+    source,
+    interactionValue: value,
+    metadata: {
+      seeded: true,
+      sourceScript: 'seedInteractions',
+      ...metadata,
+    },
+    createdAt,
+    updatedAt: createdAt,
+  };
+}
+
+function buildInteractionsForJob(student, scoredJob, bucket) {
+  const studentId = student._id;
+  const jobId = scoredJob.job._id;
+  const score = scoredJob.score;
+  const t = buildTimeline();
+  const docs = [];
+  let viewCount = 0;
+
+  if (bucket === 'strong') {
+    docs.push(
+      makeInteraction({
+        studentId,
+        jobId,
+        type: 'view',
+        value: 1,
+        createdAt: t.old,
+        metadata: { bucket, affinityScore: score },
+      })
+    );
+    viewCount += 1;
+
+    docs.push(
+      makeInteraction({
+        studentId,
+        jobId,
+        type: 'click',
+        value: 2,
+        createdAt: t.mid,
+        metadata: { bucket, affinityScore: score },
+      })
+    );
+
+    docs.push(
+      makeInteraction({
+        studentId,
+        jobId,
+        type: 'save',
+        source: 'manual',
+        value: 3,
+        createdAt: t.recent,
+        metadata: { bucket, affinityScore: score },
+      })
+    );
+
+    if (Math.random() < 0.8) {
+      docs.push(
+        makeInteraction({
+          studentId,
+          jobId,
+          type: 'view',
+          value: 1,
+          createdAt: t.latest,
+          metadata: { bucket, affinityScore: score, revisit: true },
+        })
+      );
+      viewCount += 1;
+    }
+
+    if (Math.random() < 0.55) {
+      docs.push(
+        makeInteraction({
+          studentId,
+          jobId,
+          type: 'click',
+          value: 2,
+          createdAt: addDays(t.latest, 1),
+          metadata: { bucket, affinityScore: score, revisit: true },
+        })
+      );
+    }
+  }
+
+  if (bucket === 'medium') {
+    docs.push(
+      makeInteraction({
+        studentId,
+        jobId,
+        type: 'view',
+        value: 1,
+        createdAt: t.mid,
+        metadata: { bucket, affinityScore: score },
+      })
+    );
+    viewCount += 1;
+
+    docs.push(
+      makeInteraction({
+        studentId,
+        jobId,
+        type: 'click',
+        value: 2,
+        createdAt: t.recent,
+        metadata: { bucket, affinityScore: score },
+      })
+    );
+
+    if (score >= 18 && Math.random() < 0.45) {
+      docs.push(
+        makeInteraction({
+          studentId,
+          jobId,
+          type: 'save',
+          source: 'manual',
+          value: 3,
+          createdAt: t.latest,
+          metadata: { bucket, affinityScore: score },
+        })
+      );
+    }
+  }
+
+  if (bucket === 'weak') {
+    docs.push(
+      makeInteraction({
+        studentId,
+        jobId,
+        type: 'view',
+        value: 1,
+        createdAt: t.mid,
+        metadata: { bucket, affinityScore: score },
+      })
+    );
+    viewCount += 1;
+
+    if (Math.random() < 0.75) {
+      docs.push(
+        makeInteraction({
+          studentId,
+          jobId,
+          type: 'click',
+          value: 2,
+          createdAt: t.recent,
+          metadata: { bucket, affinityScore: score },
+        })
+      );
+    }
+
+    docs.push(
+      makeInteraction({
+        studentId,
+        jobId,
+        type: 'save',
+        source: 'manual',
+        value: 3,
+        createdAt: addDays(t.recent, 1),
+        metadata: { bucket, affinityScore: score, tempSave: true },
+      })
+    );
+
+    docs.push(
+      makeInteraction({
+        studentId,
+        jobId,
+        type: 'unsave',
+        source: 'manual',
+        value: 1,
+        createdAt: addDays(t.latest, 1),
+        metadata: { bucket, affinityScore: score, negativeSignal: true },
+      })
+    );
+  }
+
+  return { docs, viewCount };
+}
+
+async function seedInteractions({ reset = false } = {}) {
+  if (!process.env.MONGO_URI) {
+    throw new Error('Thiếu MONGO_URI trong backend/.env');
+  }
+
   await mongoose.connect(process.env.MONGO_URI);
   console.log('✅ Đã kết nối MongoDB');
 
@@ -180,7 +355,6 @@ async function seedApplications({ reset, count }) {
   }).select(`
     _id email fullName major skills preferredLocations preferredCategories
     preferredJobTypes preferredWorkModes desiredJobTitles projectTechnologies
-    salaryExpectation
   `);
 
   if (!students.length) {
@@ -195,218 +369,117 @@ async function seedApplications({ reset, count }) {
     isVerified: true,
     deadline: { $gte: new Date() },
   }).select(`
-    _id title employer jobType level location salary categories requiredSkills
-    preferredSkills workMode acceptableMajors status deadline
+    _id title employer jobType level location categories requiredSkills
+    preferredSkills skills workMode acceptableMajors views applicationsCount
   `);
 
   if (!jobs.length) {
-    console.log('⚠️ Không tìm thấy seed jobs hợp lệ (seed-demo, active, verified, còn hạn).');
+    console.log('⚠️ Không tìm thấy seed jobs hợp lệ. Hãy chạy seedJobs trước.');
     await mongoose.disconnect();
     return;
   }
 
-  const seedStudentIds = students.map((s) => s._id);
+  const studentIds = students.map((s) => s._id);
 
   if (reset) {
-    const delApps = await Application.deleteMany({
-      student: { $in: seedStudentIds },
-    });
-
-    const delInteractions = await Interaction.deleteMany({
-      student: { $in: seedStudentIds },
-      'metadata.seeded': true,
-      'metadata.sourceScript': 'seedApplications',
-    });
+    const delApps = await Application.deleteMany({ student: { $in: studentIds } });
+    const delInteractions = await Interaction.deleteMany({ student: { $in: studentIds } });
+    const resetJobs = await Job.updateMany(
+      { categories: 'seed-demo' },
+      { $set: { views: 0, applicationsCount: 0 } }
+    );
 
     console.log(
-      `🧹 Reset: deleted applications=${delApps.deletedCount}, interactions=${delInteractions.deletedCount}`
+      `🧹 Reset: applications=${delApps.deletedCount}, interactions=${delInteractions.deletedCount}, jobsReset=${resetJobs.modifiedCount}`
     );
+  } else {
+    await Application.deleteMany({ student: { $in: studentIds } });
+    await Interaction.deleteMany({
+      student: { $in: studentIds },
+      interactionType: 'apply',
+    });
   }
 
-  let createdApps = 0;
-  let skippedApps = 0;
-  let createdInteractions = 0;
-
-  // mỗi sinh viên nên có một số application hợp lý, tránh dồn vào 1-2 bạn
-  const perStudentTarget = Math.max(4, Math.floor(count / students.length));
-  const usedPairs = new Set();
+  const interactionDocs = [];
+  const viewCountByJob = new Map();
 
   for (const student of students) {
-    const usedJobIds = new Set();
+    const plan = buildStudentInteractionPlan(student, jobs);
 
-    for (let i = 0; i < perStudentTarget; i++) {
-      const job = pickWeightedJob(student, jobs, usedJobIds);
-      if (!job) {
-        skippedApps++;
-        continue;
-      }
+    for (const item of plan.strong) {
+      const { docs, viewCount } = buildInteractionsForJob(student, item, 'strong');
+      interactionDocs.push(...docs);
+      viewCountByJob.set(String(item.job._id), (viewCountByJob.get(String(item.job._id)) || 0) + viewCount);
+    }
 
-      const pairKey = `${student._id}_${job._id}`;
-      if (usedPairs.has(pairKey)) {
-        skippedApps++;
-        continue;
-      }
+    for (const item of plan.medium) {
+      const { docs, viewCount } = buildInteractionsForJob(student, item, 'medium');
+      interactionDocs.push(...docs);
+      viewCountByJob.set(String(item.job._id), (viewCountByJob.get(String(item.job._id)) || 0) + viewCount);
+    }
 
-      const exists = await Application.findOne({
-        student: student._id,
-        job: job._id,
-      }).select('_id');
-
-      if (exists) {
-        skippedApps++;
-        usedJobIds.add(String(job._id));
-        continue;
-      }
-
-      usedPairs.add(pairKey);
-      usedJobIds.add(String(job._id));
-
-      const affinityScore = scoreStudentJobAffinity(student, job);
-      const status = pickApplicationStatus(affinityScore);
-      const appliedAt = addDays(new Date(), -randomInt(1, 18));
-
-      const app = await Application.create({
-        job: job._id,
-        student: student._id,
-        employer: job.employer,
-        coverLetter: `Em quan tâm đến vị trí "${job.title}" vì khá phù hợp với định hướng hiện tại của em. Em mong muốn được học hỏi thêm qua công việc thực tế.`,
-        expectedSalary: buildExpectedSalary(student),
-        availableFrom: addDays(new Date(), randomInt(0, 10)),
-        additionalInfo: 'Có thể sắp xếp lịch học để làm việc linh hoạt.',
-        status,
-        appliedAt,
-      });
-
-      // chỉ tăng mạnh popularity cho application không tiêu cực
-      const positiveStatuses = ['pending', 'reviewing', 'accepted'];
-      if (positiveStatuses.includes(status)) {
-        await Job.updateOne({ _id: job._id }, { $inc: { applicationsCount: 1 } });
-      } else if (status === 'rejected' && Math.random() < 0.35) {
-        // rejected vẫn có thể tính nhẹ vì đã từng ứng tuyển
-        await Job.updateOne({ _id: job._id }, { $inc: { applicationsCount: 1 } });
-      }
-
-      // tạo lịch sử tương tác hợp lý quanh việc apply
-      // 1) view
-      const viewAt = addDays(appliedAt, -randomInt(1, 4));
-      await Interaction.create({
-        student: student._id,
-        job: job._id,
-        interactionType: 'view',
-        source: 'web',
-        interactionValue: 1,
-        metadata: {
-          seeded: true,
-          sourceScript: 'seedApplications',
-          applicationId: app._id.toString(),
-        },
-        createdAt: viewAt,
-        updatedAt: viewAt,
-      });
-      await Job.updateOne({ _id: job._id }, { $inc: { views: 1 } });
-      createdInteractions++;
-
-      // 2) click
-      if (Math.random() < 0.9) {
-        const clickAt = addDays(appliedAt, -randomInt(0, 2));
-        await Interaction.create({
-          student: student._id,
-          job: job._id,
-          interactionType: 'click',
-          source: 'web',
-          interactionValue: 2,
-          metadata: {
-            seeded: true,
-            sourceScript: 'seedApplications',
-            applicationId: app._id.toString(),
-          },
-          createdAt: clickAt,
-          updatedAt: clickAt,
-        });
-        createdInteractions++;
-      }
-
-      // 3) save nếu là app khá hợp và không withdrawn
-      if (affinityScore >= 14 && status !== 'withdrawn' && Math.random() < 0.75) {
-        const saveAt = addDays(appliedAt, -randomInt(0, 1));
-        await Interaction.create({
-          student: student._id,
-          job: job._id,
-          interactionType: 'save',
-          source: 'manual',
-          interactionValue: 3,
-          metadata: {
-            seeded: true,
-            sourceScript: 'seedApplications',
-            applicationId: app._id.toString(),
-          },
-          createdAt: saveAt,
-          updatedAt: saveAt,
-        });
-        createdInteractions++;
-      }
-
-      // 4) apply interaction
-      // rejected/withdrawn không nên mạnh như pending/reviewing/accepted
-      const applyValue =
-        status === 'accepted' ? 5 :
-        status === 'pending' || status === 'reviewing' ? 4 :
-        status === 'rejected' ? 2 :
-        1;
-
-      await Interaction.create({
-        student: student._id,
-        job: job._id,
-        interactionType: 'apply',
-        source: 'web',
-        interactionValue: applyValue,
-        metadata: {
-          applicationId: app._id.toString(),
-          seeded: true,
-          sourceScript: 'seedApplications',
-          applicationStatus: status,
-        },
-        createdAt: appliedAt,
-        updatedAt: appliedAt,
-      });
-      createdInteractions++;
-
-      // 5) nếu withdrawn thì thêm unsave nhẹ để phản ánh negative signal
-      if (status === 'withdrawn' && Math.random() < 0.8) {
-        const unsaveAt = addDays(appliedAt, randomInt(1, 3));
-        await Interaction.create({
-          student: student._id,
-          job: job._id,
-          interactionType: 'unsave',
-          source: 'manual',
-          interactionValue: 1,
-          metadata: {
-            seeded: true,
-            sourceScript: 'seedApplications',
-            applicationId: app._id.toString(),
-            applicationStatus: status,
-          },
-          createdAt: unsaveAt,
-          updatedAt: unsaveAt,
-        });
-        createdInteractions++;
-      }
-
-      createdApps++;
+    for (const item of plan.weak) {
+      const { docs, viewCount } = buildInteractionsForJob(student, item, 'weak');
+      interactionDocs.push(...docs);
+      viewCountByJob.set(String(item.job._id), (viewCountByJob.get(String(item.job._id)) || 0) + viewCount);
     }
   }
 
-  console.log(`🎉 Seed Applications: created=${createdApps}, skipped=${skippedApps}`);
-  console.log(`🎯 Seed interactions from applications: created=${createdInteractions}`);
+  if (interactionDocs.length) {
+    await Interaction.insertMany(shuffle(interactionDocs), { ordered: false });
+  }
+
+  const bulkOps = [...viewCountByJob.entries()].map(([jobId, views]) => ({
+    updateOne: {
+      filter: { _id: jobId },
+      update: {
+        $set: {
+          views,
+          applicationsCount: 0,
+        },
+      },
+    },
+  }));
+
+  if (bulkOps.length) {
+    await Job.bulkWrite(bulkOps);
+  }
+
+  await Job.updateMany(
+    {
+      categories: 'seed-demo',
+      _id: { $nin: [...viewCountByJob.keys()] },
+    },
+    {
+      $set: {
+        views: 0,
+        applicationsCount: 0,
+      },
+    }
+  );
+
+  const applyInteractionCount = await Interaction.countDocuments({
+    student: { $in: studentIds },
+    interactionType: 'apply',
+  });
+
+  const applicationCount = await Application.countDocuments({
+    student: { $in: studentIds },
+  });
+
+  console.log(`🎉 Seed interactions xong: created=${interactionDocs.length}`);
+  console.log(`👀 Jobs có view tín hiệu: ${viewCountByJob.size}`);
+  console.log(`📭 Applications còn lại của seed students: ${applicationCount}`);
+  console.log(`🚫 Apply interactions còn lại của seed students: ${applyInteractionCount}`);
 
   await mongoose.disconnect();
   console.log('🔌 Đã ngắt kết nối MongoDB');
 }
 
-const { reset, count } = parseArgs();
+const { reset } = parseArgs();
 
-seedApplications({ reset, count }).catch(async (err) => {
-  console.error('❌ Lỗi seed applications:', err);
+seedInteractions({ reset }).catch(async (err) => {
+  console.error('❌ Lỗi seed interactions:', err);
   try {
     await mongoose.disconnect();
   } catch {}

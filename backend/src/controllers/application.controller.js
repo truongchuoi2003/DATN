@@ -110,7 +110,6 @@ exports.applyForJob = async (req, res) => {
         message: 'Không tìm thấy tin tuyển dụng',
       });
     }
-
     if (job.status !== 'active') {
       return res.status(400).json({
         success: false,

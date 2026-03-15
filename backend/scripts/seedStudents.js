@@ -22,7 +22,7 @@ const SEED_STUDENT_EMAILS = [
   'student7@gmail.com',
 ];
 
-function addJitter([lng, lat], range = 0.05) {
+function addJitter([lng, lat], range = 0.03) {
   const lngOffset = (Math.random() - 0.5) * range;
   const latOffset = (Math.random() - 0.5) * range;
   return [Number((lng + lngOffset).toFixed(6)), Number((lat + latOffset).toFixed(6))];
@@ -42,29 +42,40 @@ function buildStudentSeeds() {
       university: 'Đại học Công nghệ TP.HCM',
       academicYear: '3',
       graduationYear: 2027,
-      gpa: 3.2,
-      skills: ['javascript', 'vue', 'html', 'css', 'git'],
-      preferredJobTypes: ['part-time', 'internship'],
-      preferredWorkModes: ['hybrid', 'remote'],
+      gpa: 3.28,
+      skills: ['javascript', 'html', 'css', 'vue', 'git', 'responsive design'],
       preferredCategories: ['IT', 'Frontend', 'Web'],
-      desiredJobTitles: ['Frontend Intern', 'Thực tập Frontend Developer'],
-      preferredLocations: ['TP. Hồ Chí Minh'],
+      desiredJobTitles: [
+        'Frontend Intern',
+        'Thực tập Frontend Developer',
+        'Web Frontend Intern',
+      ],
+      preferredLocations: ['TP. Hồ Chí Minh', 'Đà Nẵng'],
+      preferredJobTypes: ['internship', 'part-time'],
+      preferredWorkModes: ['hybrid', 'remote'],
       salaryExpectation: { min: 3000000, max: 8000000, currency: 'VND' },
       experienceLevel: 'none',
       experienceMonths: 0,
-      projects: ['Website tìm kiếm & gợi ý việc làm cho sinh viên', 'Landing page giới thiệu CLB'],
+      projects: [
+        'Website tìm kiếm và gợi ý việc làm cho sinh viên',
+        'Landing page giới thiệu câu lạc bộ',
+      ],
       projectTechnologies: ['vue', 'nodejs', 'mongodb', 'express', 'javascript'],
+      languages: [
+        { name: 'Tiếng Anh', level: 'Khá' },
+      ],
       certifications: ['TOEIC 650'],
       resumeUrl: '/uploads/cv/student1.pdf',
       portfolioUrl: 'https://portfolio.example.com/student1',
       githubUrl: 'https://github.com/student1',
       linkedinUrl: 'https://linkedin.com/in/student1',
-      bio: 'Sinh viên frontend, muốn tìm việc part-time/internship.',
+      bio: 'Sinh viên frontend, muốn tìm công việc internship hoặc part-time để nâng kỹ năng Vue và JavaScript.',
       location: {
         type: 'Point',
         coordinates: addJitter(CITY_COORDS['TP. Hồ Chí Minh']),
       },
       isActive: true,
+      emailVerified: true,
     },
     {
       fullName: 'Trần Thu Trang',
@@ -78,29 +89,40 @@ function buildStudentSeeds() {
       university: 'Đại học Thương mại',
       academicYear: '4',
       graduationYear: 2026,
-      gpa: 3.5,
-      skills: ['marketing', 'content', 'seo', 'canva', 'facebook ads'],
-      preferredJobTypes: ['part-time', 'internship', 'freelance'],
-      preferredWorkModes: ['onsite', 'hybrid'],
+      gpa: 3.54,
+      skills: ['marketing', 'content', 'seo', 'canva', 'facebook ads', 'tiktok'],
       preferredCategories: ['Marketing', 'Content', 'Digital'],
-      desiredJobTitles: ['Content Marketing Intern', 'Social Media Intern'],
-      preferredLocations: ['Hà Nội'],
+      desiredJobTitles: [
+        'Content Marketing Intern',
+        'Social Media Intern',
+        'Marketing Intern',
+      ],
+      preferredLocations: ['Hà Nội', 'TP. Hồ Chí Minh'],
+      preferredJobTypes: ['internship', 'part-time', 'freelance'],
+      preferredWorkModes: ['onsite', 'hybrid'],
       salaryExpectation: { min: 2500000, max: 7000000, currency: 'VND' },
       experienceLevel: 'none',
       experienceMonths: 0,
-      projects: ['Kế hoạch nội dung TikTok cho CLB', 'SEO audit website ẩm thực'],
+      projects: [
+        'Kế hoạch nội dung TikTok cho câu lạc bộ sinh viên',
+        'SEO audit website ẩm thực địa phương',
+      ],
       projectTechnologies: ['seo', 'content', 'facebook ads', 'canva'],
+      languages: [
+        { name: 'Tiếng Anh', level: 'Khá' },
+      ],
       certifications: ['Google Analytics (Basic)'],
       resumeUrl: '/uploads/cv/student2.pdf',
       portfolioUrl: 'https://portfolio.example.com/student2',
       githubUrl: '',
       linkedinUrl: 'https://linkedin.com/in/student2',
-      bio: 'Yêu thích content marketing và social media.',
+      bio: 'Yêu thích content marketing, social media và các công việc thiên về nội dung số.',
       location: {
         type: 'Point',
         coordinates: addJitter(CITY_COORDS['Hà Nội']),
       },
       isActive: true,
+      emailVerified: true,
     },
     {
       fullName: 'Lê Hoàng Nam',
@@ -114,29 +136,40 @@ function buildStudentSeeds() {
       university: 'Đại học Kiến trúc Đà Nẵng',
       academicYear: '3',
       graduationYear: 2027,
-      gpa: 3.1,
-      skills: ['design', 'figma', 'photoshop', 'canva'],
-      preferredJobTypes: ['part-time', 'internship', 'freelance'],
-      preferredWorkModes: ['remote', 'hybrid'],
+      gpa: 3.14,
+      skills: ['design', 'figma', 'photoshop', 'canva', 'ui', 'ux'],
       preferredCategories: ['Design', 'UI/UX', 'Creative'],
-      desiredJobTitles: ['UI/UX Intern', 'Graphic Designer Intern'],
-      preferredLocations: ['Đà Nẵng'],
+      desiredJobTitles: [
+        'UI/UX Intern',
+        'Graphic Designer Intern',
+        'Design Intern',
+      ],
+      preferredLocations: ['Đà Nẵng', 'TP. Hồ Chí Minh'],
+      preferredJobTypes: ['internship', 'part-time', 'freelance'],
+      preferredWorkModes: ['remote', 'hybrid'],
       salaryExpectation: { min: 2500000, max: 8000000, currency: 'VND' },
       experienceLevel: 'none',
       experienceMonths: 0,
-      projects: ['Thiết kế UI app quản lý công việc', 'Bộ nhận diện thương hiệu mini'],
+      projects: [
+        'Thiết kế giao diện ứng dụng quản lý công việc',
+        'Bộ nhận diện thương hiệu mini cho quán cà phê',
+      ],
       projectTechnologies: ['figma', 'photoshop', 'canva'],
+      languages: [
+        { name: 'Tiếng Anh', level: 'Cơ bản' },
+      ],
       certifications: ['Adobe Photoshop (Basic)'],
       resumeUrl: '/uploads/cv/student3.pdf',
       portfolioUrl: 'https://portfolio.example.com/student3',
       githubUrl: '',
       linkedinUrl: '',
-      bio: 'Thiết kế social post và UI cơ bản.',
+      bio: 'Muốn phát triển theo hướng thiết kế giao diện và thiết kế social post.',
       location: {
         type: 'Point',
         coordinates: addJitter(CITY_COORDS['Đà Nẵng']),
       },
       isActive: true,
+      emailVerified: true,
     },
     {
       fullName: 'Phạm Ngọc Hân',
@@ -147,32 +180,43 @@ function buildStudentSeeds() {
       address: 'Quận 7, TP. Hồ Chí Minh',
       studentId: 'SV004',
       major: 'Công nghệ thông tin',
-      university: 'Đại học Bách Khoa TP.HCM',
+      university: 'Đại học Bách khoa TP.HCM',
       academicYear: '4',
       graduationYear: 2026,
-      gpa: 3.6,
+      gpa: 3.62,
       skills: ['java', 'spring', 'spring boot', 'sql', 'git', 'docker'],
+      preferredCategories: ['IT', 'Backend', 'API'],
+      desiredJobTitles: [
+        'Java Backend Intern',
+        'Java Spring Intern',
+        'Junior Java Developer',
+      ],
+      preferredLocations: ['TP. Hồ Chí Minh', 'Hà Nội'],
       preferredJobTypes: ['internship', 'full-time'],
       preferredWorkModes: ['onsite', 'hybrid'],
-      preferredCategories: ['IT', 'Backend', 'API'],
-      desiredJobTitles: ['Java Backend Intern', 'Java Spring Intern', 'Junior Java Developer'],
-      preferredLocations: ['TP. Hồ Chí Minh', 'Hà Nội'],
       salaryExpectation: { min: 6000000, max: 15000000, currency: 'VND' },
       experienceLevel: 'fresher',
-      experienceMonths: 3,
-      projects: ['API quản lý bán hàng', 'Hệ thống đặt phòng thư viện'],
+      experienceMonths: 4,
+      projects: [
+        'API quản lý bán hàng bằng Spring Boot',
+        'Hệ thống đặt phòng học nhóm',
+      ],
       projectTechnologies: ['java', 'spring', 'spring boot', 'mysql', 'docker'],
+      languages: [
+        { name: 'Tiếng Anh', level: 'Khá' },
+      ],
       certifications: ['IELTS 6.0'],
       resumeUrl: '/uploads/cv/student4.pdf',
       portfolioUrl: '',
       githubUrl: 'https://github.com/student4',
       linkedinUrl: '',
-      bio: 'Backend Java/Spring, thích xây API và làm việc với database.',
+      bio: 'Backend Java/Spring, thích xây API và tối ưu database.',
       location: {
         type: 'Point',
         coordinates: addJitter(CITY_COORDS['TP. Hồ Chí Minh']),
       },
       isActive: true,
+      emailVerified: true,
     },
     {
       fullName: 'Vũ Đức Anh',
@@ -183,32 +227,43 @@ function buildStudentSeeds() {
       address: 'Quận Ngô Quyền, Hải Phòng',
       studentId: 'SV005',
       major: 'Khoa học dữ liệu',
-      university: 'Đại học Hàng Hải Việt Nam',
+      university: 'Đại học Hàng hải Việt Nam',
       academicYear: '3',
       graduationYear: 2027,
-      gpa: 3.3,
+      gpa: 3.36,
       skills: ['python', 'pandas', 'sql', 'excel', 'power bi', 'dashboard'],
+      preferredCategories: ['Data', 'Data Analyst', 'BI'],
+      desiredJobTitles: [
+        'Data Analyst Intern',
+        'BI Analyst Intern',
+        'Power BI Intern',
+      ],
+      preferredLocations: ['Hải Phòng', 'Hà Nội', 'TP. Hồ Chí Minh'],
       preferredJobTypes: ['internship', 'part-time'],
       preferredWorkModes: ['remote', 'hybrid'],
-      preferredCategories: ['Data', 'Data Analyst', 'BI'],
-      desiredJobTitles: ['Data Analyst Intern', 'BI Analyst Intern', 'Power BI Intern'],
-      preferredLocations: ['Hải Phòng', 'Hà Nội', 'TP. Hồ Chí Minh'],
       salaryExpectation: { min: 4000000, max: 12000000, currency: 'VND' },
       experienceLevel: 'none',
       experienceMonths: 0,
-      projects: ['Dashboard phân tích doanh thu', 'Phân tích dữ liệu tuyển dụng'],
+      projects: [
+        'Dashboard phân tích doanh thu cửa hàng',
+        'Phân tích dữ liệu tuyển dụng bằng Python',
+      ],
       projectTechnologies: ['python', 'pandas', 'power bi', 'sql', 'excel'],
+      languages: [
+        { name: 'Tiếng Anh', level: 'Khá' },
+      ],
       certifications: ['MOS Excel'],
       resumeUrl: '/uploads/cv/student5.pdf',
       portfolioUrl: '',
       githubUrl: 'https://github.com/student5',
       linkedinUrl: '',
-      bio: 'Hứng thú với phân tích dữ liệu và dashboard.',
+      bio: 'Hứng thú với phân tích dữ liệu, trực quan hóa số liệu và dashboard doanh nghiệp.',
       location: {
         type: 'Point',
         coordinates: addJitter(CITY_COORDS['Hải Phòng']),
       },
       isActive: true,
+      emailVerified: true,
     },
     {
       fullName: 'Ngô Gia Bảo',
@@ -222,46 +277,55 @@ function buildStudentSeeds() {
       university: 'Đại học Cần Thơ',
       academicYear: '4',
       graduationYear: 2026,
-      gpa: 3.0,
+      gpa: 3.05,
       skills: ['c#', '.net', 'asp.net', 'sql', 'winforms', 'git'],
+      preferredCategories: ['IT', 'Backend', 'Software'],
+      desiredJobTitles: [
+        '.NET Developer Intern',
+        'C# Developer Intern',
+        'Software Engineer Intern',
+      ],
+      preferredLocations: ['Cần Thơ', 'TP. Hồ Chí Minh', 'Hà Nội'],
       preferredJobTypes: ['internship', 'full-time'],
       preferredWorkModes: ['onsite', 'hybrid'],
-      preferredCategories: ['IT', 'Backend', 'Software'],
-      desiredJobTitles: ['.NET Developer Intern', 'C# Developer Intern', 'Software Engineer Intern'],
-      preferredLocations: ['Cần Thơ', 'TP. Hồ Chí Minh', 'Hà Nội'],
       salaryExpectation: { min: 5000000, max: 14000000, currency: 'VND' },
       experienceLevel: 'none',
       experienceMonths: 0,
-      projects: ['Ứng dụng quản lý thư viện WinForms', 'Website quản lý công việc nhóm'],
+      projects: [
+        'Ứng dụng quản lý thư viện bằng WinForms',
+        'Website quản lý công việc nhóm',
+      ],
       projectTechnologies: ['c#', '.net', 'asp.net', 'sql', 'winforms'],
+      languages: [
+        { name: 'Tiếng Anh', level: 'Khá' },
+      ],
       certifications: ['TOEIC 600'],
       resumeUrl: '/uploads/cv/student6.pdf',
       portfolioUrl: '',
       githubUrl: 'https://github.com/student6',
       linkedinUrl: '',
-      bio: 'Tập trung .NET/C#, muốn học hỏi môi trường thực tế.',
+      bio: 'Tập trung .NET/C#, mong muốn tìm vị trí intern hoặc fresher để làm dự án thực tế.',
       location: {
         type: 'Point',
         coordinates: addJitter(CITY_COORDS['Cần Thơ']),
       },
       isActive: true,
+      emailVerified: true,
     },
     {
       fullName: 'Đặng Thị Mai',
       email: 'student7@gmail.com',
       password: '123456',
       phone: '0901000007',
-      birthday: new Date('2004-10-10'),
-      address: 'Quận Thanh Xuân, Hà Nội',
+      birthday: new Date('2004-02-17'),
+      address: 'Quận Đống Đa, Hà Nội',
       studentId: 'SV007',
       major: 'Quản trị kinh doanh',
       university: 'Đại học Kinh tế Quốc dân',
       academicYear: '3',
       graduationYear: 2027,
-      gpa: 3.4,
+      gpa: 3.41,
       skills: ['excel', 'presentation', 'communication', 'teamwork', 'sales', 'reporting'],
-      preferredJobTypes: ['internship', 'part-time'],
-      preferredWorkModes: ['onsite', 'hybrid'],
       preferredCategories: ['Business', 'Sales', 'Operations'],
       desiredJobTitles: [
         'Business Operations Intern',
@@ -270,37 +334,46 @@ function buildStudentSeeds() {
         'Sales Admin Intern',
       ],
       preferredLocations: ['Hà Nội', 'TP. Hồ Chí Minh', 'Hải Phòng'],
+      preferredJobTypes: ['internship', 'part-time'],
+      preferredWorkModes: ['onsite', 'hybrid'],
       salaryExpectation: { min: 2500000, max: 7000000, currency: 'VND' },
       experienceLevel: 'none',
       experienceMonths: 0,
-      projects: ['Kế hoạch kinh doanh TMĐT', 'Nghiên cứu thị trường ngành bán lẻ'],
+      projects: [
+        'Kế hoạch kinh doanh TMĐT',
+        'Nghiên cứu thị trường bán lẻ',
+      ],
       projectTechnologies: ['excel', 'powerpoint', 'reporting'],
+      languages: [
+        { name: 'Tiếng Anh', level: 'Khá' },
+      ],
       certifications: ['IELTS 5.5'],
       resumeUrl: '/uploads/cv/student7.pdf',
       portfolioUrl: '',
       githubUrl: '',
       linkedinUrl: '',
-      bio: 'Yêu thích kinh doanh, muốn thử sức ở vị trí intern.',
+      bio: 'Yêu thích vận hành, kinh doanh và các công việc hỗ trợ phát triển khách hàng.',
       location: {
         type: 'Point',
         coordinates: addJitter(CITY_COORDS['Hà Nội']),
       },
       isActive: true,
-    }
+      emailVerified: true,
+    },
   ];
 }
 
 async function seedStudents({ reset = false } = {}) {
+  if (!process.env.MONGO_URI) {
+    throw new Error('Thiếu MONGO_URI trong backend/.env');
+  }
+
   await mongoose.connect(process.env.MONGO_URI);
   console.log('✅ Đã kết nối MongoDB');
 
   if (reset) {
     const rs = await Student.deleteMany({
-      $or: [
-        { email: { $in: SEED_STUDENT_EMAILS } },
-        { email: /@seed-student\.datn$/i },
-        { email: /^datn\.student\d+@gmail\.com$/i },
-      ],
+      email: { $in: SEED_STUDENT_EMAILS.map((x) => x.toLowerCase()) },
     });
     console.log(`🧹 Đã xoá ${rs.deletedCount} student seed cũ`);
   }
@@ -310,15 +383,14 @@ async function seedStudents({ reset = false } = {}) {
   let created = 0;
   let skipped = 0;
 
-  for (const s of seeds) {
-    const exists = await Student.findOne({ email: s.email.toLowerCase() });
+  for (const seed of seeds) {
+    const exists = await Student.findOne({ email: seed.email.toLowerCase() }).select('_id');
     if (exists) {
       skipped += 1;
       continue;
     }
 
-    // create() để chạy pre-save hash password
-    await Student.create(s);
+    await Student.create(seed);
     created += 1;
   }
 
