@@ -8,15 +8,23 @@
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "create-admin": "node scripts/createAdmin.js",
+
     "seed:jobs": "node scripts/seedJobs.js --count=40",
     "seed:jobs:reset": "node scripts/seedJobs.js --count=40 --reset",
+
     "seed:students": "node scripts/seedStudents.js",
     "seed:students:reset": "node scripts/seedStudents.js --reset",
+
     "seed:applications": "node scripts/seedApplications.js",
     "seed:applications:reset": "node scripts/seedApplications.js --reset",
+
     "seed:interactions": "node scripts/seedInteractions.js",
     "seed:interactions:reset": "node scripts/seedInteractions.js --reset",
-    "seed:recommend:reset": "npm run seed:students:reset && npm run seed:jobs:reset && npm run seed:interactions:reset && npm run seed:applications:reset"
+
+    "cleanup:orphans": "node scripts/cleanupOrphanApplications.js",
+
+    "seed:demo:reset": "node scripts/seedDemoReset.js",
+    "seed:recommend:reset": "node scripts/seedDemoReset.js"
   },
   "keywords": [],
   "author": "",

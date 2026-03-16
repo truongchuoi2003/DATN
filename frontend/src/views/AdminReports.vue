@@ -1,31 +1,36 @@
 <template>
-  <div class="admin-reports">
+  <!-- ============================================================
+       TRANG: Quản lý Reports (Báo cáo vi phạm)
+       CHỨC NĂNG: Xem danh sách report, lọc theo trạng thái
+                  và loại đối tượng, xem chi tiết, cập nhật xử lý
+  ============================================================ -->
+  <div class="page">
     <Header />
 
     <div class="container">
+
+      <!-- ── TIÊU ĐỀ + FILTER TABS ── -->
       <div class="page-header">
-        <h1>🚨 Quản lý Reports</h1>
-        <div class="filter-tabs">
-          <button :class="{ active: statusFilter === 'all' }" @click="statusFilter = 'all'">
-            📋 Tất cả ({{ reports.length }})
-          </button>
-          <button :class="{ active: statusFilter === 'open' }" @click="statusFilter = 'open'">
-            🆕 Mới ({{ openCount }})
-          </button>
-          <button :class="{ active: statusFilter === 'in_review' }" @click="statusFilter = 'in_review'">
-            👀 Đang xử lý ({{ inReviewCount }})
-          </button>
-          <button :class="{ active: statusFilter === 'resolved' }" @click="statusFilter = 'resolved'">
-            ✅ Đã xử lý ({{ resolvedCount }})
-          </button>
-          <button :class="{ active: statusFilter === 'dismissed' }" @click="statusFilter = 'dismissed'">
-            ❌ Bỏ qua ({{ dismissedCount }})
+        <h1>Quản lý Reports</h1>
+
+        <!-- Lọc theo trạng thái report – dùng v-for -->
+        <div class="filter-bar">
+          <button
+            v-for="tab in statusTabs"
+            :key="tab.value"
+            class="filter-btn"
+            :class="{ active: statusFilter === tab.value }"
+            @click="statusFilter = tab.value"
+          >
+            {{ tab.label }}
+            <span class="filter-count">{{ tab.count }}</span>
           </button>
         </div>
       </div>
 
+      <!-- Lọc thêm theo loại đối tượng bị report -->
       <div class="secondary-filter">
-        <label>Lọc theo đối tượng bị report:</label>
+        <label>Lọc theo đối tượng:</label>
         <select v-model="targetTypeFilter">
           <option value="all">Tất cả</option>
           <option value="student">Ứng viên</option>
@@ -34,17 +39,20 @@
         </select>
       </div>
 
-      <div v-if="loading" class="loading">
+      <!-- Thông báo -->
+      <div v-if="message" class="alert" :class="isSuccess ? 'success' : 'error'">
+        {{ message }}
+      </div>
+
+      <!-- Đang tải -->
+      <div v-if="loading" class="loading-state">
         <div class="spinner"></div>
         <p>Đang tải reports...</p>
       </div>
 
-      <div v-if="message" class="alert" :class="{ success: isSuccess, error: !isSuccess }">
-        {{ message }}
-      </div>
-
-      <div v-if="!loading" class="table-wrapper">
-        <table>
+      <!-- Bảng danh sách reports -->
+      <div v-else class="table-card">
+        <table class="table">
           <thead>
             <tr>
               <th>Người report</th>
@@ -58,636 +66,703 @@
           </thead>
           <tbody>
             <tr v-for="report in filteredReports" :key="report._id">
+
+              <!-- Người report -->
               <td>
-                <strong>{{ getReporterName(report) }}</strong>
-                <p>{{ getReporterEmail(report) }}</p>
-                <small class="muted">{{ getReporterRoleLabel(report.reporterRole) }}</small>
+                <p class="text-bold">{{ getReporterName(report) }}</p>
+                <p class="text-muted">{{ getReporterEmail(report) }}</p>
+                <span class="role-tag">{{ getReporterRoleLabel(report.reporterRole) }}</span>
               </td>
 
+              <!-- Đối tượng bị report -->
               <td>
-                <strong>{{ getTargetLabel(report) }}</strong>
-                <p>{{ getTargetName(report) }}</p>
+                <p class="text-bold">{{ getTargetLabel(report) }}</p>
+                <p class="text-muted">{{ getTargetName(report) }}</p>
               </td>
 
+              <!-- Lý do -->
               <td>
-                <strong>{{ getReasonLabel(report.reason) }}</strong>
-                <p>{{ truncateText(report.description, 80) }}</p>
+                <p class="text-bold">{{ getReasonLabel(report.reason) }}</p>
+                <p class="text-muted">{{ truncateText(report.description, 80) }}</p>
               </td>
 
+              <!-- Liên quan -->
               <td>
-                <div class="related-box">
-                  <p v-if="report.relatedJob"><strong>Job:</strong> {{ report.relatedJob.title }}</p>
-                  <p v-if="report.relatedApplication"><strong>Application:</strong> {{ report.relatedApplication.status }}</p>
-                  <p v-if="!report.relatedJob && !report.relatedApplication">-</p>
-                </div>
+                <p v-if="report.relatedJob">
+                  <strong>Job:</strong> {{ report.relatedJob.title }}
+                </p>
+                <p v-if="report.relatedApplication">
+                  <strong>Application:</strong> {{ report.relatedApplication.status }}
+                </p>
+                <p v-if="!report.relatedJob && !report.relatedApplication" class="text-muted">—</p>
               </td>
 
-              <td>{{ formatDate(report.createdAt) }}</td>
+              <td class="text-muted">{{ formatDate(report.createdAt) }}</td>
 
+              <!-- Badge trạng thái -->
               <td>
-                <span class="status-badge" :class="report.status">
+                <span class="status-badge" :class="'status-' + report.status">
                   {{ getStatusLabel(report.status) }}
                 </span>
               </td>
 
+              <!-- Nút xem chi tiết -->
               <td>
-                <div class="action-buttons">
-                  <button class="btn-action view" @click="viewReport(report._id)">👁️</button>
-                </div>
+                <button class="btn btn-outline btn-sm" @click="openDetail(report._id)">
+                  Xem
+                </button>
               </td>
             </tr>
 
             <tr v-if="filteredReports.length === 0">
-              <td colspan="7" class="empty-state">
-                <p>📭 Không có report nào</p>
+              <td colspan="7">
+                <div class="empty-state">
+                  <p class="empty-icon">📭</p>
+                  <p>Không có report nào</p>
+                </div>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-    </div>
 
-    <div v-if="selectedReport" class="modal" @click="closeModal">
-      <div class="modal-content large" @click.stop>
-        <button class="btn-close" @click="closeModal">✕</button>
+    </div><!-- /container -->
 
-        <h2>📌 Chi tiết report</h2>
+    <!-- ============================================================
+         MODAL CHI TIẾT + CẬP NHẬT REPORT
+    ============================================================ -->
+    <div v-if="selectedReport" class="modal-overlay" @click="closeModal">
+      <div class="modal-box modal-lg" @click.stop>
+        <button class="modal-close-btn" @click="closeModal">✕</button>
 
+        <h2 class="modal-title">Chi tiết Report</h2>
+
+        <!-- Thông tin chi tiết dạng grid -->
         <div class="detail-grid">
           <div class="detail-item">
-            <label>Người report:</label>
+            <label>Người report</label>
             <span>{{ getReporterName(selectedReport) }}</span>
           </div>
-
           <div class="detail-item">
-            <label>Vai trò:</label>
+            <label>Vai trò</label>
             <span>{{ getReporterRoleLabel(selectedReport.reporterRole) }}</span>
           </div>
-
           <div class="detail-item">
-            <label>Đối tượng bị report:</label>
+            <label>Đối tượng bị report</label>
             <span>{{ getTargetLabel(selectedReport) }}</span>
           </div>
-
           <div class="detail-item">
-            <label>Tên đối tượng:</label>
+            <label>Tên đối tượng</label>
             <span>{{ getTargetName(selectedReport) }}</span>
           </div>
-
           <div class="detail-item">
-            <label>Lý do:</label>
+            <label>Lý do</label>
             <span>{{ getReasonLabel(selectedReport.reason) }}</span>
           </div>
-
           <div class="detail-item">
-            <label>Ngày tạo:</label>
+            <label>Ngày tạo</label>
             <span>{{ formatDateTime(selectedReport.createdAt) }}</span>
           </div>
-
-          <div class="detail-item full-width">
-            <label>Mô tả chi tiết:</label>
+          <div class="detail-item full">
+            <label>Mô tả chi tiết</label>
             <p class="multiline-text">{{ selectedReport.description }}</p>
           </div>
-
-          <div class="detail-item full-width" v-if="selectedReport.relatedJob">
-            <label>Job liên quan:</label>
+          <div v-if="selectedReport.relatedJob" class="detail-item full">
+            <label>Job liên quan</label>
             <p>{{ selectedReport.relatedJob.title }}</p>
           </div>
-
-          <div class="detail-item full-width" v-if="selectedReport.adminNote">
-            <label>Ghi chú admin:</label>
+          <div v-if="selectedReport.adminNote" class="detail-item full">
+            <label>Ghi chú Admin</label>
             <p class="multiline-text">{{ selectedReport.adminNote }}</p>
           </div>
         </div>
 
-        <div class="status-section">
-          <label>Cập nhật trạng thái</label>
-          <select v-model="updateForm.status">
-            <option value="open">Mới</option>
-            <option value="in_review">Đang xử lý</option>
-            <option value="resolved">Đã xử lý</option>
-            <option value="dismissed">Bỏ qua</option>
-          </select>
+        <!-- Section cập nhật trạng thái xử lý -->
+        <div class="update-section">
+          <h3>Cập nhật xử lý</h3>
 
-          <textarea
-            v-model="updateForm.adminNote"
-            rows="4"
-            placeholder="Nhập ghi chú xử lý của admin..."
-          ></textarea>
+          <div class="form-group">
+            <label>Trạng thái</label>
+            <select v-model="updateForm.status">
+              <option value="open">🆕 Mới</option>
+              <option value="in_review">👀 Đang xử lý</option>
+              <option value="resolved">✅ Đã xử lý</option>
+              <option value="dismissed">❌ Bỏ qua</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Ghi chú Admin</label>
+            <textarea
+              v-model="updateForm.adminNote"
+              rows="4"
+              placeholder="Nhập ghi chú xử lý..."
+            ></textarea>
+          </div>
         </div>
 
         <div class="modal-actions">
-          <button class="btn btn-primary" @click="updateStatus">
+          <button class="btn btn-primary" @click="updateReportStatus">
             💾 Lưu cập nhật
           </button>
-          <button class="btn btn-outline" @click="closeModal">
-            Đóng
-          </button>
+          <button class="btn btn-secondary" @click="closeModal">Đóng</button>
         </div>
       </div>
     </div>
+
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
-import Header from '../components/Header.vue';
-import api from '../services/api';
+// ── Import ──
+import { ref, computed, onMounted } from 'vue'
+import Header from '../components/Header.vue'
+import api from '../services/api'
 
-const loading = ref(false);
-const reports = ref([]);
-const selectedReport = ref(null);
-const message = ref('');
-const isSuccess = ref(false);
+// ════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════
 
-const statusFilter = ref('all');
-const targetTypeFilter = ref('all');
+const loading        = ref(false)
+const reports        = ref([])        // Danh sách tất cả reports
+const selectedReport = ref(null)      // Report đang xem trong modal
+const message        = ref('')
+const isSuccess      = ref(false)
 
+const statusFilter     = ref('all')   // Lọc theo trạng thái
+const targetTypeFilter = ref('all')   // Lọc theo loại đối tượng
+
+// Form cập nhật trạng thái xử lý
 const updateForm = ref({
-  status: 'open',
+  status:    'open',
   adminNote: '',
-});
+})
 
-const openCount = computed(() => reports.value.filter((r) => r.status === 'open').length);
-const inReviewCount = computed(() => reports.value.filter((r) => r.status === 'in_review').length);
-const resolvedCount = computed(() => reports.value.filter((r) => r.status === 'resolved').length);
-const dismissedCount = computed(() => reports.value.filter((r) => r.status === 'dismissed').length);
+// ════════════════════════════════════════
+// COMPUTED
+// ════════════════════════════════════════
 
+// Đếm số report theo từng trạng thái
+const openCount      = computed(() => reports.value.filter(r => r.status === 'open').length)
+const inReviewCount  = computed(() => reports.value.filter(r => r.status === 'in_review').length)
+const resolvedCount  = computed(() => reports.value.filter(r => r.status === 'resolved').length)
+const dismissedCount = computed(() => reports.value.filter(r => r.status === 'dismissed').length)
+
+// Cấu hình tabs lọc – dùng v-for
+const statusTabs = computed(() => [
+  { value: 'all',       label: 'Tất cả',       count: reports.value.length },
+  { value: 'open',      label: 'Mới',           count: openCount.value },
+  { value: 'in_review', label: 'Đang xử lý',   count: inReviewCount.value },
+  { value: 'resolved',  label: 'Đã xử lý',     count: resolvedCount.value },
+  { value: 'dismissed', label: 'Bỏ qua',        count: dismissedCount.value },
+])
+
+// Lọc reports theo cả 2 bộ lọc (status + targetType)
 const filteredReports = computed(() => {
-  return reports.value.filter((report) => {
-    const matchStatus = statusFilter.value === 'all' || report.status === statusFilter.value;
-    const matchTarget = targetTypeFilter.value === 'all' || report.targetType === targetTypeFilter.value;
-    return matchStatus && matchTarget;
-  });
-});
+  return reports.value.filter(report => {
+    const matchStatus = statusFilter.value === 'all' || report.status === statusFilter.value
+    const matchTarget = targetTypeFilter.value === 'all' || report.targetType === targetTypeFilter.value
+    return matchStatus && matchTarget
+  })
+})
 
-const fetchReports = async () => {
+// ════════════════════════════════════════
+// HÀM TIỆN ÍCH
+// ════════════════════════════════════════
+
+function formatDate(date) {
+  if (!date) return '—'
+  return new Date(date).toLocaleDateString('vi-VN')
+}
+
+function formatDateTime(date) {
+  if (!date) return '—'
+  return new Date(date).toLocaleString('vi-VN')
+}
+
+function truncateText(text, max = 80) {
+  if (!text) return '—'
+  return text.length > max ? text.slice(0, max) + '...' : text
+}
+
+function getReporterName(report) {
+  if (!report?.reporterId) return '—'
+  return report.reporterId.companyName || report.reporterId.fullName || '—'
+}
+
+function getReporterEmail(report) {
+  return report?.reporterId?.email || '—'
+}
+
+function getReporterRoleLabel(role) {
+  return role === 'employer' ? 'Nhà tuyển dụng' : 'Sinh viên'
+}
+
+function getTargetLabel(report) {
+  const map = { student: 'Ứng viên', employer: 'Nhà tuyển dụng', job: 'Bài đăng' }
+  return map[report?.targetType] || '—'
+}
+
+function getTargetName(report) {
+  const target = report?.targetId
+  if (!target) return '—'
+  if (report.targetType === 'student')  return target.fullName || target.email || '—'
+  if (report.targetType === 'employer') return target.companyName || target.fullName || '—'
+  if (report.targetType === 'job')      return target.title || '—'
+  return '—'
+}
+
+function getReasonLabel(reason) {
+  const map = {
+    spam:                    'Spam',
+    fake_information:        'Thông tin giả',
+    inappropriate_content:   'Nội dung không phù hợp',
+    fraud:                   'Lừa đảo',
+    harassment:              'Quấy rối',
+    unprofessional_behavior: 'Hành vi thiếu chuyên nghiệp',
+    other:                   'Khác',
+  }
+  return map[reason] || reason || '—'
+}
+
+function getStatusLabel(status) {
+  const map = {
+    open:       'Mới',
+    in_review:  'Đang xử lý',
+    resolved:   'Đã xử lý',
+    dismissed:  'Bỏ qua',
+  }
+  return map[status] || status || '—'
+}
+
+// ════════════════════════════════════════
+// HÀM GỌI API
+// ════════════════════════════════════════
+
+async function fetchReports() {
   try {
-    loading.value = true;
-    message.value = '';
-
-    const res = await api.get('/admin/reports');
-    reports.value = res.data.reports || [];
+    loading.value = true
+    message.value = ''
+    const res = await api.get('/admin/reports')
+    reports.value = res.data.reports || []
   } catch (error) {
-    console.error('Error fetching reports:', error);
-    message.value = error.response?.data?.message || 'Không thể tải reports';
-    isSuccess.value = false;
+    message.value  = error.response?.data?.message || 'Không thể tải reports'
+    isSuccess.value = false
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 
-const viewReport = async (reportId) => {
+// Mở modal xem chi tiết 1 report
+async function openDetail(reportId) {
   try {
-    const res = await api.get(`/admin/reports/${reportId}`);
-    selectedReport.value = res.data.report;
-    updateForm.value.status = res.data.report.status || 'open';
-    updateForm.value.adminNote = res.data.report.adminNote || '';
+    const res = await api.get(`/admin/reports/${reportId}`)
+    selectedReport.value       = res.data.report
+    updateForm.value.status    = res.data.report.status    || 'open'
+    updateForm.value.adminNote = res.data.report.adminNote || ''
   } catch (error) {
-    console.error('Error fetching report detail:', error);
-    message.value = error.response?.data?.message || 'Không thể tải chi tiết report';
-    isSuccess.value = false;
+    message.value  = error.response?.data?.message || 'Không thể tải chi tiết report'
+    isSuccess.value = false
   }
-};
+}
 
-const updateStatus = async () => {
-  if (!selectedReport.value) return;
+function closeModal() {
+  selectedReport.value = null
+}
+
+// Cập nhật trạng thái xử lý report
+async function updateReportStatus() {
+  if (!selectedReport.value) return
 
   try {
     const res = await api.patch(`/admin/reports/${selectedReport.value._id}/status`, {
-      status: updateForm.value.status,
+      status:    updateForm.value.status,
       adminNote: updateForm.value.adminNote,
-    });
+    })
 
-    message.value = res.data.message || 'Cập nhật thành công';
-    isSuccess.value = true;
+    message.value  = res.data.message || 'Cập nhật thành công'
+    isSuccess.value = true
 
-    const index = reports.value.findIndex((r) => r._id === selectedReport.value._id);
+    // Cập nhật trực tiếp trong danh sách – không cần reload
+    const index = reports.value.findIndex(r => r._id === selectedReport.value._id)
     if (index !== -1) {
-      reports.value[index].status = updateForm.value.status;
-      reports.value[index].adminNote = updateForm.value.adminNote;
+      reports.value[index].status    = updateForm.value.status
+      reports.value[index].adminNote = updateForm.value.adminNote
     }
 
-    selectedReport.value.status = updateForm.value.status;
-    selectedReport.value.adminNote = updateForm.value.adminNote;
+    // Cập nhật luôn trong modal
+    selectedReport.value.status    = updateForm.value.status
+    selectedReport.value.adminNote = updateForm.value.adminNote
+
   } catch (error) {
-    console.error('Error updating report status:', error);
-    message.value = error.response?.data?.message || 'Không thể cập nhật report';
-    isSuccess.value = false;
+    message.value  = error.response?.data?.message || 'Không thể cập nhật report'
+    isSuccess.value = false
   }
-};
+}
 
-const closeModal = () => {
-  selectedReport.value = null;
-};
-
-const formatDate = (date) => {
-  if (!date) return '-';
-  return new Date(date).toLocaleDateString('vi-VN');
-};
-
-const formatDateTime = (date) => {
-  if (!date) return '-';
-  return new Date(date).toLocaleString('vi-VN');
-};
-
-const truncateText = (text, max = 80) => {
-  if (!text) return '-';
-  return text.length > max ? text.slice(0, max) + '...' : text;
-};
-
-const getReporterRoleLabel = (role) => {
-  return role === 'employer' ? 'Nhà tuyển dụng' : 'Sinh viên';
-};
-
-const getReporterName = (report) => {
-  if (!report?.reporterId) return '-';
-  return report.reporterId.companyName || report.reporterId.fullName || '-';
-};
-
-const getReporterEmail = (report) => {
-  return report?.reporterId?.email || '-';
-};
-
-const getTargetLabel = (report) => {
-  const map = {
-    student: 'Ứng viên',
-    employer: 'Nhà tuyển dụng',
-    job: 'Bài đăng',
-  };
-  return map[report?.targetType] || '-';
-};
-
-const getTargetName = (report) => {
-  const target = report?.targetId;
-  if (!target) return '-';
-
-  if (report.targetType === 'student') {
-    return target.fullName || target.email || '-';
-  }
-
-  if (report.targetType === 'employer') {
-    return target.companyName || target.fullName || target.email || '-';
-  }
-
-  if (report.targetType === 'job') {
-    return target.title || '-';
-  }
-
-  return '-';
-};
-
-const getReasonLabel = (reason) => {
-  const map = {
-    spam: 'Spam',
-    fake_information: 'Thông tin giả',
-    inappropriate_content: 'Nội dung không phù hợp',
-    fraud: 'Lừa đảo',
-    harassment: 'Quấy rối',
-    unprofessional_behavior: 'Hành vi thiếu chuyên nghiệp',
-    other: 'Khác',
-  };
-  return map[reason] || reason || '-';
-};
-
-const getStatusLabel = (status) => {
-  const map = {
-    open: '🆕 Mới',
-    in_review: '👀 Đang xử lý',
-    resolved: '✅ Đã xử lý',
-    dismissed: '❌ Bỏ qua',
-  };
-  return map[status] || status || '-';
-};
-
-onMounted(fetchReports);
+onMounted(() => {
+  fetchReports()
+})
 </script>
 
 <style scoped>
-.admin-reports {
+/* ════════════════════════════════════
+   LAYOUT
+════════════════════════════════════ */
+.page {
   min-height: 100vh;
   background: #f5f7fa;
 }
 
 .container {
-  max-width: 1600px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 30px 20px;
+  padding: 28px 40px 48px;
 }
 
+/* ── Tiêu đề + filter tabs ── */
 .page-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 20px;
-  margin-bottom: 20px;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
   flex-wrap: wrap;
+  padding-top: 4px;
 }
 
 .page-header h1 {
-  font-size: 32px;
+  font-size: 24px;
+  font-weight: 700;
   color: #2c3e50;
-  margin: 0;
 }
 
-.filter-tabs {
+.filter-bar {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
-.filter-tabs button {
-  padding: 10px 18px;
-  border: 2px solid #e0e6ed;
+.filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 16px;
+  border-radius: 99px;
+  border: 1.5px solid #e0e0e0;
   background: white;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s;
+  font-size: 13px;
   font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
 }
 
-.filter-tabs button.active {
-  background: #667eea;
-  color: white;
-  border-color: #667eea;
+.filter-btn:hover { border-color: #667eea; color: #667eea; }
+.filter-btn.active { background: #667eea; border-color: #667eea; color: white; }
+
+.filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(0,0,0,.08);
 }
 
+.filter-btn.active .filter-count { background: rgba(255,255,255,.25); }
+
+/* Bộ lọc phụ */
 .secondary-filter {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 20px;
-  flex-wrap: wrap;
 }
 
 .secondary-filter label {
+  font-size: 14px;
   font-weight: 600;
-  color: #334155;
+  color: #555;
 }
 
 .secondary-filter select {
-  padding: 10px 14px;
+  padding: 8px 12px;
+  border: 1.5px solid #e0e0e0;
   border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  min-width: 220px;
+  font-size: 14px;
+  font-family: inherit;
+  min-width: 200px;
+  cursor: pointer;
+  outline: none;
 }
 
-.loading {
+/* ── Alert ── */
+.alert {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.alert.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+.alert.error   { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+/* ── Loading ── */
+.loading-state {
   text-align: center;
   padding: 60px;
+  color: #999;
 }
 
 .spinner {
-  width: 48px;
-  height: 48px;
-  border: 4px solid #e2e8f0;
+  width: 36px;
+  height: 36px;
+  border: 4px solid #e0e0e0;
   border-top-color: #667eea;
   border-radius: 50%;
   margin: 0 auto 16px;
-  animation: spin 1s linear infinite;
+  animation: spin 0.7s linear infinite;
 }
 
-.alert {
-  padding: 14px 18px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  font-weight: 500;
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 
-.alert.success {
-  background: #d4edda;
-  color: #155724;
-}
-
-.alert.error {
-  background: #f8d7da;
-  color: #721c24;
-}
-
-.table-wrapper {
+/* ════════════════════════════════════
+   BẢNG
+════════════════════════════════════ */
+.table-card {
   background: white;
   border-radius: 12px;
-  overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
 }
 
-table {
+.table {
   width: 100%;
   border-collapse: collapse;
 }
 
-thead {
-  background: #f8f9fa;
-}
+.table thead { background: #f8f9fa; }
 
-th, td {
-  padding: 15px;
+.table th {
+  padding: 12px 16px;
   text-align: left;
-  border-bottom: 1px solid #e0e6ed;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #888;
+  border-bottom: 1px solid #e0e0e0;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #f0f0f0;
   vertical-align: top;
+  font-size: 14px;
 }
 
-tr:hover {
-  background: #f8fafc;
+.table tbody tr:last-child td { border-bottom: none; }
+.table tbody tr:hover          { background: #fafafa; }
+
+.text-bold  { font-weight: 600; color: #2c3e50; margin-bottom: 3px; }
+.text-muted { font-size: 13px; color: #999; }
+
+.role-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #f0f4ff;
+  color: #667eea;
+  margin-top: 4px;
 }
 
-.muted {
-  color: #64748b;
-  font-size: 12px;
-}
-
-.related-box p {
-  margin: 0 0 4px;
-}
-
+/* Badge trạng thái report */
 .status-badge {
-  padding: 6px 12px;
-  border-radius: 999px;
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-open      { background: #dbeafe; color: #1d4ed8; }
+.status-in_review { background: #fff7ed; color: #c2410c; }
+.status-resolved  { background: #dcfce7; color: #166534; }
+.status-dismissed { background: #f1f5f9; color: #64748b; }
+
+/* Buttons */
+.btn {
+  padding: 8px 16px;
+  border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
-  display: inline-block;
-}
-
-.status-badge.open {
-  background: #dbeafe;
-  color: #1d4ed8;
-}
-
-.status-badge.in_review {
-  background: #fff7ed;
-  color: #c2410c;
-}
-
-.status-badge.resolved {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.status-badge.dismissed {
-  background: #f1f5f9;
-  color: #475569;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 8px;
-}
-
-.btn-action {
-  border: none;
-  border-radius: 8px;
-  padding: 8px 10px;
   cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+  font-family: inherit;
 }
 
-.btn-action.view {
-  background: #e0f2fe;
-  color: #0369a1;
-}
+.btn-sm     { padding: 6px 12px; font-size: 12px; }
+.btn-primary   { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+.btn-primary:hover { transform: translateY(-1px); }
+.btn-outline   { background: transparent; color: #667eea; border: 1.5px solid #667eea; }
+.btn-outline:hover { background: #f0f4ff; }
+.btn-secondary { background: white; color: #666; border: 1.5px solid #e0e0e0; }
+.btn-secondary:hover { background: #f5f5f5; }
 
-.empty-state {
-  text-align: center;
-  color: #64748b;
-  padding: 40px;
-}
+/* Empty state */
+.empty-state { text-align: center; padding: 48px; color: #bbb; }
+.empty-icon  { font-size: 36px; margin-bottom: 8px; }
 
-.modal {
+/* ════════════════════════════════════
+   MODAL
+════════════════════════════════════ */
+.modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
-  z-index: 1000;
+  z-index: 100;
+  backdrop-filter: blur(3px);
+  animation: fadeIn 0.2s ease;
 }
 
-.modal-content {
+.modal-box {
   background: white;
   border-radius: 16px;
+  padding: 28px;
+  max-width: 760px;
   width: 100%;
-  max-width: 920px;
-  max-height: 90vh;
+  max-height: 88vh;
   overflow-y: auto;
   position: relative;
-  padding: 28px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  animation: slideUp 0.22s ease;
 }
 
-.btn-close {
+.modal-lg { max-width: 860px; }
+
+@keyframes fadeIn  { from { opacity: 0; }               to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+.modal-close-btn {
   position: absolute;
-  top: 14px;
-  right: 14px;
-  border: none;
-  background: #f1f5f9;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  cursor: pointer;
+  top: 16px; right: 16px;
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  background: #f0f0f0;
+  border: none; cursor: pointer; font-size: 15px;
+  display: flex; align-items: center; justify-content: center;
+  color: #666; transition: background 0.15s;
 }
 
+.modal-close-btn:hover { background: #e0e0e0; }
+
+.modal-title { font-size: 20px; font-weight: 700; color: #2c3e50; margin-bottom: 20px; }
+
+/* Grid thông tin chi tiết 2 cột */
 .detail-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  margin-top: 20px;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
 }
 
 .detail-item {
-  background: #f8fafc;
-  border-radius: 10px;
-  padding: 14px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 12px 14px;
 }
 
-.detail-item.full-width {
-  grid-column: 1 / -1;
-}
+.detail-item.full { grid-column: 1 / -1; }
 
 .detail-item label {
   display: block;
+  font-size: 11px;
   font-weight: 700;
-  margin-bottom: 8px;
-  color: #334155;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #aaa;
+  margin-bottom: 5px;
 }
 
+.detail-item span { font-size: 14px; color: #2c3e50; font-weight: 500; }
+
 .multiline-text {
-  white-space: pre-line;
-  line-height: 1.6;
+  font-size: 13px;
+  color: #555;
+  line-height: 1.7;
+  white-space: pre-wrap;
   margin: 0;
 }
 
-.status-section {
-  margin-top: 20px;
-  display: grid;
-  gap: 12px;
+/* Section cập nhật trạng thái */
+.update-section {
+  border-top: 2px solid #f0f0f0;
+  padding-top: 20px;
+  margin-bottom: 8px;
 }
 
-.status-section label {
-  font-weight: 700;
-  color: #334155;
+.update-section h3 { font-size: 16px; color: #2c3e50; margin-bottom: 14px; }
+
+.form-group { margin-bottom: 14px; }
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 6px;
 }
 
-.status-section select,
-.status-section textarea {
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  padding: 12px;
-  font: inherit;
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
 }
+
+.form-group select:focus,
+.form-group textarea:focus { border-color: #667eea; }
+
+.form-group textarea { resize: vertical; }
 
 .modal-actions {
   display: flex;
+  gap: 10px;
   justify-content: flex-end;
-  gap: 12px;
-  margin-top: 24px;
-  flex-wrap: wrap;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
 }
 
-.btn {
-  border: none;
-  border-radius: 10px;
-  padding: 10px 16px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-primary {
-  background: #667eea;
-  color: white;
-}
-
-.btn-outline {
-  background: white;
-  border: 1px solid #cbd5e1;
-  color: #334155;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
+/* ════════════════════════════════════
+   RESPONSIVE
+════════════════════════════════════ */
 @media (max-width: 1024px) {
-  .detail-grid {
-    grid-template-columns: 1fr;
-  }
+  .page-header { flex-direction: column; align-items: flex-start; }
+  .detail-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 768px) {
-  .container {
-    padding: 20px 12px;
-  }
-
-  .table-wrapper {
-    overflow-x: auto;
-  }
-
-  table {
-    min-width: 1100px;
-  }
-
-  .page-header h1 {
-    font-size: 26px;
-  }
+  .container { padding: 20px 16px; }
+  .table-card { overflow-x: auto; }
+  .table      { min-width: 1000px; }
 }
 </style>

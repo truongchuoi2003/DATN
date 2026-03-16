@@ -9,16 +9,6 @@
           <h1>Admin Dashboard ⚙️</h1>
           <p>Quản trị hệ thống DATN Platform</p>
         </div>
-        <div class="hero-stats">
-          <div class="hero-stat-item">
-            <span class="hero-stat-value">{{ statistics.totalUsers || 0 }}</span>
-            <span class="hero-stat-label">Người dùng</span>
-          </div>
-          <div class="hero-stat-item">
-            <span class="hero-stat-value">{{ statistics.pendingEmployers || 0 }}</span>
-            <span class="hero-stat-label">Chờ duyệt</span>
-          </div>
-        </div>
       </div>
     </section>
 
@@ -72,13 +62,13 @@
         <div class="quick-actions-section">
           <h2>🚀 Quản lý nhanh</h2>
           <div class="quick-actions-main">
-            <router-link to="/admin/employers" class="action-card">
+            <button class="action-card" @click="navigateTo('/admin/employers')">
               <div class="action-icon" style="background: #4ecdc4;">🏢</div>
               <div class="action-content">
                 <h3>Duyệt nhà tuyển dụng</h3>
                 <p>{{ statistics.pendingEmployers || 0 }} đang chờ</p>
               </div>
-            </router-link>
+            </button>
 
             <button class="action-card" @click="navigateTo('/admin/users')">
               <div class="action-icon" style="background: #667eea;">👥</div>
@@ -92,7 +82,7 @@
               <div class="action-icon" style="background: #f093fb;">📢</div>
               <div class="action-content">
                 <h3>Tin tuyển dụng</h3>
-                <p>Quản lý tin đăng</p>
+                <p>{{ statistics.totalJobs || 0 }} tin đăng</p>
               </div>
             </button>
 
@@ -100,7 +90,7 @@
               <div class="action-icon" style="background: #43e97b;">📊</div>
               <div class="action-content">
                 <h3>Báo cáo</h3>
-                <p>Thống kê hệ thống</p>
+                <p>{{ statistics.totalReports || 0 }} báo cáo</p>
               </div>
             </button>
           </div>
@@ -214,26 +204,6 @@
                 </div>
               </div>
             </div>
-
-            <!-- Quick Links -->
-            <div class="card">
-              <div class="card-header">
-                <h2>Liên kết nhanh</h2>
-              </div>
-              <div class="card-body">
-                <div class="quick-links">
-                  <router-link to="/admin/employers" class="quick-link-item">
-                    🏢 Quản lý nhà tuyển dụng
-                  </router-link>
-                  <router-link to="/admin/profile" class="quick-link-item">
-                    👤 Hồ sơ của tôi
-                  </router-link>
-                  <button class="quick-link-item" @click="handleLogout">
-                    🚪 Đăng xuất
-                  </button>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -242,118 +212,127 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import Header from '../components/Header.vue';
-import { useAuth } from '../composables/useAuth';
-import api from '../services/api';
+// ── Import ──
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import Header from '../components/Header.vue'
+import { useAuth } from '../composables/useAuth'
+import api from '../services/api'
 
-const { user, logout } = useAuth();
-const router = useRouter();
+const { logout } = useAuth()
+const router   = useRouter()
+
+// ════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════
 
 const statistics = ref({
   totalUsers: 0,
   totalStudents: 0,
   totalEmployers: 0,
+  totalAdmins: 0,
   verifiedEmployers: 0,
   pendingEmployers: 0,
-});
 
-const pendingEmployers = ref([]);
-const recentUsers = ref([]);
+  totalJobs: 0,
+  activeJobs: 0,
+  closedJobs: 0,
+  expiredJobs: 0,
 
-const getInitials = (name) => {
-  if (!name) return '?';
-  const parts = name.split(' ');
-  if (parts.length >= 2) {
-    return parts[0][0] + parts[parts.length - 1][0];
-  }
-  return name.substring(0, 2).toUpperCase();
-};
+  totalReports: 0,
+  openReports: 0,
+  inReviewReports: 0,
+  resolvedReports: 0,
+  dismissedReports: 0,
+})
 
-const getRoleName = (role) => {
-  const roles = {
-    student: 'Sinh viên',
-    employer: 'Nhà tuyển dụng',
-    admin: 'Admin',
-  };
-  return roles[role] || role;
-};
+const pendingEmployers = ref([])
+const recentUsers      = ref([])
 
-const formatDate = (date) => {
-  if (!date) return '';
-  const d = new Date(date);
-  const now = new Date();
-  const diff = now - d;
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  const days = Math.floor(hours / 24);
+// ════════════════════════════════════════
+// HÀM TIỆN ÍCH
+// ════════════════════════════════════════
 
-  if (days > 0) return `${days} ngày trước`;
-  if (hours > 0) return `${hours} giờ trước`;
-  return 'Vừa xong';
-};
+function getInitials(name) {
+  if (!name) return '?'
+  const parts = name.trim().split(' ').filter(Boolean)
+  return parts.length >= 2 ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase() : name.substring(0,2).toUpperCase()
+}
 
-const fetchStatistics = async () => {
+function getRoleName(role) {
+  const roles = { student: 'Sinh viên', employer: 'Nhà tuyển dụng', admin: 'Admin' }
+  return roles[role] || role
+}
+
+function formatDate(date) {
+  if (!date) return ''
+  const diff  = Date.now() - new Date(date)
+  const hours = Math.floor(diff / 3600000)
+  const days  = Math.floor(hours / 24)
+  if (days > 0)  return `${days} ngày trước`
+  if (hours > 0) return `${hours} giờ trước`
+  return 'Vừa xong'
+}
+
+function navigateTo(path) { router.push(path) }
+
+// ════════════════════════════════════════
+// HÀM GỌI API
+// ════════════════════════════════════════
+
+async function fetchStatistics() {
   try {
-    const res = await api.get('/admin/statistics');
-    statistics.value = res.data.statistics;
-    statistics.value.totalUsers = 
-      statistics.value.totalStudents + 
-      statistics.value.totalEmployers;
+    const res = await api.get('/admin/statistics')
+    statistics.value = {
+      ...statistics.value,
+      ...res.data.statistics,
+    }
   } catch (error) {
-    console.error('Error fetching statistics:', error);
+    console.error('Error fetching statistics:', error)
   }
-};
+}
 
-const fetchPendingEmployers = async () => {
+async function fetchPendingEmployers() {
   try {
-    const res = await api.get('/admin/employers/pending');
-    pendingEmployers.value = res.data.employers;
+    const res = await api.get('/admin/employers/pending')
+    pendingEmployers.value = res.data.employers
   } catch (error) {
-    console.error('Error fetching pending employers:', error);
+    console.error('Error fetching pending employers:', error)
   }
-};
+}
 
-const fetchRecentUsers = async () => {
+async function fetchRecentUsers() {
   try {
-    const res = await api.get('/admin/users');
-    // Sort by createdAt and get latest 5
+    const res = await api.get('/admin/users')
     recentUsers.value = res.data.users
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      .slice(0, 5);
+      .slice(0, 5)
   } catch (error) {
-    console.error('Error fetching recent users:', error);
+    console.error('Error fetching recent users:', error)
   }
-};
+}
 
-const handleVerify = async (employerId) => {
-  if (!confirm('Xác nhận duyệt nhà tuyển dụng này?')) return;
-
+async function handleVerify(employerId) {
+  if (!confirm('Xác nhận duyệt nhà tuyển dụng này?')) return
   try {
-    await api.put(`/admin/employers/${employerId}/verify`);
-    alert('Duyệt thành công!');
-    fetchPendingEmployers();
-    fetchStatistics();
+    await api.put(`/admin/employers/${employerId}/verify`)
+    alert('Duyệt thành công!')
+    fetchPendingEmployers()
+    fetchStatistics()
   } catch (error) {
-    alert('Có lỗi xảy ra: ' + (error.response?.data?.message || 'Vui lòng thử lại'));
+    alert('Có lỗi xảy ra: ' + (error.response?.data?.message || 'Vui lòng thử lại'))
   }
-};
+}
 
-const navigateTo = (path) => {
-  router.push(path);
-};
-
-const handleLogout = () => {
-  if (confirm('Bạn có chắc muốn đăng xuất?')) {
-    logout();
-  }
-};
+function handleLogout() {
+  if (confirm('Bạn có chắc muốn đăng xuất?')) logout()
+}
 
 onMounted(() => {
-  fetchStatistics();
-  fetchPendingEmployers();
-  fetchRecentUsers();
-});
+  fetchStatistics()
+  fetchPendingEmployers()
+  fetchRecentUsers()
+})
 </script>
 
 <style scoped>

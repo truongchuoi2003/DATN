@@ -1,602 +1,318 @@
 <template>
-  <div class="employer-applications">
+  <!-- ============================================================
+       TRANG: Quản lý ứng viên (Employer)
+       CHỨC NĂNG: Xem ứng viên theo job hoặc tất cả, lọc theo
+                  trạng thái, xem chi tiết, cập nhật trạng thái,
+                  lên lịch phỏng vấn, từ chối, report ứng viên
+       ROUTE: /employer/applications          → tất cả ứng viên
+              /employer/applications/:jobId   → ứng viên của 1 job
+  ============================================================ -->
+  <div class="page">
     <Header />
 
     <div class="container">
+
+      <!-- ── TIÊU ĐỀ ── -->
       <div class="page-header">
         <div>
           <h1>{{ pageTitle }}</h1>
-          <p class="subtitle">{{ pageSubtitle }}</p>
+          <p class="page-sub">{{ pageSubtitle }}</p>
         </div>
-        <button @click="$router.go(-1)" class="btn btn-secondary">
-          ← Quay lại
-        </button>
+        <button class="btn btn-secondary" @click="$router.go(-1)">← Quay lại</button>
       </div>
 
-      <div v-if="job" class="job-info-card">
-        <div class="job-header">
-          <div>
-            <h2>{{ job.title }}</h2>
-            <p>
-              {{ job?.location?.city || job?.location || 'Chưa cập nhật địa điểm' }}
-              • {{ getJobTypeLabel(job.jobType) }}
-            </p>
-          </div>
-          <div class="job-stats-inline">
-            <span>👁️ {{ job.views || 0 }} lượt xem</span>
-            <span>👥 {{ job.applicationsCount || 0 }} ứng viên</span>
-          </div>
+      <!-- Card thông tin job (chỉ hiển thị khi xem ứng viên của 1 job cụ thể) -->
+      <div v-if="job" class="job-banner">
+        <div class="job-banner-left">
+          <h2>{{ job.title }}</h2>
+          <p>{{ job?.location?.city || '—' }} • {{ getJobTypeLabel(job.jobType) }}</p>
+        </div>
+        <div class="job-banner-stats">
+          <span>👁️ {{ job.views || 0 }} lượt xem</span>
+          <span>👥 {{ job.applicationsCount || 0 }} ứng viên</span>
         </div>
       </div>
 
+      <!-- ── THỐNG KÊ ── -->
       <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon gradient-purple">📋</div>
+        <div v-for="stat in statCards" :key="stat.label" class="stat-card">
+          <div class="stat-icon" :class="stat.gradient">{{ stat.icon }}</div>
           <div class="stat-info">
-            <h3>{{ applications.length }}</h3>
-            <p>Tổng ứng viên</p>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon gradient-pink">⏳</div>
-          <div class="stat-info">
-            <h3>{{ pendingCount }}</h3>
-            <p>Chờ xử lý</p>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon gradient-blue">👀</div>
-          <div class="stat-info">
-            <h3>{{ reviewingCount }}</h3>
-            <p>Đang xem xét</p>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon gradient-indigo">📌</div>
-          <div class="stat-info">
-            <h3>{{ shortlistedCount }}</h3>
-            <p>Shortlist</p>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon gradient-cyan">🎤</div>
-          <div class="stat-info">
-            <h3>{{ interviewingCount }}</h3>
-            <p>Phỏng vấn</p>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon gradient-orange">🎁</div>
-          <div class="stat-info">
-            <h3>{{ offeredCount }}</h3>
-            <p>Đã gửi offer</p>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon gradient-green">✅</div>
-          <div class="stat-info">
-            <h3>{{ hiredCount }}</h3>
-            <p>Đã tuyển</p>
-          </div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon gradient-yellow">📅</div>
-          <div class="stat-info">
-            <h3>{{ scheduledInterviewCount }}</h3>
-            <p>Đã lên lịch PV</p>
+            <h3>{{ stat.value }}</h3>
+            <p>{{ stat.label }}</p>
           </div>
         </div>
       </div>
 
-      <div class="filter-tabs">
-        <button :class="{ active: filter === 'all' }" @click="changeFilter('all')">
-          📋 Tất cả
-        </button>
-        <button :class="{ active: filter === 'pending' }" @click="changeFilter('pending')">
-          ⏳ Chờ xử lý
-        </button>
-        <button :class="{ active: filter === 'reviewing' }" @click="changeFilter('reviewing')">
-          👀 Đang xem xét
-        </button>
-        <button :class="{ active: filter === 'shortlisted' }" @click="changeFilter('shortlisted')">
-          📌 Shortlist
-        </button>
-        <button :class="{ active: filter === 'interviewing' }" @click="changeFilter('interviewing')">
-          🎤 Phỏng vấn
-        </button>
-        <button :class="{ active: filter === 'offered' }" @click="changeFilter('offered')">
-          🎁 Offer
-        </button>
-        <button :class="{ active: filter === 'hired' }" @click="changeFilter('hired')">
-          ✅ Đã tuyển
-        </button>
-        <button :class="{ active: filter === 'rejected' }" @click="changeFilter('rejected')">
-          ❌ Đã từ chối
+      <!-- ── FILTER TABS ── -->
+      <div class="filter-bar">
+        <button
+          v-for="tab in filterTabs"
+          :key="tab.value"
+          class="filter-btn"
+          :class="{ active: filter === tab.value }"
+          @click="changeFilter(tab.value)"
+        >
+          {{ tab.label }}
         </button>
       </div>
 
-      <div v-if="loading" class="loading">
+      <!-- ── ĐANG TẢI ── -->
+      <div v-if="loading" class="loading-state">
         <div class="spinner"></div>
         <p>Đang tải dữ liệu...</p>
       </div>
 
-      <div v-else class="applications-list">
+      <!-- ── DANH SÁCH ỨNG VIÊN ── -->
+      <div v-else>
         <div v-if="filteredApplications.length === 0" class="empty-state">
-          <p>📭 {{ getEmptyMessage() }}</p>
+          <p class="empty-icon">📭</p>
+          <p>{{ getEmptyMessage() }}</p>
         </div>
 
-        <div v-else class="application-cards">
-          <div
-            v-for="app in filteredApplications"
-            :key="app._id"
-            class="application-card"
-          >
-            <div class="card-header">
-              <div class="candidate-info">
-                <div class="avatar">
-                  {{ getInitials(app.student?.fullName) }}
-                </div>
-                <div class="candidate-details">
+        <div v-else class="app-list">
+          <div v-for="app in filteredApplications" :key="app._id" class="app-card">
+
+            <!-- Header card: avatar + tên + email + badge trạng thái -->
+            <div class="app-card-head">
+              <div class="candidate-row">
+                <div class="avatar">{{ getInitials(app.student?.fullName) }}</div>
+                <div class="candidate-info">
                   <h3>{{ app.student?.fullName || 'Ứng viên' }}</h3>
-                  <p class="contact">📧 {{ app.student?.email || 'Chưa có email' }}</p>
-                  <p class="contact" v-if="app.student?.phone">
-                    📱 {{ app.student.phone }}
-                  </p>
+                  <p>📧 {{ app.student?.email || '—' }}</p>
+                  <p v-if="app.student?.phone">📱 {{ app.student.phone }}</p>
                 </div>
               </div>
-
-              <div class="header-right">
-                <div class="status-badge" :class="app.status">
+              <div class="head-badges">
+                <span class="status-badge" :class="'status-' + app.status">
                   {{ getStatusLabel(app.status) }}
-                </div>
-
-                <div
-                  v-if="app.interview && app.interview.status && app.interview.status !== 'none'"
-                  class="interview-status-chip"
-                  :class="app.interview.status"
+                </span>
+                <!-- Badge lịch phỏng vấn nếu có -->
+                <span
+                  v-if="app.interview?.status && app.interview.status !== 'none'"
+                  class="interview-chip"
+                  :class="'iv-' + app.interview.status"
                 >
                   {{ getInterviewStatusLabel(app.interview.status) }}
-                </div>
+                </span>
               </div>
             </div>
 
-            <div class="card-body">
-              <div class="info-grid">
-                <div class="info-item">
-                  <span class="label">📅 Ngày ứng tuyển:</span>
-                  <span class="value">{{ formatDate(app.createdAt || app.appliedAt) }}</span>
-                </div>
-
-                <div class="info-item" v-if="app.expectedSalary">
-                  <span class="label">💵 Lương mong muốn:</span>
-                  <span class="value">{{ formatNumber(app.expectedSalary) }} VND</span>
-                </div>
-
-                <div class="info-item" v-if="app.availableFrom">
-                  <span class="label">🗓️ Có thể bắt đầu:</span>
-                  <span class="value">{{ formatDate(app.availableFrom) }}</span>
-                </div>
-
-                <div class="info-item" v-if="app.student?.university">
-                  <span class="label">🏫 Trường:</span>
-                  <span class="value">{{ app.student.university }}</span>
-                </div>
-
-                <div class="info-item" v-if="app.student?.major">
-                  <span class="label">📚 Ngành:</span>
-                  <span class="value">{{ app.student.major }}</span>
-                </div>
-
-                <div class="info-item" v-if="app.student?.gpa">
-                  <span class="label">📊 GPA:</span>
-                  <span class="value">{{ app.student.gpa }}</span>
-                </div>
+            <!-- Thông tin học vấn / ứng tuyển -->
+            <div class="app-info-grid">
+              <div class="info-item">
+                <span class="info-label">📅 Ngày ứng tuyển</span>
+                <span>{{ formatDate(app.createdAt) }}</span>
               </div>
-
-              <div class="cover-letter" v-if="app.coverLetter">
-                <strong>✍️ Thư xin việc:</strong>
-                <p>{{ truncateText(app.coverLetter, 200) }}</p>
+              <div v-if="app.expectedSalary" class="info-item">
+                <span class="info-label">💵 Lương mong muốn</span>
+                <span>{{ formatNumber(app.expectedSalary) }} VND</span>
               </div>
-
-              <div class="employer-note" v-if="app.employerNote">
-                <strong>💬 Ghi chú của bạn:</strong>
-                <p>{{ app.employerNote }}</p>
+              <div v-if="app.student?.university" class="info-item">
+                <span class="info-label">🏫 Trường</span>
+                <span>{{ app.student.university }}</span>
               </div>
-
-              <div
-                v-if="app.interview && app.interview.status && app.interview.status !== 'none'"
-                class="interview-box"
-              >
-                <strong>📅 Lịch phỏng vấn:</strong>
-                <p><b>Trạng thái:</b> {{ getInterviewStatusLabel(app.interview.status) }}</p>
-                <p><b>Thời gian:</b> {{ formatDateTime(app.interview.scheduledAt) }}</p>
-                <p>
-                  <b>Hình thức:</b>
-                  {{ app.interview.mode === 'online' ? 'Online' : 'Offline' }}
-                </p>
-                <p v-if="app.interview.location"><b>Địa điểm:</b> {{ app.interview.location }}</p>
-                <p v-if="app.interview.meetingLink">
-                  <b>Link:</b>
-                  <a :href="app.interview.meetingLink" target="_blank">
-                    {{ app.interview.meetingLink }}
-                  </a>
-                </p>
-                <p v-if="app.interview.note"><b>Ghi chú:</b> {{ app.interview.note }}</p>
+              <div v-if="app.student?.gpa" class="info-item">
+                <span class="info-label">📊 GPA</span>
+                <span>{{ app.student.gpa }}</span>
               </div>
             </div>
 
-            <div class="card-footer">
-              <button @click="viewApplication(app)" class="btn-action primary">
-                👁️ Xem chi tiết
-              </button>
-
-              <a
-                v-if="getResumeUrl(app)"
-                :href="getFullUrl(getResumeUrl(app))"
-                target="_blank"
-                class="btn-action"
-              >
-                📥 Tải CV
-              </a>
-
-              <button
-                v-if="app.status === 'pending'"
-                @click="updateStatus(app._id, 'reviewing')"
-                class="btn-action"
-              >
-                👀 Đánh dấu đang xem
-              </button>
-
-              <button
-                v-if="app.status === 'reviewing'"
-                @click="updateStatus(app._id, 'shortlisted')"
-                class="btn-action info"
-              >
-                📌 Shortlist
-              </button>
-
-              <button
-                v-if="app.status !== 'rejected' && app.status !== 'withdrawn' && app.status !== 'hired'"
-                @click="openInterviewModal(app)"
-                class="btn-action info"
-              >
-                📅 Lên lịch PV
-              </button>
-
-              <button
-                v-if="app.status === 'shortlisted' || app.status === 'interviewing'"
-                @click="updateStatus(app._id, 'offered')"
-                class="btn-action success"
-              >
-                🎁 Gửi offer
-              </button>
-
-              <button
-                v-if="app.status === 'offered'"
-                @click="updateStatus(app._id, 'hired')"
-                class="btn-action success"
-              >
-                ✅ Tuyển chính thức
-              </button>
-
-              <button
-                v-if="app.interview && app.interview.status !== 'none' && app.interview.status !== 'cancelled'"
-                @click="cancelInterview(app)"
-                class="btn-action dark"
-              >
-                🗑️ Hủy lịch PV
-              </button>
-
-              <button
-                v-if="app.status !== 'rejected' && app.status !== 'hired'"
-                @click="openRejectModal(app)"
-                class="btn-action danger"
-              >
-                ❌ Từ chối
-              </button>
-
-              <button
-                @click="openReportModal(app)"
-                class="btn-action warning"
-              >
-                🚨 Report ứng viên
-              </button>
+            <!-- Thư xin việc tóm tắt -->
+            <div v-if="app.coverLetter" class="cover-letter-preview">
+              <strong>✍️ Thư xin việc:</strong>
+              <p>{{ truncateText(app.coverLetter, 200) }}</p>
             </div>
+
+            <!-- Ghi chú của employer -->
+            <div v-if="app.employerNote" class="employer-note-box">
+              <strong>💬 Ghi chú của bạn:</strong>
+              <p>{{ app.employerNote }}</p>
+            </div>
+
+            <!-- Lịch phỏng vấn nếu có -->
+            <div v-if="app.interview?.status && app.interview.status !== 'none'" class="interview-box">
+              <strong>📅 Lịch phỏng vấn:</strong>
+              <p><b>Trạng thái:</b> {{ getInterviewStatusLabel(app.interview.status) }}</p>
+              <p><b>Thời gian:</b> {{ formatDateTime(app.interview.scheduledAt) }}</p>
+              <p><b>Hình thức:</b> {{ app.interview.mode === 'online' ? 'Online' : 'Offline' }}</p>
+              <p v-if="app.interview.location"><b>Địa điểm:</b> {{ app.interview.location }}</p>
+              <p v-if="app.interview.meetingLink">
+                <b>Link:</b>
+                <a :href="app.interview.meetingLink" target="_blank">{{ app.interview.meetingLink }}</a>
+              </p>
+            </div>
+
+            <!-- Các nút hành động -->
+            <div class="app-actions">
+              <button class="btn-action btn-primary" @click="openDetailModal(app)">👁️ Xem chi tiết</button>
+
+              <a v-if="getResumeUrl(app)" :href="getFullUrl(getResumeUrl(app))" target="_blank" class="btn-action">📥 Tải CV</a>
+
+              <button v-if="app.status === 'pending'"     class="btn-action" @click="updateStatus(app._id, 'reviewing')">👀 Đang xem</button>
+              <button v-if="app.status === 'reviewing'"   class="btn-action btn-info" @click="updateStatus(app._id, 'shortlisted')">📌 Shortlist</button>
+              <button v-if="canScheduleInterview(app)"    class="btn-action btn-info" @click="openInterviewModal(app)">📅 Lên lịch PV</button>
+              <button v-if="canSendOffer(app)"            class="btn-action btn-success" @click="updateStatus(app._id, 'offered')">🎁 Gửi offer</button>
+              <button v-if="app.status === 'offered'"     class="btn-action btn-success" @click="updateStatus(app._id, 'hired')">✅ Tuyển chính thức</button>
+              <button v-if="canCancelInterview(app)"      class="btn-action btn-dark" @click="cancelInterview(app)">🗑️ Hủy lịch PV</button>
+              <button v-if="canReject(app)"               class="btn-action btn-danger" @click="openRejectModal(app)">❌ Từ chối</button>
+              <button                                      class="btn-action btn-warning" @click="openReportModal(app)">🚨 Report</button>
+            </div>
+
           </div>
         </div>
       </div>
-    </div>
 
-    <div v-if="selectedApplication" class="modal" @click="closeModal">
-      <div class="modal-content large" @click.stop>
-        <button class="btn-close" @click="closeModal">✕</button>
+    </div><!-- /container -->
 
-        <h2>👤 Chi tiết ứng viên</h2>
 
+    <!-- ============================================================
+         MODAL 1: XEM CHI TIẾT ỨNG VIÊN
+    ============================================================ -->
+    <div v-if="selectedApplication" class="modal-overlay" @click="closeModal">
+      <div class="modal-box modal-lg" @click.stop>
+        <button class="modal-close-btn" @click="closeModal">✕</button>
+        <h2 class="modal-title">👤 Chi tiết ứng viên</h2>
+
+        <!-- Thông tin sinh viên -->
         <div class="modal-section">
           <h3>🧑 Thông tin ứng viên</h3>
           <div class="detail-grid">
-            <div class="detail-item">
-              <span class="label">Họ tên:</span>
-              <span class="value">{{ selectedApplication.student?.fullName }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="label">Email:</span>
-              <span class="value">{{ selectedApplication.student?.email }}</span>
-            </div>
-            <div class="detail-item" v-if="selectedApplication.student?.phone">
-              <span class="label">Số điện thoại:</span>
-              <span class="value">{{ selectedApplication.student.phone }}</span>
-            </div>
-            <div class="detail-item" v-if="selectedApplication.student?.university">
-              <span class="label">Trường:</span>
-              <span class="value">{{ selectedApplication.student.university }}</span>
-            </div>
-            <div class="detail-item" v-if="selectedApplication.student?.major">
-              <span class="label">Ngành học:</span>
-              <span class="value">{{ selectedApplication.student.major }}</span>
-            </div>
-            <div class="detail-item" v-if="selectedApplication.student?.gpa">
-              <span class="label">GPA:</span>
-              <span class="value">{{ selectedApplication.student.gpa }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="label">Trạng thái:</span>
-              <span class="status-badge" :class="selectedApplication.status">
-                {{ getStatusLabel(selectedApplication.status) }}
-              </span>
-            </div>
+            <div class="detail-item"><label>Họ tên</label><span>{{ selectedApplication.student?.fullName }}</span></div>
+            <div class="detail-item"><label>Email</label><span>{{ selectedApplication.student?.email }}</span></div>
+            <div v-if="selectedApplication.student?.phone" class="detail-item"><label>Điện thoại</label><span>{{ selectedApplication.student.phone }}</span></div>
+            <div v-if="selectedApplication.student?.university" class="detail-item"><label>Trường</label><span>{{ selectedApplication.student.university }}</span></div>
+            <div v-if="selectedApplication.student?.major" class="detail-item"><label>Ngành học</label><span>{{ selectedApplication.student.major }}</span></div>
+            <div v-if="selectedApplication.student?.gpa" class="detail-item"><label>GPA</label><span>{{ selectedApplication.student.gpa }}</span></div>
           </div>
         </div>
 
+        <!-- Thông tin ứng tuyển -->
         <div class="modal-section">
           <h3>📋 Thông tin ứng tuyển</h3>
           <div class="detail-grid">
+            <div class="detail-item"><label>Ngày ứng tuyển</label><span>{{ formatDateTime(selectedApplication.createdAt) }}</span></div>
+            <div v-if="selectedApplication.expectedSalary" class="detail-item"><label>Mức lương mong muốn</label><span>{{ formatNumber(selectedApplication.expectedSalary) }} VND</span></div>
+            <div v-if="selectedApplication.availableFrom" class="detail-item"><label>Có thể bắt đầu từ</label><span>{{ formatDate(selectedApplication.availableFrom) }}</span></div>
             <div class="detail-item">
-              <span class="label">Ngày ứng tuyển:</span>
-              <span class="value">{{ formatDateTime(selectedApplication.createdAt || selectedApplication.appliedAt) }}</span>
-            </div>
-            <div class="detail-item" v-if="selectedApplication.expectedSalary">
-              <span class="label">Mức lương mong muốn:</span>
-              <span class="value">{{ formatNumber(selectedApplication.expectedSalary) }} VND/tháng</span>
-            </div>
-            <div class="detail-item" v-if="selectedApplication.availableFrom">
-              <span class="label">Có thể bắt đầu từ:</span>
-              <span class="value">{{ formatDate(selectedApplication.availableFrom) }}</span>
-            </div>
-            <div class="detail-item" v-if="selectedApplication.reviewedAt">
-              <span class="label">Ngày xem xét:</span>
-              <span class="value">{{ formatDateTime(selectedApplication.reviewedAt) }}</span>
+              <label>Trạng thái</label>
+              <span class="status-badge" :class="'status-' + selectedApplication.status">{{ getStatusLabel(selectedApplication.status) }}</span>
             </div>
           </div>
         </div>
 
-        <div class="modal-section" v-if="getResumeUrl(selectedApplication)">
+        <!-- CV -->
+        <div v-if="getResumeUrl(selectedApplication)" class="modal-section">
           <h3>📄 CV</h3>
-          <a
-            :href="getFullUrl(getResumeUrl(selectedApplication))"
-            target="_blank"
-            class="cv-link"
-          >
-            📥 Tải xuống CV
-          </a>
+          <a :href="getFullUrl(getResumeUrl(selectedApplication))" target="_blank" class="cv-link">📥 Tải xuống CV</a>
         </div>
 
-        <div class="modal-section" v-if="selectedApplication.coverLetter">
+        <!-- Thư xin việc -->
+        <div v-if="selectedApplication.coverLetter" class="modal-section">
           <h3>✍️ Thư xin việc</h3>
-          <p class="text-content">{{ selectedApplication.coverLetter }}</p>
+          <p class="text-box">{{ selectedApplication.coverLetter }}</p>
         </div>
 
-        <div class="modal-section" v-if="selectedApplication.additionalInfo">
-          <h3>💬 Thông tin bổ sung</h3>
-          <p class="text-content">{{ selectedApplication.additionalInfo }}</p>
-        </div>
-
-        <div
-          class="modal-section"
-          v-if="selectedApplication.interview && selectedApplication.interview.status && selectedApplication.interview.status !== 'none'"
-        >
+        <!-- Lịch phỏng vấn -->
+        <div v-if="selectedApplication.interview?.status && selectedApplication.interview.status !== 'none'" class="modal-section">
           <h3>📅 Lịch phỏng vấn</h3>
           <div class="detail-grid">
-            <div class="detail-item">
-              <span class="label">Trạng thái:</span>
-              <span class="value">{{ getInterviewStatusLabel(selectedApplication.interview.status) }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="label">Thời gian:</span>
-              <span class="value">{{ formatDateTime(selectedApplication.interview.scheduledAt) }}</span>
-            </div>
-            <div class="detail-item">
-              <span class="label">Hình thức:</span>
-              <span class="value">
-                {{ selectedApplication.interview.mode === 'online' ? 'Online' : 'Offline' }}
-              </span>
-            </div>
-            <div class="detail-item" v-if="selectedApplication.interview.location">
-              <span class="label">Địa điểm:</span>
-              <span class="value">{{ selectedApplication.interview.location }}</span>
-            </div>
-            <div class="detail-item" v-if="selectedApplication.interview.meetingLink">
-              <span class="label">Link meeting:</span>
-              <span class="value">
-                <a :href="selectedApplication.interview.meetingLink" target="_blank">
-                  {{ selectedApplication.interview.meetingLink }}
-                </a>
-              </span>
-            </div>
+            <div class="detail-item"><label>Trạng thái</label><span>{{ getInterviewStatusLabel(selectedApplication.interview.status) }}</span></div>
+            <div class="detail-item"><label>Thời gian</label><span>{{ formatDateTime(selectedApplication.interview.scheduledAt) }}</span></div>
+            <div class="detail-item"><label>Hình thức</label><span>{{ selectedApplication.interview.mode === 'online' ? 'Online' : 'Offline' }}</span></div>
+            <div v-if="selectedApplication.interview.location" class="detail-item"><label>Địa điểm</label><span>{{ selectedApplication.interview.location }}</span></div>
           </div>
-          <p v-if="selectedApplication.interview.note" class="text-content">
-            {{ selectedApplication.interview.note }}
-          </p>
         </div>
 
+        <!-- Ghi chú của employer -->
         <div class="modal-section">
           <h3>📝 Ghi chú của bạn</h3>
           <textarea
-            v-model="modalEmployerNote"
-            placeholder="Thêm ghi chú về ứng viên này..."
+            v-model="modalNote"
             rows="4"
-            class="note-textarea"
+            placeholder="Thêm ghi chú về ứng viên này..."
+            class="form-textarea"
           ></textarea>
         </div>
 
+        <!-- Actions modal -->
         <div class="modal-actions">
-          <button
-            v-if="selectedApplication.status === 'pending'"
-            @click="updateStatusWithNote(selectedApplication._id, 'reviewing')"
-            class="btn btn-secondary"
-          >
-            👀 Đang xem xét
-          </button>
-
-          <button
-            v-if="selectedApplication.status === 'reviewing'"
-            @click="updateStatusWithNote(selectedApplication._id, 'shortlisted')"
-            class="btn btn-info"
-          >
-            📌 Shortlist
-          </button>
-
-          <button
-            @click="openInterviewModal(selectedApplication)"
-            class="btn btn-info"
-            v-if="selectedApplication.status !== 'rejected' && selectedApplication.status !== 'withdrawn' && selectedApplication.status !== 'hired'"
-          >
-            📅 Lên lịch PV
-          </button>
-
-          <button
-            v-if="selectedApplication.status === 'shortlisted' || selectedApplication.status === 'interviewing'"
-            @click="updateStatusWithNote(selectedApplication._id, 'offered')"
-            class="btn btn-success"
-          >
-            🎁 Gửi offer
-          </button>
-
-          <button
-            v-if="selectedApplication.status === 'offered'"
-            @click="updateStatusWithNote(selectedApplication._id, 'hired')"
-            class="btn btn-success"
-          >
-            ✅ Tuyển chính thức
-          </button>
-
-          <button
-            v-if="selectedApplication.interview && selectedApplication.interview.status !== 'none' && selectedApplication.interview.status !== 'cancelled'"
-            @click="cancelInterview(selectedApplication)"
-            class="btn btn-dark"
-          >
-            🗑️ Hủy lịch PV
-          </button>
-
-          <button
-            v-if="selectedApplication.status !== 'rejected' && selectedApplication.status !== 'hired'"
-            @click="openRejectModal(selectedApplication)"
-            class="btn btn-danger"
-          >
-            ❌ Từ chối
-          </button>
-
-          <button
-            @click="openReportModal(selectedApplication)"
-            class="btn btn-warning"
-          >
-            🚨 Report ứng viên
-          </button>
-
-          <button
-            @click="saveNote(selectedApplication._id)"
-            class="btn btn-primary"
-          >
-            💾 Lưu ghi chú
-          </button>
+          <button v-if="selectedApplication.status === 'pending'"   class="btn btn-secondary" @click="updateStatusWithNote(selectedApplication._id, 'reviewing')">👀 Đang xem xét</button>
+          <button v-if="selectedApplication.status === 'reviewing'" class="btn btn-info" @click="updateStatusWithNote(selectedApplication._id, 'shortlisted')">📌 Shortlist</button>
+          <button v-if="canScheduleInterview(selectedApplication)"  class="btn btn-info" @click="openInterviewModal(selectedApplication)">📅 Lên lịch PV</button>
+          <button v-if="canSendOffer(selectedApplication)"          class="btn btn-success" @click="updateStatusWithNote(selectedApplication._id, 'offered')">🎁 Gửi offer</button>
+          <button v-if="selectedApplication.status === 'offered'"   class="btn btn-success" @click="updateStatusWithNote(selectedApplication._id, 'hired')">✅ Tuyển chính thức</button>
+          <button v-if="canCancelInterview(selectedApplication)"    class="btn btn-dark" @click="cancelInterview(selectedApplication)">🗑️ Hủy lịch PV</button>
+          <button v-if="canReject(selectedApplication)"             class="btn btn-danger" @click="openRejectModal(selectedApplication)">❌ Từ chối</button>
+          <button                                                    class="btn btn-warning" @click="openReportModal(selectedApplication)">🚨 Report</button>
+          <button class="btn btn-primary" @click="saveNote(selectedApplication._id)">💾 Lưu ghi chú</button>
         </div>
       </div>
     </div>
 
-    <div v-if="showRejectModal" class="modal" @click="closeRejectModal">
-      <div class="modal-content" @click.stop>
-        <button class="btn-close" @click="closeRejectModal">✕</button>
 
-        <h2>❌ Từ chối ứng viên</h2>
+    <!-- ============================================================
+         MODAL 2: TỪ CHỐI ỨNG VIÊN
+    ============================================================ -->
+    <div v-if="showRejectModal" class="modal-overlay" @click="closeRejectModal">
+      <div class="modal-box" @click.stop>
+        <button class="modal-close-btn" @click="closeRejectModal">✕</button>
+        <h2 class="modal-title">❌ Từ chối ứng viên</h2>
 
         <div class="form-group">
-          <label>Lý do từ chối (không bắt buộc):</label>
+          <label class="form-label">Lý do từ chối (không bắt buộc)</label>
           <textarea
             v-model="rejectNote"
-            placeholder="Ví dụ: Kinh nghiệm chưa phù hợp với yêu cầu công việc..."
             rows="5"
             maxlength="500"
+            placeholder="VD: Kinh nghiệm chưa phù hợp với yêu cầu..."
+            class="form-textarea"
           ></textarea>
-          <small class="help-text">{{ rejectNote.length }}/500 ký tự</small>
+          <small class="form-hint">{{ rejectNote.length }}/500 ký tự</small>
         </div>
 
         <div class="modal-actions">
-          <button @click="closeRejectModal" class="btn btn-secondary">
-            Hủy
-          </button>
-          <button @click="confirmReject" class="btn btn-danger">
-            ❌ Xác nhận từ chối
-          </button>
+          <button class="btn btn-secondary" @click="closeRejectModal">Hủy</button>
+          <button class="btn btn-danger" @click="confirmReject">❌ Xác nhận từ chối</button>
         </div>
       </div>
     </div>
 
-    <div v-if="showInterviewModal" class="modal" @click="closeInterviewModal">
-      <div class="modal-content" @click.stop>
-        <button class="btn-close" @click="closeInterviewModal">✕</button>
-        <h2>📅 Lên lịch phỏng vấn</h2>
+
+    <!-- ============================================================
+         MODAL 3: LÊN LỊCH PHỎNG VẤN
+    ============================================================ -->
+    <div v-if="showInterviewModal" class="modal-overlay" @click="closeInterviewModal">
+      <div class="modal-box" @click.stop>
+        <button class="modal-close-btn" @click="closeInterviewModal">✕</button>
+        <h2 class="modal-title">📅 Lên lịch phỏng vấn</h2>
 
         <div class="form-group">
-          <label>Ứng viên</label>
-          <input :value="interviewForm.candidateName" disabled />
+          <label class="form-label">Ứng viên</label>
+          <input class="form-input" :value="interviewForm.candidateName" disabled />
         </div>
-
         <div class="form-group">
-          <label>Ngày giờ phỏng vấn</label>
-          <input v-model="interviewForm.scheduledAt" type="datetime-local" />
+          <label class="form-label">Ngày giờ phỏng vấn</label>
+          <input class="form-input" v-model="interviewForm.scheduledAt" type="datetime-local" />
         </div>
-
         <div class="form-group">
-          <label>Hình thức</label>
-          <select v-model="interviewForm.mode">
+          <label class="form-label">Hình thức</label>
+          <select class="form-input" v-model="interviewForm.mode">
             <option value="online">Online</option>
             <option value="offline">Offline</option>
           </select>
         </div>
-
-        <div class="form-group" v-if="interviewForm.mode === 'offline'">
-          <label>Địa điểm</label>
-          <input
-            v-model="interviewForm.location"
-            type="text"
-            placeholder="Nhập địa điểm phỏng vấn"
-          />
+        <div v-if="interviewForm.mode === 'offline'" class="form-group">
+          <label class="form-label">Địa điểm</label>
+          <input class="form-input" v-model="interviewForm.location" type="text" placeholder="Nhập địa điểm phỏng vấn" />
         </div>
-
-        <div class="form-group" v-if="interviewForm.mode === 'online'">
-          <label>Link meeting</label>
-          <input
-            v-model="interviewForm.meetingLink"
-            type="text"
-            placeholder="Nhập link Google Meet / Zoom"
-          />
+        <div v-if="interviewForm.mode === 'online'" class="form-group">
+          <label class="form-label">Link meeting</label>
+          <input class="form-input" v-model="interviewForm.meetingLink" type="text" placeholder="Google Meet / Zoom link" />
         </div>
-
         <div class="form-group">
-          <label>Ghi chú</label>
-          <textarea
-            v-model="interviewForm.note"
-            rows="4"
-            placeholder="Nhập ghi chú thêm"
-          ></textarea>
+          <label class="form-label">Ghi chú</label>
+          <textarea class="form-textarea" v-model="interviewForm.note" rows="4" placeholder="Ghi chú thêm..."></textarea>
         </div>
 
         <div class="modal-actions">
@@ -606,23 +322,24 @@
       </div>
     </div>
 
-    <div v-if="showReportModal" class="modal" @click="closeReportModal">
-      <div class="modal-content" @click.stop>
-        <button class="btn-close" @click="closeReportModal">✕</button>
 
-        <h2>🚨 Report ứng viên</h2>
+    <!-- ============================================================
+         MODAL 4: REPORT ỨNG VIÊN
+    ============================================================ -->
+    <div v-if="showReportModal" class="modal-overlay" @click="closeReportModal">
+      <div class="modal-box" @click.stop>
+        <button class="modal-close-btn" @click="closeReportModal">✕</button>
+        <h2 class="modal-title">🚨 Report ứng viên</h2>
 
-        <div class="form-group" v-if="reportingApplication">
-          <label>Ứng viên bị report:</label>
-          <div class="report-target-box">
-            <strong>{{ reportingApplication.student?.fullName || 'Ứng viên' }}</strong>
-            <p>{{ reportingApplication.student?.email || '' }}</p>
-          </div>
+        <!-- Tên ứng viên bị report -->
+        <div v-if="reportingApp" class="report-target-box">
+          <strong>{{ reportingApp.student?.fullName || 'Ứng viên' }}</strong>
+          <p>{{ reportingApp.student?.email }}</p>
         </div>
 
         <div class="form-group">
-          <label>Lý do report:</label>
-          <select v-model="reportForm.reason">
+          <label class="form-label">Lý do report</label>
+          <select class="form-input" v-model="reportForm.reason">
             <option value="">-- Chọn lý do --</option>
             <option value="spam">Spam</option>
             <option value="fake_information">Thông tin giả</option>
@@ -633,1075 +350,711 @@
             <option value="other">Khác</option>
           </select>
         </div>
-
         <div class="form-group">
-          <label>Mô tả chi tiết:</label>
-          <textarea
-            v-model="reportForm.description"
-            rows="5"
-            maxlength="1000"
-            placeholder="Mô tả rõ lý do bạn report ứng viên này..."
-          ></textarea>
-          <small class="help-text">{{ reportForm.description.length }}/1000 ký tự</small>
+          <label class="form-label">Mô tả chi tiết</label>
+          <textarea class="form-textarea" v-model="reportForm.description" rows="5" maxlength="1000" placeholder="Mô tả rõ lý do report..."></textarea>
+          <small class="form-hint">{{ reportForm.description.length }}/1000 ký tự</small>
         </div>
-
         <div class="form-group">
-          <label>Link bằng chứng (không bắt buộc, mỗi dòng 1 link):</label>
-          <textarea
-            v-model="reportEvidenceText"
-            rows="4"
-            placeholder="https://example.com/evidence-1&#10;https://example.com/evidence-2"
-          ></textarea>
+          <label class="form-label">Link bằng chứng (mỗi dòng 1 link, không bắt buộc)</label>
+          <textarea class="form-textarea" v-model="reportEvidenceText" rows="3" placeholder="https://..."></textarea>
         </div>
 
         <div class="modal-actions">
-          <button @click="closeReportModal" class="btn btn-secondary">
-            Hủy
-          </button>
-          <button @click="submitEmployerReport" class="btn btn-warning">
-            🚨 Gửi report
-          </button>
+          <button class="btn btn-secondary" @click="closeReportModal">Hủy</button>
+          <button class="btn btn-warning" @click="submitReport">🚨 Gửi report</button>
         </div>
       </div>
     </div>
+
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
-import { useRoute } from 'vue-router';
-import Header from '../components/Header.vue';
-import api from '../services/api';
+// ── Import ──
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import Header from '../components/Header.vue'
+import api from '../services/api'
 
-const route = useRoute();
+const route = useRoute()
 
-const loading = ref(false);
-const job = ref(null);
-const applications = ref([]);
-const filter = ref('all');
+// ════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════
 
-const selectedApplication = ref(null);
-const modalEmployerNote = ref('');
+const loading      = ref(false)
+const job          = ref(null)          // Thông tin job (nếu xem theo job)
+const applications = ref([])            // Danh sách ứng viên
+const filter       = ref('all')         // Bộ lọc trạng thái
 
-const showRejectModal = ref(false);
-const rejectNote = ref('');
-const rejectingAppId = ref(null);
+// Modal 1: Chi tiết ứng viên
+const selectedApplication = ref(null)
+const modalNote            = ref('')
 
-const showReportModal = ref(false);
-const reportingApplication = ref(null);
-const reportEvidenceText = ref('');
-const reportForm = ref({
-  reason: '',
-  description: '',
-});
+// Modal 2: Từ chối
+const showRejectModal  = ref(false)
+const rejectNote       = ref('')
+const rejectingAppId   = ref(null)
 
-const showInterviewModal = ref(false);
+// Modal 3: Lên lịch phỏng vấn
+const showInterviewModal = ref(false)
 const interviewForm = ref({
   applicationId: '',
   candidateName: '',
-  scheduledAt: '',
-  mode: 'online',
-  location: '',
-  meetingLink: '',
-  note: '',
-});
+  scheduledAt:   '',
+  mode:          'online',
+  location:      '',
+  meetingLink:   '',
+  note:          '',
+})
 
-const hasJobId = computed(() => !!route.params.jobId);
+// Modal 4: Report ứng viên
+const showReportModal    = ref(false)
+const reportingApp       = ref(null)
+const reportEvidenceText = ref('')
+const reportForm = ref({ reason: '', description: '' })
 
-const pageTitle = computed(() =>
-  hasJobId.value ? '👥 Quản lý ứng viên' : '👥 Tất cả ứng viên'
-);
+// ════════════════════════════════════════
+// COMPUTED
+// ════════════════════════════════════════
 
-const pageSubtitle = computed(() =>
-  hasJobId.value
-    ? 'Xem và xử lý các đơn ứng tuyển cho tin này'
-    : 'Tổng hợp tất cả ứng viên từ các tin tuyển dụng của bạn'
-);
+// Có jobId trong URL không?
+const hasJobId = computed(() => !!route.params.jobId)
 
-const pendingCount = computed(() =>
-  applications.value.filter((a) => a.status === 'pending').length
-);
+// Tiêu đề trang thay đổi theo route
+const pageTitle    = computed(() => hasJobId.value ? 'Quản lý ứng viên' : 'Tất cả ứng viên')
+const pageSubtitle = computed(() => hasJobId.value ? 'Xem và xử lý đơn ứng tuyển cho tin này' : 'Tổng hợp tất cả ứng viên từ các tin của bạn')
 
-const reviewingCount = computed(() =>
-  applications.value.filter((a) => a.status === 'reviewing').length
-);
+// Đếm theo từng trạng thái
+const pendingCount           = computed(() => applications.value.filter(a => a.status === 'pending').length)
+const reviewingCount         = computed(() => applications.value.filter(a => a.status === 'reviewing').length)
+const shortlistedCount       = computed(() => applications.value.filter(a => a.status === 'shortlisted').length)
+const interviewingCount      = computed(() => applications.value.filter(a => a.status === 'interviewing').length)
+const offeredCount           = computed(() => applications.value.filter(a => a.status === 'offered').length)
+const hiredCount             = computed(() => applications.value.filter(a => a.status === 'hired').length)
+const scheduledInterviewCount = computed(() => applications.value.filter(a => a.interview?.status === 'scheduled').length)
 
-const shortlistedCount = computed(() =>
-  applications.value.filter((a) => a.status === 'shortlisted').length
-);
-
-const interviewingCount = computed(() =>
-  applications.value.filter((a) => a.status === 'interviewing').length
-);
-
-const offeredCount = computed(() =>
-  applications.value.filter((a) => a.status === 'offered').length
-);
-
-const hiredCount = computed(() =>
-  applications.value.filter((a) => a.status === 'hired').length
-);
-
-const rejectedCount = computed(() =>
-  applications.value.filter((a) => a.status === 'rejected').length
-);
-
-const scheduledInterviewCount = computed(() =>
-  applications.value.filter((a) => a.interview?.status === 'scheduled').length
-);
-
+// Danh sách sau khi lọc
 const filteredApplications = computed(() => {
-  if (filter.value === 'all') return applications.value;
-  return applications.value.filter((a) => a.status === filter.value);
-});
+  if (filter.value === 'all') return applications.value
+  return applications.value.filter(a => a.status === filter.value)
+})
 
-const fetchJobDetails = async () => {
-  if (!hasJobId.value) {
-    job.value = null;
-    return;
+// Cấu hình 8 thẻ thống kê – dùng v-for
+const statCards = computed(() => [
+  { icon: '📋', label: 'Tổng ứng viên',   value: applications.value.length, gradient: 'grad-purple' },
+  { icon: '⏳', label: 'Chờ xử lý',        value: pendingCount.value,         gradient: 'grad-pink' },
+  { icon: '👀', label: 'Đang xem xét',     value: reviewingCount.value,       gradient: 'grad-blue' },
+  { icon: '📌', label: 'Shortlist',         value: shortlistedCount.value,     gradient: 'grad-indigo' },
+  { icon: '🎤', label: 'Phỏng vấn',        value: interviewingCount.value,    gradient: 'grad-cyan' },
+  { icon: '🎁', label: 'Đã gửi offer',     value: offeredCount.value,         gradient: 'grad-orange' },
+  { icon: '✅', label: 'Đã tuyển',          value: hiredCount.value,           gradient: 'grad-green' },
+  { icon: '📅', label: 'Đã lên lịch PV',  value: scheduledInterviewCount.value, gradient: 'grad-yellow' },
+])
+
+// Cấu hình tabs lọc
+const filterTabs = [
+  { value: 'all',         label: 'Tất cả' },
+  { value: 'pending',     label: '⏳ Chờ xử lý' },
+  { value: 'reviewing',   label: '👀 Đang xem xét' },
+  { value: 'shortlisted', label: '📌 Shortlist' },
+  { value: 'interviewing',label: '🎤 Phỏng vấn' },
+  { value: 'offered',     label: '🎁 Offer' },
+  { value: 'hired',       label: '✅ Đã tuyển' },
+  { value: 'rejected',    label: '❌ Từ chối' },
+]
+
+// ════════════════════════════════════════
+// HÀM KIỂM TRA ĐIỀU KIỆN HIỂN THỊ NÚT
+// ════════════════════════════════════════
+// Tách ra hàm riêng để template gọn hơn và dễ giải thích
+
+function canScheduleInterview(app) {
+  return app.status !== 'rejected' && app.status !== 'withdrawn' && app.status !== 'hired'
+}
+
+function canSendOffer(app) {
+  return app.status === 'shortlisted' || app.status === 'interviewing'
+}
+
+function canCancelInterview(app) {
+  return app.interview?.status && app.interview.status !== 'none' && app.interview.status !== 'cancelled'
+}
+
+function canReject(app) {
+  return app.status !== 'rejected' && app.status !== 'hired'
+}
+
+// ════════════════════════════════════════
+// HÀM TIỆN ÍCH
+// ════════════════════════════════════════
+
+function getInitials(name) {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/)
+  return parts.length >= 2 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : name.substring(0, 2).toUpperCase()
+}
+
+function formatDate(date) {
+  if (!date) return '—'
+  return new Date(date).toLocaleDateString('vi-VN')
+}
+
+function formatDateTime(date) {
+  if (!date) return '—'
+  return new Date(date).toLocaleString('vi-VN')
+}
+
+function formatNumber(num) {
+  return num ? new Intl.NumberFormat('vi-VN').format(num) : '0'
+}
+
+function truncateText(text, max = 200) {
+  if (!text) return ''
+  return text.length <= max ? text : text.slice(0, max) + '...'
+}
+
+function getStatusLabel(status) {
+  const labels = {
+    pending:     '⏳ Chờ xử lý',
+    reviewing:   '👀 Đang xem xét',
+    shortlisted: '📌 Shortlist',
+    interviewing:'🎤 Phỏng vấn',
+    offered:     '🎁 Đã gửi offer',
+    hired:       '✅ Đã tuyển',
+    rejected:    '❌ Đã từ chối',
+    withdrawn:   '↩️ Đã rút đơn',
   }
+  return labels[status] || status
+}
 
-  try {
-    const res = await api.get(`/jobs/${route.params.jobId}`);
-    job.value = res.data?.job || null;
-  } catch (error) {
-    console.error('Error fetching job:', error);
-    job.value = null;
+function getInterviewStatusLabel(status) {
+  const map = {
+    none:      'Chưa có lịch',
+    scheduled: 'Đã lên lịch',
+    accepted:  'Ứng viên đã xác nhận',
+    declined:  'Ứng viên từ chối',
+    cancelled: 'Đã hủy',
+    completed: 'Đã hoàn thành',
   }
-};
+  return map[status] || status
+}
 
-const fetchApplicationsByJob = async () => {
-  const params = {};
-  if (filter.value !== 'all') params.status = filter.value;
+function getEmptyMessage() {
+  const messages = {
+    all:         'Chưa có ứng viên nào',
+    pending:     'Không có ứng viên chờ xử lý',
+    reviewing:   'Không có ứng viên đang xem xét',
+    shortlisted: 'Không có ứng viên shortlisted',
+    interviewing:'Không có ứng viên đang phỏng vấn',
+    offered:     'Chưa gửi offer cho ai',
+    hired:       'Chưa tuyển ứng viên nào',
+    rejected:    'Chưa từ chối ai',
+  }
+  return messages[filter.value] || 'Không có dữ liệu'
+}
 
-  const res = await api.get(`/applications/job/${route.params.jobId}`, { params });
-  applications.value = res.data?.applications || [];
-};
+function getJobTypeLabel(type) {
+  const map = { 'full-time':'Toàn thời gian','part-time':'Bán thời gian',internship:'Thực tập',contract:'Hợp đồng',freelance:'Freelance' }
+  return map[type] || type || '—'
+}
 
-const fetchAllEmployerApplications = async () => {
-  const params = { sort: '-createdAt' };
-  if (filter.value !== 'all') params.status = filter.value;
+function getResumeUrl(app) {
+  return app?.resumeUrl || app?.student?.resumeUrl || app?.cv?.url || ''
+}
 
-  const res = await api.get('/applications/employer', { params });
-  applications.value = res.data?.applications || [];
-};
+function getFullUrl(url) {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  const origin = (api.defaults.baseURL || '').replace(/\/api\/?$/, '')
+  return `${origin}${url}`
+}
 
-const fetchPageData = async () => {
+// ════════════════════════════════════════
+// HÀM GỌI API – LOAD DỮ LIỆU
+// ════════════════════════════════════════
+
+async function fetchPageData() {
   try {
-    loading.value = true;
-
+    loading.value = true
     if (hasJobId.value) {
-      await Promise.all([fetchJobDetails(), fetchApplicationsByJob()]);
+      // Xem ứng viên của 1 job cụ thể
+      await Promise.all([fetchJobDetails(), fetchApplicationsByJob()])
     } else {
-      job.value = null;
-      await fetchAllEmployerApplications();
+      // Xem tất cả ứng viên
+      job.value = null
+      await fetchAllApplications()
     }
   } catch (error) {
-    console.error('Error fetching applications page:', error);
-    alert(error.response?.data?.message || 'Không thể tải danh sách ứng viên');
+    console.error('Error fetching page:', error)
+    alert(error.response?.data?.message || 'Không thể tải danh sách ứng viên')
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 
-const changeFilter = async (newFilter) => {
-  filter.value = newFilter;
-  await fetchPageData();
-};
-
-const viewApplication = async (app) => {
+async function fetchJobDetails() {
   try {
-    const res = await api.get(`/applications/${app._id}`);
-    selectedApplication.value = res.data?.application || app;
-    modalEmployerNote.value = selectedApplication.value?.employerNote || '';
+    const res = await api.get(`/jobs/${route.params.jobId}`)
+    job.value = res.data?.job || null
   } catch (error) {
-    console.error('Error fetching application detail:', error);
-    selectedApplication.value = app;
-    modalEmployerNote.value = app.employerNote || '';
+    job.value = null
   }
-};
+}
 
-const closeModal = () => {
-  selectedApplication.value = null;
-  modalEmployerNote.value = '';
-};
+async function fetchApplicationsByJob() {
+  const params = {}
+  if (filter.value !== 'all') params.status = filter.value
+  const res = await api.get(`/applications/job/${route.params.jobId}`, { params })
+  applications.value = res.data?.applications || []
+}
 
-const refreshSelectedApplication = async (appId) => {
+async function fetchAllApplications() {
+  const params = { sort: '-createdAt' }
+  if (filter.value !== 'all') params.status = filter.value
+  const res = await api.get('/applications/employer', { params })
+  applications.value = res.data?.applications || []
+}
+
+async function changeFilter(newFilter) {
+  filter.value = newFilter
+  await fetchPageData()
+}
+
+// ════════════════════════════════════════
+// HÀM QUẢN LÝ MODAL & HÀNH ĐỘNG
+// ════════════════════════════════════════
+
+async function openDetailModal(app) {
   try {
-    const res = await api.get(`/applications/${appId}`);
-    selectedApplication.value = res.data?.application || null;
-    modalEmployerNote.value = selectedApplication.value?.employerNote || '';
-  } catch (error) {
-    console.error('Error refreshing application detail:', error);
+    const res = await api.get(`/applications/${app._id}`)
+    selectedApplication.value = res.data?.application || app
+  } catch {
+    selectedApplication.value = app
   }
-};
+  modalNote.value = selectedApplication.value?.employerNote || ''
+}
 
-const openRejectModal = (app) => {
-  rejectingAppId.value = app._id;
-  rejectNote.value =
-    selectedApplication.value && selectedApplication.value._id === app._id
-      ? modalEmployerNote.value
-      : app.employerNote || '';
-  showRejectModal.value = true;
-};
+function closeModal() {
+  selectedApplication.value = null
+  modalNote.value = ''
+}
 
-const closeRejectModal = () => {
-  showRejectModal.value = false;
-  rejectNote.value = '';
-  rejectingAppId.value = null;
-};
+async function refreshSelected(appId) {
+  try {
+    const res = await api.get(`/applications/${appId}`)
+    selectedApplication.value = res.data?.application || null
+    modalNote.value = selectedApplication.value?.employerNote || ''
+  } catch (e) { }
+}
 
-const confirmReject = async () => {
-  if (!rejectingAppId.value) return;
-  await updateStatus(rejectingAppId.value, 'rejected', rejectNote.value);
-  closeRejectModal();
-};
-
-const updateStatus = async (appId, status, note = undefined) => {
-  const actionTextMap = {
-    reviewing: 'đánh dấu đang xem xét',
+// Cập nhật trạng thái ứng viên
+async function updateStatus(appId, status, note = undefined) {
+  const actionMap = {
+    reviewing:   'đánh dấu đang xem xét',
     shortlisted: 'shortlist ứng viên',
-    interviewing: 'chuyển sang vòng phỏng vấn',
-    offered: 'gửi offer',
-    hired: 'tuyển chính thức',
-    rejected: 'từ chối ứng viên',
-  };
-
-  if (!window.confirm(`Xác nhận ${actionTextMap[status] || 'cập nhật trạng thái'}?`)) return;
-
-  try {
-    const payload = { status };
-    if (typeof note === 'string') payload.employerNote = note;
-
-    await api.put(`/applications/${appId}/status`, payload);
-
-    alert('✅ Cập nhật trạng thái thành công!');
-    await fetchPageData();
-
-    if (selectedApplication.value?._id === appId) {
-      await refreshSelectedApplication(appId);
-    }
-  } catch (error) {
-    console.error('Error updating status:', error);
-    alert(error.response?.data?.message || 'Không thể cập nhật trạng thái');
+    offered:     'gửi offer',
+    hired:       'tuyển chính thức',
+    rejected:    'từ chối ứng viên',
   }
-};
-
-const updateStatusWithNote = async (appId, status) => {
-  await updateStatus(appId, status, modalEmployerNote.value);
-};
-
-const saveNote = async (appId) => {
+  if (!confirm(`Xác nhận ${actionMap[status] || 'cập nhật trạng thái'}?`)) return
   try {
-    await api.put(`/applications/${appId}/note`, {
-      employerNote: modalEmployerNote.value,
-    });
-
-    alert('✅ Đã lưu ghi chú!');
-    await fetchPageData();
-
-    if (selectedApplication.value?._id === appId) {
-      await refreshSelectedApplication(appId);
-    }
+    const payload = { status }
+    if (typeof note === 'string') payload.employerNote = note
+    await api.put(`/applications/${appId}/status`, payload)
+    alert('✅ Cập nhật trạng thái thành công!')
+    await fetchPageData()
+    if (selectedApplication.value?._id === appId) await refreshSelected(appId)
   } catch (error) {
-    console.error('Error saving note:', error);
-    alert(error.response?.data?.message || 'Không thể lưu ghi chú');
+    alert(error.response?.data?.message || 'Không thể cập nhật trạng thái')
   }
-};
+}
 
-const openInterviewModal = (app) => {
+// Cập nhật trạng thái kèm ghi chú từ modal
+async function updateStatusWithNote(appId, status) {
+  await updateStatus(appId, status, modalNote.value)
+}
+
+// Lưu ghi chú employer
+async function saveNote(appId) {
+  try {
+    await api.put(`/applications/${appId}/note`, { employerNote: modalNote.value })
+    alert('✅ Đã lưu ghi chú!')
+    await fetchPageData()
+    if (selectedApplication.value?._id === appId) await refreshSelected(appId)
+  } catch (error) {
+    alert(error.response?.data?.message || 'Không thể lưu ghi chú')
+  }
+}
+
+// Modal từ chối
+function openRejectModal(app) {
+  rejectingAppId.value = app._id
+  rejectNote.value = (selectedApplication.value?._id === app._id ? modalNote.value : app.employerNote) || ''
+  showRejectModal.value = true
+}
+function closeRejectModal() { showRejectModal.value = false; rejectNote.value = ''; rejectingAppId.value = null }
+async function confirmReject() {
+  if (!rejectingAppId.value) return
+  await updateStatus(rejectingAppId.value, 'rejected', rejectNote.value)
+  closeRejectModal()
+}
+
+// Modal lên lịch phỏng vấn
+function openInterviewModal(app) {
   interviewForm.value = {
     applicationId: app._id,
     candidateName: app.student?.fullName || '',
-    scheduledAt: '',
-    mode: app.interview?.mode || 'online',
-    location: app.interview?.location || '',
-    meetingLink: app.interview?.meetingLink || '',
-    note: app.interview?.note || '',
-  };
-  showInterviewModal.value = true;
-};
+    scheduledAt:   '',
+    mode:          app.interview?.mode || 'online',
+    location:      app.interview?.location || '',
+    meetingLink:   app.interview?.meetingLink || '',
+    note:          app.interview?.note || '',
+  }
+  showInterviewModal.value = true
+}
 
-const closeInterviewModal = () => {
-  showInterviewModal.value = false;
-  interviewForm.value = {
-    applicationId: '',
-    candidateName: '',
-    scheduledAt: '',
-    mode: 'online',
-    location: '',
-    meetingLink: '',
-    note: '',
-  };
-};
+function closeInterviewModal() {
+  showInterviewModal.value = false
+  interviewForm.value = { applicationId: '', candidateName: '', scheduledAt: '', mode: 'online', location: '', meetingLink: '', note: '' }
+}
 
-const scheduleInterview = async () => {
+async function scheduleInterview() {
   try {
-    const payload = {
-      scheduledAt: interviewForm.value.scheduledAt,
-      mode: interviewForm.value.mode,
-      location: interviewForm.value.location,
-      meetingLink: interviewForm.value.meetingLink,
-      note: interviewForm.value.note,
-    };
-
-    const res = await api.put(
-      `/applications/${interviewForm.value.applicationId}/interview/schedule`,
-      payload
-    );
-
-    alert(res.data?.message || 'Đã lên lịch phỏng vấn');
-    const currentId = interviewForm.value.applicationId;
-    closeInterviewModal();
-    await fetchPageData();
-
-    if (selectedApplication.value?._id === currentId) {
-      await refreshSelectedApplication(currentId);
-    }
+    const { applicationId, scheduledAt, mode, location, meetingLink, note } = interviewForm.value
+    await api.put(`/applications/${applicationId}/interview/schedule`, { scheduledAt, mode, location, meetingLink, note })
+    alert('✅ Đã lên lịch phỏng vấn!')
+    const id = applicationId
+    closeInterviewModal()
+    await fetchPageData()
+    if (selectedApplication.value?._id === id) await refreshSelected(id)
   } catch (error) {
-    console.error('Error scheduling interview:', error);
-    alert(error.response?.data?.message || 'Không thể lên lịch phỏng vấn');
+    alert(error.response?.data?.message || 'Không thể lên lịch phỏng vấn')
   }
-};
+}
 
-const cancelInterview = async (app) => {
-  const ok = confirm('Bạn có chắc muốn hủy lịch phỏng vấn này không?');
-  if (!ok) return;
-
+async function cancelInterview(app) {
+  if (!confirm('Bạn có chắc muốn hủy lịch phỏng vấn?')) return
   try {
-    const res = await api.put(`/applications/${app._id}/interview/cancel`);
-    alert(res.data?.message || 'Đã hủy lịch phỏng vấn');
-    await fetchPageData();
-
-    if (selectedApplication.value?._id === app._id) {
-      await refreshSelectedApplication(app._id);
-    }
+    await api.put(`/applications/${app._id}/interview/cancel`)
+    alert('✅ Đã hủy lịch phỏng vấn!')
+    await fetchPageData()
+    if (selectedApplication.value?._id === app._id) await refreshSelected(app._id)
   } catch (error) {
-    console.error('Error cancelling interview:', error);
-    alert(error.response?.data?.message || 'Không thể hủy lịch phỏng vấn');
+    alert(error.response?.data?.message || 'Không thể hủy lịch')
   }
-};
+}
 
-const openReportModal = (app) => {
-  reportingApplication.value = app;
-  reportForm.value = {
-    reason: '',
-    description: '',
-  };
-  reportEvidenceText.value = '';
-  showReportModal.value = true;
-};
-
-const closeReportModal = () => {
-  showReportModal.value = false;
-  reportingApplication.value = null;
-  reportForm.value = {
-    reason: '',
-    description: '',
-  };
-  reportEvidenceText.value = '';
-};
-
-const submitEmployerReport = async () => {
-  if (!reportingApplication.value?._id) {
-    alert('Không tìm thấy application để report');
-    return;
-  }
-
-  if (!reportForm.value.reason) {
-    alert('Vui lòng chọn lý do report');
-    return;
-  }
-
-  if (!reportForm.value.description.trim()) {
-    alert('Vui lòng nhập mô tả chi tiết');
-    return;
-  }
-
+// Modal report ứng viên
+function openReportModal(app) {
+  reportingApp.value = app
+  reportForm.value = { reason: '', description: '' }
+  reportEvidenceText.value = ''
+  showReportModal.value = true
+}
+function closeReportModal() { showReportModal.value = false; reportingApp.value = null }
+async function submitReport() {
+  if (!reportForm.value.reason)           { alert('Vui lòng chọn lý do report'); return }
+  if (!reportForm.value.description.trim()) { alert('Vui lòng nhập mô tả'); return }
   try {
-    const evidenceUrls = reportEvidenceText.value
-      .split('\n')
-      .map((item) => item.trim())
-      .filter(Boolean);
-
+    const evidenceUrls = reportEvidenceText.value.split('\n').map(s => s.trim()).filter(Boolean)
     await api.post('/reports/employer/candidate', {
-      applicationId: reportingApplication.value._id,
-      reason: reportForm.value.reason,
-      description: reportForm.value.description.trim(),
+      applicationId: reportingApp.value._id,
+      reason:        reportForm.value.reason,
+      description:   reportForm.value.description.trim(),
       evidenceUrls,
-    });
-
-    alert('✅ Đã gửi report ứng viên thành công!');
-    closeReportModal();
+    })
+    alert('✅ Đã gửi report thành công!')
+    closeReportModal()
   } catch (error) {
-    console.error('Error reporting candidate:', error);
-    alert(error.response?.data?.message || 'Không thể gửi report');
+    alert(error.response?.data?.message || 'Không thể gửi report')
   }
-};
+}
 
-const getInitials = (name) => {
-  if (!name) return '?';
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-  }
-  return name.substring(0, 2).toUpperCase();
-};
-
-const formatNumber = (num) => {
-  if (num == null) return '0';
-  return new Intl.NumberFormat('vi-VN').format(num);
-};
-
-const formatDate = (date) => {
-  if (!date) return 'Chưa cập nhật';
-  return new Date(date).toLocaleDateString('vi-VN');
-};
-
-const formatDateTime = (date) => {
-  if (!date) return 'Chưa cập nhật';
-  return new Date(date).toLocaleString('vi-VN');
-};
-
-const truncateText = (text, length = 120) => {
-  if (!text) return '';
-  if (text.length <= length) return text;
-  return `${text.slice(0, length)}...`;
-};
-
-const getStatusLabel = (status) => {
-  const labels = {
-    pending: '⏳ Chờ xử lý',
-    reviewing: '👀 Đang xem xét',
-    shortlisted: '📌 Shortlist',
-    interviewing: '🎤 Phỏng vấn',
-    offered: '🎁 Đã gửi offer',
-    hired: '✅ Đã tuyển',
-    rejected: '❌ Đã từ chối',
-    withdrawn: '↩️ Đã rút đơn',
-  };
-  return labels[status] || status;
-};
-
-const getInterviewStatusLabel = (status) => {
-  const map = {
-    none: 'Chưa có lịch',
-    scheduled: 'Đã lên lịch',
-    accepted: 'Ứng viên đã xác nhận',
-    declined: 'Ứng viên đã từ chối',
-    cancelled: 'Đã hủy',
-    completed: 'Đã hoàn thành',
-  };
-  return map[status] || status;
-};
-
-const getEmptyMessage = () => {
-  const messages = {
-    all: 'Chưa có ứng viên nào ứng tuyển',
-    pending: 'Không có ứng viên chờ xử lý',
-    reviewing: 'Không có ứng viên đang xem xét',
-    shortlisted: 'Không có ứng viên shortlisted',
-    interviewing: 'Không có ứng viên đang phỏng vấn',
-    offered: 'Chưa gửi offer cho ứng viên nào',
-    hired: 'Chưa tuyển ứng viên nào',
-    rejected: 'Chưa từ chối ứng viên nào',
-  };
-  return messages[filter.value] || 'Không có dữ liệu';
-};
-
-const getJobTypeLabel = (type) => {
-  const types = {
-    'full-time': 'Toàn thời gian',
-    'part-time': 'Bán thời gian',
-    internship: 'Thực tập',
-    contract: 'Hợp đồng',
-    freelance: 'Freelance',
-  };
-  return types[type] || type || 'Không xác định';
-};
-
-const getResumeUrl = (app) => {
-  return app?.resumeUrl || app?.student?.resumeUrl || app?.cv?.url || '';
-};
-
-const getFullUrl = (url) => {
-  if (!url) return '';
-  if (url.startsWith('http')) return url;
-
-  const apiBase = api.defaults.baseURL || '';
-  const origin = apiBase.replace(/\/api\/?$/, '');
-
-  return `${origin}${url}`;
-};
-
-onMounted(() => {
-  fetchPageData();
-});
-
-watch(
-  () => route.params.jobId,
-  () => {
-    fetchPageData();
-  }
-);
+// ── Tải lại khi jobId trên URL thay đổi ──
+onMounted(() => { fetchPageData() })
+watch(() => route.params.jobId, () => { fetchPageData() })
 </script>
 
 <style scoped>
-.employer-applications {
-  min-height: 100vh;
-  background: #f5f7fa;
-}
+/* ════════════════════════════════════
+   LAYOUT
+════════════════════════════════════ */
+.page { min-height: 100vh; background: #f5f7fa; }
 
 .container {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 30px 20px;
+  padding: 28px 40px 48px;
 }
 
 .page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 20px;
-  gap: 20px;
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 16px; margin-bottom: 20px;
 }
 
-.page-header h1 {
-  font-size: 32px;
-  color: #2c3e50;
-  margin-bottom: 5px;
-}
+.page-header h1 { font-size: 24px; font-weight: 700; color: #2c3e50; margin-bottom: 4px; }
+.page-sub { font-size: 14px; color: #888; }
 
-.subtitle {
-  color: #666;
-  font-size: 16px;
-}
-
-.job-info-card {
+/* Job banner */
+.job-banner {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 25px;
-  border-radius: 12px;
-  margin-bottom: 20px;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  color: white; padding: 22px 28px; border-radius: 12px; margin-bottom: 20px;
+  display: flex; justify-content: space-between; align-items: center; gap: 16px;
 }
 
-.job-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-}
+.job-banner h2 { font-size: 20px; margin-bottom: 4px; }
+.job-banner p  { opacity: 0.9; font-size: 14px; }
+.job-banner-stats { display: flex; gap: 20px; font-size: 14px; white-space: nowrap; }
 
-.job-header h2 {
-  font-size: 24px;
-  margin-bottom: 5px;
-}
-
-.job-header p {
-  opacity: 0.9;
-}
-
-.job-stats-inline {
-  display: flex;
-  gap: 20px;
-  font-size: 14px;
-}
-
+/* Stats grid */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 18px;
-  margin-bottom: 24px;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
 .stat-card {
-  background: white;
-  border-radius: 16px;
-  padding: 22px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  background: white; border-radius: 12px; padding: 16px;
+  display: flex; align-items: center; gap: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.05); transition: transform 0.15s;
 }
+
+.stat-card:hover { transform: translateY(-2px); }
 
 .stat-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 26px;
-  color: white;
+  width: 44px; height: 44px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; color: white; flex-shrink: 0;
 }
 
-.gradient-purple {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-.gradient-pink {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-}
-.gradient-blue {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-}
-.gradient-indigo {
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-}
-.gradient-cyan {
-  background: linear-gradient(135deg, #06b6d4 0%, #0284c7 100%);
-}
-.gradient-orange {
-  background: linear-gradient(135deg, #fb923c 0%, #f97316 100%);
-}
-.gradient-green {
-  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-}
-.gradient-yellow {
-  background: linear-gradient(135deg, #f59e0b 0%, #facc15 100%);
+.grad-purple { background: linear-gradient(135deg,#667eea,#764ba2); }
+.grad-pink   { background: linear-gradient(135deg,#f093fb,#f5576c); }
+.grad-blue   { background: linear-gradient(135deg,#4facfe,#00f2fe); }
+.grad-indigo { background: linear-gradient(135deg,#8b5cf6,#7c3aed); }
+.grad-cyan   { background: linear-gradient(135deg,#06b6d4,#0284c7); }
+.grad-orange { background: linear-gradient(135deg,#fb923c,#f97316); }
+.grad-green  { background: linear-gradient(135deg,#43e97b,#38f9d7); }
+.grad-yellow { background: linear-gradient(135deg,#f59e0b,#facc15); }
+
+.stat-info h3 { font-size: 22px; font-weight: 700; color: #1f2937; margin-bottom: 2px; }
+.stat-info p  { font-size: 11px; color: #888; }
+
+/* Filter bar */
+.filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+
+.filter-btn {
+  padding: 8px 16px; border: none; border-radius: 99px; background: white; color: #555;
+  font-weight: 600; font-size: 13px; cursor: pointer; font-family: inherit;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06); transition: all 0.15s;
 }
 
-.stat-info h3 {
-  margin: 0;
-  font-size: 28px;
-  color: #1f2937;
-}
+.filter-btn.active { background: #2563eb; color: white; }
 
-.stat-info p {
-  margin: 4px 0 0;
-  color: #6b7280;
-}
-
-.filter-tabs {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 24px;
-}
-
-.filter-tabs button {
-  border: none;
-  background: white;
-  color: #334155;
-  padding: 10px 16px;
-  border-radius: 999px;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
-  font-weight: 600;
-}
-
-.filter-tabs button.active {
-  background: #2563eb;
-  color: white;
-}
-
-.loading,
-.empty-state {
-  background: white;
-  border-radius: 16px;
-  padding: 50px 20px;
-  text-align: center;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-}
+/* Loading / Empty */
+.loading-state { text-align: center; padding: 60px; color: #999; }
 
 .spinner {
-  width: 38px;
-  height: 38px;
-  border: 4px solid #e5e7eb;
-  border-top-color: #2563eb;
-  border-radius: 50%;
-  margin: 0 auto 16px;
-  animation: spin 0.8s linear infinite;
+  width: 36px; height: 36px; border: 4px solid #e0e0e0; border-top-color: #667eea;
+  border-radius: 50%; margin: 0 auto 16px; animation: spin 0.7s linear infinite;
 }
 
-.application-cards {
-  display: grid;
-  gap: 20px;
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.empty-state { text-align: center; padding: 60px; background: white; border-radius: 12px; color: #bbb; }
+.empty-icon  { font-size: 36px; margin-bottom: 10px; }
+
+/* Application card */
+.app-list { display: flex; flex-direction: column; gap: 14px; }
+
+.app-card {
+  background: white; border-radius: 14px; padding: 22px 24px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.06); border: 1.5px solid transparent;
+  transition: all 0.15s;
 }
 
-.application-card {
-  background: white;
-  border-radius: 18px;
-  padding: 22px;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+.app-card:hover { border-color: #667eea; }
+
+/* Header card */
+.app-card-head {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px;
 }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
-}
-
-.candidate-info {
-  display: flex;
-  gap: 14px;
-  align-items: center;
-}
+.candidate-row { display: flex; gap: 14px; align-items: center; }
 
 .avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
+  width: 52px; height: 52px; border-radius: 50%;
   background: linear-gradient(135deg, #667eea, #764ba2);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 18px;
-  flex-shrink: 0;
+  color: white; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 18px; flex-shrink: 0;
 }
 
-.candidate-details h3 {
-  margin: 0 0 6px;
-  color: #1f2937;
+.candidate-info h3 { font-size: 16px; font-weight: 700; color: #1f2937; margin-bottom: 3px; }
+.candidate-info p  { font-size: 13px; color: #6b7280; margin-bottom: 2px; }
+
+.head-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+
+/* Status badges */
+.status-badge, .interview-chip {
+  display: inline-block; padding: 5px 12px; border-radius: 99px;
+  font-size: 12px; font-weight: 700; white-space: nowrap;
 }
 
-.contact {
-  margin: 2px 0;
-  color: #6b7280;
-  font-size: 14px;
-}
+.status-pending     { background: #fff7ed; color: #c2410c; }
+.status-reviewing   { background: #eff6ff; color: #1d4ed8; }
+.status-shortlisted { background: #ede9fe; color: #6d28d9; }
+.status-interviewing{ background: #e0f2fe; color: #075985; }
+.status-offered     { background: #fff7ed; color: #c2410c; }
+.status-hired       { background: #ecfdf5; color: #047857; }
+.status-rejected    { background: #fef2f2; color: #b91c1c; }
+.status-withdrawn   { background: #f3f4f6; color: #4b5563; }
 
-.header-right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
-}
+.iv-scheduled  { background: #ede9fe; color: #6d28d9; }
+.iv-accepted   { background: #ecfdf5; color: #047857; }
+.iv-declined   { background: #fff7ed; color: #c2410c; }
+.iv-cancelled  { background: #f3f4f6; color: #4b5563; }
+.iv-completed  { background: #e0f2fe; color: #0369a1; }
 
-.status-badge,
-.interview-status-chip {
-  padding: 8px 14px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.status-badge.pending {
-  background: #fff7ed;
-  color: #c2410c;
-}
-.status-badge.reviewing {
-  background: #eff6ff;
-  color: #1d4ed8;
-}
-.status-badge.shortlisted {
-  background: #ede9fe;
-  color: #6d28d9;
-}
-.status-badge.interviewing {
-  background: #e0f2fe;
-  color: #075985;
-}
-.status-badge.offered {
-  background: #fff7ed;
-  color: #c2410c;
-}
-.status-badge.hired {
-  background: #ecfdf5;
-  color: #047857;
-}
-.status-badge.rejected {
-  background: #fef2f2;
-  color: #b91c1c;
-}
-.status-badge.withdrawn {
-  background: #f3f4f6;
-  color: #4b5563;
-}
-
-.interview-status-chip.scheduled {
-  background: #ede9fe;
-  color: #6d28d9;
-}
-.interview-status-chip.accepted {
-  background: #ecfdf5;
-  color: #047857;
-}
-.interview-status-chip.declined {
-  background: #fff7ed;
-  color: #c2410c;
-}
-.interview-status-chip.cancelled {
-  background: #f3f4f6;
-  color: #4b5563;
-}
-.interview-status-chip.completed {
-  background: #e0f2fe;
-  color: #0369a1;
-}
-
-.info-grid,
-.detail-grid {
+/* App info grid */
+.app-info-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.info-item,
-.detail-item {
-  background: #f8fafc;
-  border-radius: 12px;
-  padding: 12px 14px;
-}
-
-.label {
-  display: block;
-  color: #64748b;
-  font-size: 13px;
-  margin-bottom: 4px;
-}
-
-.value {
-  color: #111827;
-  font-weight: 600;
-}
-
-.cover-letter,
-.employer-note,
-.interview-box {
-  margin-top: 12px;
-  padding: 14px;
-  border-radius: 12px;
-}
-
-.cover-letter {
-  background: #f8fafc;
-}
-
-.employer-note {
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
-}
-
-.interview-box {
-  background: #eef6ff;
-  border: 1px solid #cfe3ff;
-}
-
-.cover-letter p,
-.employer-note p,
-.interview-box p {
-  margin: 8px 0 0;
-  color: #374151;
-  line-height: 1.55;
-}
-
-.card-footer,
-.modal-actions {
-  display: flex;
-  flex-wrap: wrap;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 10px;
-  margin-top: 18px;
+  margin-bottom: 12px;
 }
 
-.btn-action,
-.btn {
-  border: none;
-  cursor: pointer;
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-weight: 700;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: 0.2s ease;
-}
+.info-item { background: #f8fafc; border-radius: 8px; padding: 10px 12px; font-size: 13px; }
+.info-label { display: block; color: #888; font-size: 11px; margin-bottom: 3px; }
 
-.btn-action:hover,
-.btn:hover {
-  transform: translateY(-1px);
-}
+/* Thư xin việc, ghi chú, lịch PV */
+.cover-letter-preview { background: #f8f9fa; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; font-size: 13px; }
+.cover-letter-preview strong { display: block; margin-bottom: 4px; }
+.cover-letter-preview p { color: #555; line-height: 1.6; margin: 0; }
+
+.employer-note-box { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; font-size: 13px; }
+.employer-note-box p { color: #92400e; margin-top: 4px; }
+
+.interview-box { background: #eef6ff; border: 1px solid #cfe3ff; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; font-size: 13px; }
+.interview-box p { color: #374151; margin: 4px 0; }
+.interview-box a { color: #2563eb; }
+
+/* Nút hành động trong card */
+.app-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; padding-top: 14px; border-top: 1px solid #f0f0f0; }
 
 .btn-action {
-  background: #e5e7eb;
-  color: #1f2937;
+  padding: 8px 14px; border: none; border-radius: 8px;
+  font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: none;
+  display: inline-flex; align-items: center; font-family: inherit;
+  background: #e5e7eb; color: #1f2937; transition: all 0.15s;
 }
 
-.btn-action.primary,
-.btn.btn-primary {
-  background: #2563eb;
-  color: white;
+.btn-action:hover { transform: translateY(-1px); }
+.btn-action.btn-primary { background: #2563eb; color: white; }
+.btn-action.btn-success { background: #10b981; color: white; }
+.btn-action.btn-danger  { background: #ef4444; color: white; }
+.btn-action.btn-warning { background: #f59e0b; color: white; }
+.btn-action.btn-info    { background: #3b82f6; color: white; }
+.btn-action.btn-dark    { background: #374151; color: white; }
+
+/* ════════════════════════════════════
+   MODAL CHUNG
+════════════════════════════════════ */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.5);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; z-index: 200; backdrop-filter: blur(3px);
+  animation: fadeIn 0.2s ease;
 }
 
-.btn-action.success,
-.btn.btn-success {
-  background: #10b981;
-  color: white;
+.modal-box {
+  background: white; border-radius: 16px; padding: 28px;
+  max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto;
+  position: relative; box-shadow: 0 20px 60px rgba(0,0,0,.15); animation: slideUp 0.22s ease;
 }
 
-.btn-action.danger,
-.btn.btn-danger {
-  background: #ef4444;
-  color: white;
+.modal-lg { max-width: 960px; }
+
+@keyframes fadeIn  { from{opacity:0;} to{opacity:1;} }
+@keyframes slideUp { from{opacity:0;transform:translateY(16px);} to{opacity:1;transform:none;} }
+
+.modal-close-btn {
+  position: absolute; top: 16px; right: 16px;
+  width: 30px; height: 30px; border-radius: 8px; background: #f0f0f0;
+  border: none; cursor: pointer; font-size: 15px; color: #666;
+  display: flex; align-items: center; justify-content: center;
 }
 
-.btn-action.warning,
-.btn.btn-warning {
-  background: #f59e0b;
-  color: white;
+.modal-close-btn:hover { background: #e0e0e0; }
+.modal-title { font-size: 20px; font-weight: 700; color: #1f2937; margin-bottom: 18px; }
+
+.modal-section { margin-top: 18px; padding-top: 16px; border-top: 1px solid #f0f0f0; }
+.modal-section h3 { font-size: 15px; font-weight: 700; color: #1f2937; margin-bottom: 12px; }
+
+/* Lưới thông tin 2 cột trong modal */
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
 }
 
-.btn-action.info,
-.btn.btn-info {
-  background: #3b82f6;
-  color: white;
+.detail-item { background: #f8fafc; border-radius: 8px; padding: 10px 12px; }
+.detail-item label { display: block; font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+.detail-item span  { font-size: 14px; font-weight: 500; color: #1f2937; }
+
+.text-box { background: #f8fafc; border-radius: 8px; padding: 14px; font-size: 13px; color: #374151; line-height: 1.7; white-space: pre-line; }
+
+.cv-link { display: inline-block; padding: 10px 16px; background: #eff6ff; color: #1d4ed8; border-radius: 8px; font-weight: 700; text-decoration: none; font-size: 14px; }
+
+/* Form elements trong modal */
+.form-group { margin-bottom: 14px; }
+.form-label { display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; }
+.form-hint  { font-size: 12px; color: #aaa; margin-top: 4px; display: block; }
+
+.form-input, .form-textarea {
+  width: 100%; padding: 10px 14px; border: 1.5px solid #e0e0e0; border-radius: 8px;
+  font-size: 14px; font-family: inherit; outline: none; box-sizing: border-box; transition: border-color 0.15s;
 }
 
-.btn-action.dark,
-.btn.btn-dark {
-  background: #374151;
-  color: white;
+.form-input:focus, .form-textarea:focus { border-color: #667eea; }
+.form-textarea { resize: vertical; }
+
+.report-target-box { background: #f8fafc; padding: 14px; border-radius: 8px; margin-bottom: 14px; }
+.report-target-box strong { font-size: 15px; color: #1f2937; }
+.report-target-box p { font-size: 13px; color: #888; margin-top: 4px; }
+
+.modal-actions {
+  display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end;
+  margin-top: 20px; padding-top: 16px; border-top: 1px solid #f0f0f0;
 }
 
-.btn.btn-secondary {
-  background: #e5e7eb;
-  color: #111827;
+/* Buttons trong modal */
+.btn {
+  padding: 9px 16px; border: none; border-radius: 8px; font-size: 13px; font-weight: 700;
+  cursor: pointer; font-family: inherit; transition: all 0.15s;
+  display: inline-flex; align-items: center; gap: 4px;
 }
 
-.modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  z-index: 2000;
-}
+.btn:hover { transform: translateY(-1px); }
+.btn-primary  { background: #2563eb; color: white; }
+.btn-secondary{ background: #e5e7eb; color: #1f2937; }
+.btn-success  { background: #10b981; color: white; }
+.btn-danger   { background: #ef4444; color: white; }
+.btn-warning  { background: #f59e0b; color: white; }
+.btn-info     { background: #3b82f6; color: white; }
+.btn-dark     { background: #374151; color: white; }
 
-.modal-content {
-  width: 100%;
-  max-width: 620px;
-  background: white;
-  border-radius: 18px;
-  padding: 24px;
-  position: relative;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-.modal-content.large {
-  max-width: 980px;
-}
-
-.btn-close {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  border: none;
-  background: #f3f4f6;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 18px;
-}
-
-.modal-section {
-  margin-top: 18px;
-}
-
-.modal-section h3 {
-  margin: 0 0 12px;
-  color: #1f2937;
-}
-
-.text-content {
-  background: #f8fafc;
-  padding: 14px;
-  border-radius: 12px;
-  line-height: 1.6;
-  color: #374151;
-}
-
-.note-textarea,
-.form-group input,
-.form-group select,
-.form-group textarea {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 12px 14px;
-  border: 1px solid #d1d5db;
-  border-radius: 10px;
-  font-size: 14px;
-}
-
-.form-group {
-  margin-bottom: 14px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 6px;
-  font-weight: 700;
-  color: #374151;
-}
-
-.help-text {
-  display: block;
-  margin-top: 6px;
-  color: #6b7280;
-  font-size: 12px;
-}
-
-.cv-link {
-  display: inline-block;
-  padding: 12px 16px;
-  background: #eff6ff;
-  color: #1d4ed8;
-  border-radius: 10px;
-  text-decoration: none;
-  font-weight: 700;
-}
-
-.report-target-box {
-  background: #f8fafc;
-  padding: 12px 14px;
-  border-radius: 12px;
-}
-
-.report-target-box p {
-  margin: 4px 0 0;
-  color: #6b7280;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (max-width: 900px) {
-  .page-header,
-  .job-header,
-  .card-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .header-right {
-    align-items: flex-start;
-  }
-}
-
-@media (max-width: 640px) {
-  .container {
-    padding: 20px 14px;
-  }
-
-  .page-header h1 {
-    font-size: 26px;
-  }
-
-  .application-card,
-  .modal-content {
-    padding: 18px;
-  }
+/* ════════════════════════════════════
+   RESPONSIVE
+════════════════════════════════════ */
+@media (max-width: 1400px) { .stats-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 768px)  {
+  .container { padding: 20px 16px; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .page-header { flex-direction: column; }
+  .job-banner  { flex-direction: column; }
+  .app-card-head { flex-direction: column; }
+  .head-badges { align-items: flex-start; }
 }
 </style>

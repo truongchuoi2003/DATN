@@ -393,11 +393,14 @@ async function seedInteractions({ reset = false } = {}) {
       `🧹 Reset: applications=${delApps.deletedCount}, interactions=${delInteractions.deletedCount}, jobsReset=${resetJobs.modifiedCount}`
     );
   } else {
-    await Application.deleteMany({ student: { $in: studentIds } });
-    await Interaction.deleteMany({
+    const deletedNonApplyInteractions = await Interaction.deleteMany({
       student: { $in: studentIds },
-      interactionType: 'apply',
+      interactionType: { $ne: 'apply' },
     });
+
+    console.log(
+      `🧹 Làm mới interaction nền (giữ nguyên apply/application): interactions=${deletedNonApplyInteractions.deletedCount}`
+    );
   }
 
   const interactionDocs = [];
@@ -409,19 +412,28 @@ async function seedInteractions({ reset = false } = {}) {
     for (const item of plan.strong) {
       const { docs, viewCount } = buildInteractionsForJob(student, item, 'strong');
       interactionDocs.push(...docs);
-      viewCountByJob.set(String(item.job._id), (viewCountByJob.get(String(item.job._id)) || 0) + viewCount);
+      viewCountByJob.set(
+        String(item.job._id),
+        (viewCountByJob.get(String(item.job._id)) || 0) + viewCount
+      );
     }
 
     for (const item of plan.medium) {
       const { docs, viewCount } = buildInteractionsForJob(student, item, 'medium');
       interactionDocs.push(...docs);
-      viewCountByJob.set(String(item.job._id), (viewCountByJob.get(String(item.job._id)) || 0) + viewCount);
+      viewCountByJob.set(
+        String(item.job._id),
+        (viewCountByJob.get(String(item.job._id)) || 0) + viewCount
+      );
     }
 
     for (const item of plan.weak) {
       const { docs, viewCount } = buildInteractionsForJob(student, item, 'weak');
       interactionDocs.push(...docs);
-      viewCountByJob.set(String(item.job._id), (viewCountByJob.get(String(item.job._id)) || 0) + viewCount);
+      viewCountByJob.set(
+        String(item.job._id),
+        (viewCountByJob.get(String(item.job._id)) || 0) + viewCount
+      );
     }
   }
 
@@ -432,12 +444,18 @@ async function seedInteractions({ reset = false } = {}) {
   const bulkOps = [...viewCountByJob.entries()].map(([jobId, views]) => ({
     updateOne: {
       filter: { _id: jobId },
-      update: {
-        $set: {
-          views,
-          applicationsCount: 0,
-        },
-      },
+      update: reset
+        ? {
+            $set: {
+              views,
+              applicationsCount: 0,
+            },
+          }
+        : {
+            $set: {
+              views,
+            },
+          },
     },
   }));
 
@@ -450,12 +468,18 @@ async function seedInteractions({ reset = false } = {}) {
       categories: 'seed-demo',
       _id: { $nin: [...viewCountByJob.keys()] },
     },
-    {
-      $set: {
-        views: 0,
-        applicationsCount: 0,
-      },
-    }
+    reset
+      ? {
+          $set: {
+            views: 0,
+            applicationsCount: 0,
+          },
+        }
+      : {
+          $set: {
+            views: 0,
+          },
+        }
   );
 
   const applyInteractionCount = await Interaction.countDocuments({

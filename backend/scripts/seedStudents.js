@@ -3,6 +3,8 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const mongoose = require('mongoose');
 const Student = require('../src/models/Student.model');
+const Application = require('../src/models/Application.model');
+const Interaction = require('../src/models/Interaction.model');
 
 const CITY_COORDS = {
   'Hà Nội': [105.83416, 21.02776],
@@ -22,10 +24,21 @@ const SEED_STUDENT_EMAILS = [
   'student7@gmail.com',
 ];
 
+function parseArgs() {
+  const args = process.argv.slice(2);
+  return {
+    reset: args.includes('--reset'),
+  };
+}
+
 function addJitter([lng, lat], range = 0.03) {
   const lngOffset = (Math.random() - 0.5) * range;
   const latOffset = (Math.random() - 0.5) * range;
-  return [Number((lng + lngOffset).toFixed(6)), Number((lat + latOffset).toFixed(6))];
+
+  return [
+    Number((lng + lngOffset).toFixed(6)),
+    Number((lat + latOffset).toFixed(6)),
+  ];
 }
 
 function buildStudentSeeds() {
@@ -42,7 +55,7 @@ function buildStudentSeeds() {
       university: 'Đại học Công nghệ TP.HCM',
       academicYear: '3',
       graduationYear: 2027,
-      gpa: 3.28,
+      gpa: 3.32,
       skills: ['javascript', 'html', 'css', 'vue', 'git', 'responsive design'],
       preferredCategories: ['IT', 'Frontend', 'Web'],
       desiredJobTitles: [
@@ -61,15 +74,13 @@ function buildStudentSeeds() {
         'Landing page giới thiệu câu lạc bộ',
       ],
       projectTechnologies: ['vue', 'nodejs', 'mongodb', 'express', 'javascript'],
-      languages: [
-        { name: 'Tiếng Anh', level: 'Khá' },
-      ],
+      languages: [{ name: 'Tiếng Anh', level: 'Khá' }],
       certifications: ['TOEIC 650'],
       resumeUrl: '/uploads/cv/student1.pdf',
       portfolioUrl: 'https://portfolio.example.com/student1',
       githubUrl: 'https://github.com/student1',
       linkedinUrl: 'https://linkedin.com/in/student1',
-      bio: 'Sinh viên frontend, muốn tìm công việc internship hoặc part-time để nâng kỹ năng Vue và JavaScript.',
+      bio: 'Sinh viên frontend, muốn tìm internship hoặc part-time để phát triển kỹ năng Vue và JavaScript.',
       location: {
         type: 'Point',
         coordinates: addJitter(CITY_COORDS['TP. Hồ Chí Minh']),
@@ -89,7 +100,7 @@ function buildStudentSeeds() {
       university: 'Đại học Thương mại',
       academicYear: '4',
       graduationYear: 2026,
-      gpa: 3.54,
+      gpa: 3.55,
       skills: ['marketing', 'content', 'seo', 'canva', 'facebook ads', 'tiktok'],
       preferredCategories: ['Marketing', 'Content', 'Digital'],
       desiredJobTitles: [
@@ -108,10 +119,8 @@ function buildStudentSeeds() {
         'SEO audit website ẩm thực địa phương',
       ],
       projectTechnologies: ['seo', 'content', 'facebook ads', 'canva'],
-      languages: [
-        { name: 'Tiếng Anh', level: 'Khá' },
-      ],
-      certifications: ['Google Analytics (Basic)'],
+      languages: [{ name: 'Tiếng Anh', level: 'Khá' }],
+      certifications: ['Google Analytics Basic'],
       resumeUrl: '/uploads/cv/student2.pdf',
       portfolioUrl: 'https://portfolio.example.com/student2',
       githubUrl: '',
@@ -136,7 +145,7 @@ function buildStudentSeeds() {
       university: 'Đại học Kiến trúc Đà Nẵng',
       academicYear: '3',
       graduationYear: 2027,
-      gpa: 3.14,
+      gpa: 3.18,
       skills: ['design', 'figma', 'photoshop', 'canva', 'ui', 'ux'],
       preferredCategories: ['Design', 'UI/UX', 'Creative'],
       desiredJobTitles: [
@@ -155,10 +164,8 @@ function buildStudentSeeds() {
         'Bộ nhận diện thương hiệu mini cho quán cà phê',
       ],
       projectTechnologies: ['figma', 'photoshop', 'canva'],
-      languages: [
-        { name: 'Tiếng Anh', level: 'Cơ bản' },
-      ],
-      certifications: ['Adobe Photoshop (Basic)'],
+      languages: [{ name: 'Tiếng Anh', level: 'Cơ bản' }],
+      certifications: ['Adobe Photoshop Basic'],
       resumeUrl: '/uploads/cv/student3.pdf',
       portfolioUrl: 'https://portfolio.example.com/student3',
       githubUrl: '',
@@ -183,7 +190,7 @@ function buildStudentSeeds() {
       university: 'Đại học Bách khoa TP.HCM',
       academicYear: '4',
       graduationYear: 2026,
-      gpa: 3.62,
+      gpa: 3.61,
       skills: ['java', 'spring', 'spring boot', 'sql', 'git', 'docker'],
       preferredCategories: ['IT', 'Backend', 'API'],
       desiredJobTitles: [
@@ -202,15 +209,13 @@ function buildStudentSeeds() {
         'Hệ thống đặt phòng học nhóm',
       ],
       projectTechnologies: ['java', 'spring', 'spring boot', 'mysql', 'docker'],
-      languages: [
-        { name: 'Tiếng Anh', level: 'Khá' },
-      ],
-      certifications: ['IELTS 6.0'],
+      languages: [{ name: 'Tiếng Anh', level: 'Khá' }],
+      certifications: ['Java Core Certificate'],
       resumeUrl: '/uploads/cv/student4.pdf',
       portfolioUrl: '',
       githubUrl: 'https://github.com/student4',
-      linkedinUrl: '',
-      bio: 'Backend Java/Spring, thích xây API và tối ưu database.',
+      linkedinUrl: 'https://linkedin.com/in/student4',
+      bio: 'Định hướng backend Java/Spring và muốn tìm vị trí fresher hoặc intern có mentor.',
       location: {
         type: 'Point',
         coordinates: addJitter(CITY_COORDS['TP. Hồ Chí Minh']),
@@ -219,18 +224,18 @@ function buildStudentSeeds() {
       emailVerified: true,
     },
     {
-      fullName: 'Vũ Đức Anh',
+      fullName: 'Võ Gia Bảo',
       email: 'student5@gmail.com',
       password: '123456',
       phone: '0901000005',
-      birthday: new Date('2004-06-19'),
+      birthday: new Date('2004-06-18'),
       address: 'Quận Ngô Quyền, Hải Phòng',
       studentId: 'SV005',
       major: 'Khoa học dữ liệu',
       university: 'Đại học Hàng hải Việt Nam',
       academicYear: '3',
       graduationYear: 2027,
-      gpa: 3.36,
+      gpa: 3.46,
       skills: ['python', 'pandas', 'sql', 'excel', 'power bi', 'dashboard'],
       preferredCategories: ['Data', 'Data Analyst', 'BI'],
       desiredJobTitles: [
@@ -241,23 +246,21 @@ function buildStudentSeeds() {
       preferredLocations: ['Hải Phòng', 'Hà Nội', 'TP. Hồ Chí Minh'],
       preferredJobTypes: ['internship', 'part-time'],
       preferredWorkModes: ['remote', 'hybrid'],
-      salaryExpectation: { min: 4000000, max: 12000000, currency: 'VND' },
+      salaryExpectation: { min: 4000000, max: 10000000, currency: 'VND' },
       experienceLevel: 'none',
       experienceMonths: 0,
       projects: [
-        'Dashboard phân tích doanh thu cửa hàng',
-        'Phân tích dữ liệu tuyển dụng bằng Python',
+        'Dashboard doanh thu bán lẻ bằng Power BI',
+        'Phân tích dữ liệu khảo sát hành vi người dùng',
       ],
-      projectTechnologies: ['python', 'pandas', 'power bi', 'sql', 'excel'],
-      languages: [
-        { name: 'Tiếng Anh', level: 'Khá' },
-      ],
-      certifications: ['MOS Excel'],
+      projectTechnologies: ['python', 'pandas', 'sql', 'power bi'],
+      languages: [{ name: 'Tiếng Anh', level: 'Khá' }],
+      certifications: ['Microsoft Power BI Basic'],
       resumeUrl: '/uploads/cv/student5.pdf',
-      portfolioUrl: '',
+      portfolioUrl: 'https://portfolio.example.com/student5',
       githubUrl: 'https://github.com/student5',
       linkedinUrl: '',
-      bio: 'Hứng thú với phân tích dữ liệu, trực quan hóa số liệu và dashboard doanh nghiệp.',
+      bio: 'Quan tâm đến phân tích dữ liệu, trực quan hóa số liệu và báo cáo kinh doanh.',
       location: {
         type: 'Point',
         coordinates: addJitter(CITY_COORDS['Hải Phòng']),
@@ -266,45 +269,43 @@ function buildStudentSeeds() {
       emailVerified: true,
     },
     {
-      fullName: 'Ngô Gia Bảo',
+      fullName: 'Nguyễn Khánh Linh',
       email: 'student6@gmail.com',
       password: '123456',
       phone: '0901000006',
-      birthday: new Date('2003-04-30'),
+      birthday: new Date('2004-09-09'),
       address: 'Quận Ninh Kiều, Cần Thơ',
       studentId: 'SV006',
       major: 'Hệ thống thông tin',
       university: 'Đại học Cần Thơ',
-      academicYear: '4',
-      graduationYear: 2026,
-      gpa: 3.05,
-      skills: ['c#', '.net', 'asp.net', 'sql', 'winforms', 'git'],
-      preferredCategories: ['IT', 'Backend', 'Software'],
+      academicYear: '3',
+      graduationYear: 2027,
+      gpa: 3.37,
+      skills: ['c#', '.net', 'asp.net', 'sql', 'testing', 'testcase'],
+      preferredCategories: ['IT', 'QA', 'Software'],
       desiredJobTitles: [
+        'QA Tester Intern',
         '.NET Developer Intern',
-        'C# Developer Intern',
-        'Software Engineer Intern',
+        'Manual Tester Intern',
       ],
-      preferredLocations: ['Cần Thơ', 'TP. Hồ Chí Minh', 'Hà Nội'],
-      preferredJobTypes: ['internship', 'full-time'],
+      preferredLocations: ['Cần Thơ', 'TP. Hồ Chí Minh'],
+      preferredJobTypes: ['internship', 'full-time', 'part-time'],
       preferredWorkModes: ['onsite', 'hybrid'],
-      salaryExpectation: { min: 5000000, max: 14000000, currency: 'VND' },
+      salaryExpectation: { min: 4000000, max: 10000000, currency: 'VND' },
       experienceLevel: 'none',
       experienceMonths: 0,
       projects: [
-        'Ứng dụng quản lý thư viện bằng WinForms',
-        'Website quản lý công việc nhóm',
+        'Hệ thống quản lý thư viện bằng C#',
+        'Kiểm thử chức năng website đặt lịch',
       ],
-      projectTechnologies: ['c#', '.net', 'asp.net', 'sql', 'winforms'],
-      languages: [
-        { name: 'Tiếng Anh', level: 'Khá' },
-      ],
-      certifications: ['TOEIC 600'],
+      projectTechnologies: ['c#', '.net', 'sql', 'testing'],
+      languages: [{ name: 'Tiếng Anh', level: 'Khá' }],
+      certifications: ['ISTQB Foundation Mock Training'],
       resumeUrl: '/uploads/cv/student6.pdf',
       portfolioUrl: '',
       githubUrl: 'https://github.com/student6',
       linkedinUrl: '',
-      bio: 'Tập trung .NET/C#, mong muốn tìm vị trí intern hoặc fresher để làm dự án thực tế.',
+      bio: 'Quan tâm tới kiểm thử phần mềm và phát triển ứng dụng .NET ở mức intern/fresher.',
       location: {
         type: 'Point',
         coordinates: addJitter(CITY_COORDS['Cần Thơ']),
@@ -313,7 +314,7 @@ function buildStudentSeeds() {
       emailVerified: true,
     },
     {
-      fullName: 'Đặng Thị Mai',
+      fullName: 'Đỗ Nhật Anh',
       email: 'student7@gmail.com',
       password: '123456',
       phone: '0901000007',
@@ -324,7 +325,7 @@ function buildStudentSeeds() {
       university: 'Đại học Kinh tế Quốc dân',
       academicYear: '3',
       graduationYear: 2027,
-      gpa: 3.41,
+      gpa: 3.42,
       skills: ['excel', 'presentation', 'communication', 'teamwork', 'sales', 'reporting'],
       preferredCategories: ['Business', 'Sales', 'Operations'],
       desiredJobTitles: [
@@ -344,14 +345,12 @@ function buildStudentSeeds() {
         'Nghiên cứu thị trường bán lẻ',
       ],
       projectTechnologies: ['excel', 'powerpoint', 'reporting'],
-      languages: [
-        { name: 'Tiếng Anh', level: 'Khá' },
-      ],
+      languages: [{ name: 'Tiếng Anh', level: 'Khá' }],
       certifications: ['IELTS 5.5'],
       resumeUrl: '/uploads/cv/student7.pdf',
       portfolioUrl: '',
       githubUrl: '',
-      linkedinUrl: '',
+      linkedinUrl: 'https://linkedin.com/in/student7',
       bio: 'Yêu thích vận hành, kinh doanh và các công việc hỗ trợ phát triển khách hàng.',
       location: {
         type: 'Point',
@@ -371,12 +370,30 @@ async function seedStudents({ reset = false } = {}) {
   await mongoose.connect(process.env.MONGO_URI);
   console.log('✅ Đã kết nối MongoDB');
 
-  if (reset) {
-    const rs = await Student.deleteMany({
-      email: { $in: SEED_STUDENT_EMAILS.map((x) => x.toLowerCase()) },
-    });
-    console.log(`🧹 Đã xoá ${rs.deletedCount} student seed cũ`);
+if (reset) {
+  const oldStudents = await Student.find({
+    email: { $in: SEED_STUDENT_EMAILS.map((x) => x.toLowerCase()) },
+  }).select('_id');
+
+  const oldStudentIds = oldStudents.map((x) => x._id);
+
+  if (oldStudentIds.length) {
+    const [deletedApplications, deletedInteractions] = await Promise.all([
+      Application.deleteMany({ student: { $in: oldStudentIds } }),
+      Interaction.deleteMany({ student: { $in: oldStudentIds } }),
+    ]);
+
+    console.log(
+      `🧹 Đã xoá dữ liệu liên quan student cũ | applications=${deletedApplications.deletedCount}, interactions=${deletedInteractions.deletedCount}`
+    );
   }
+
+  const rs = await Student.deleteMany({
+    email: { $in: SEED_STUDENT_EMAILS.map((x) => x.toLowerCase()) },
+  });
+
+  console.log(`🧹 Đã xoá ${rs.deletedCount} student seed cũ`);
+}
 
   const seeds = buildStudentSeeds();
 
@@ -401,8 +418,7 @@ async function seedStudents({ reset = false } = {}) {
   console.log('🔌 Đã ngắt kết nối MongoDB');
 }
 
-const args = process.argv.slice(2);
-const reset = args.includes('--reset');
+const { reset } = parseArgs();
 
 seedStudents({ reset }).catch(async (err) => {
   console.error('❌ Lỗi seed students:', err);

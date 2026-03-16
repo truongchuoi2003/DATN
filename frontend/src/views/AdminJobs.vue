@@ -241,158 +241,129 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import Header from '../components/Header.vue';
-import api from '../services/api';
+// ── Import ──
+import { ref, computed, onMounted } from 'vue'
+import Header from '../components/Header.vue'
+import api from '../services/api'
 
-const loading = ref(false);
-const message = ref('');
-const isSuccess = ref(false);
-const jobs = ref([]);
-const filter = ref('all');
-const selectedJob = ref(null);
+// ════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════
 
-const activeCount = computed(() => jobs.value.filter((job) => job.status === 'active').length);
-const closedCount = computed(() => jobs.value.filter((job) => job.status === 'closed').length);
-const expiredCount = computed(() => jobs.value.filter((job) => job.status === 'expired').length);
+const loading     = ref(false)
+const message     = ref('')
+const isSuccess   = ref(false)
+const jobs        = ref([])
+const filter      = ref('all')
+const selectedJob = ref(null)
+
+// ════════════════════════════════════════
+// COMPUTED
+// ════════════════════════════════════════
+
+const activeCount  = computed(() => jobs.value.filter(j => j.status === 'active').length)
+const closedCount  = computed(() => jobs.value.filter(j => j.status === 'closed').length)
+const expiredCount = computed(() => jobs.value.filter(j => j.status === 'expired').length)
 
 const filteredJobs = computed(() => {
-  if (filter.value === 'all') return jobs.value;
-  return jobs.value.filter((job) => job.status === filter.value);
-});
+  if (filter.value === 'all') return jobs.value
+  return jobs.value.filter(j => j.status === filter.value)
+})
 
-const getInitials = (name) => {
-  if (!name) return '?';
-  const words = name.trim().split(' ').filter(Boolean);
-  if (words.length >= 2) {
-    return (words[0][0] + words[1][0]).toUpperCase();
-  }
-  return name.substring(0, 2).toUpperCase();
-};
+// ════════════════════════════════════════
+// HÀM TIỆN ÍCH
+// ════════════════════════════════════════
 
-const formatDate = (date) => {
-  if (!date) return '-';
-  return new Date(date).toLocaleDateString('vi-VN');
-};
+function getInitials(name) {
+  if (!name) return '?'
+  const words = name.trim().split(' ').filter(Boolean)
+  return words.length >= 2 ? (words[0][0] + words[1][0]).toUpperCase() : name.substring(0,2).toUpperCase()
+}
 
-const getStatusLabel = (status) => {
-  const map = {
-    active: '✅ Đang tuyển',
-    closed: '🔒 Đã đóng',
-    expired: '⌛ Hết hạn',
-  };
-  return map[status] || status;
-};
+function formatDate(date) {
+  if (!date) return '-'
+  return new Date(date).toLocaleDateString('vi-VN')
+}
 
-const getJobTypeLabel = (jobType) => {
-  const map = {
-    'full-time': 'Toàn thời gian',
-    'part-time': 'Bán thời gian',
-    internship: 'Thực tập',
-    contract: 'Hợp đồng',
-    freelance: 'Freelance',
-  };
-  return map[jobType] || jobType || '-';
-};
+function getStatusLabel(status) {
+  const map = { active: '✅ Đang tuyển', closed: '🔒 Đã đóng', expired: '⌛ Hết hạn' }
+  return map[status] || status
+}
 
-const getLevelLabel = (level) => {
-  const map = {
-    intern: 'Intern',
-    fresher: 'Fresher',
-    junior: 'Junior',
-    middle: 'Middle',
-    senior: 'Senior',
-    leader: 'Leader',
-    manager: 'Manager',
-  };
-  return map[level] || level || '-';
-};
+function getJobTypeLabel(type) {
+  const map = { 'full-time':'Toàn thời gian','part-time':'Bán thời gian',internship:'Thực tập',contract:'Hợp đồng',freelance:'Freelance' }
+  return map[type] || type || '-'
+}
 
-const getExperienceLabel = (experience) => {
-  const map = {
-    'no-experience': 'Không yêu cầu kinh nghiệm',
-    '0-1-year': '0 - 1 năm',
-    '1-3-years': '1 - 3 năm',
-    '3-5-years': '3 - 5 năm',
-    '5+-years': 'Trên 5 năm',
-  };
-  return map[experience] || experience || '-';
-};
+function getLevelLabel(level) {
+  const map = { intern:'Intern',fresher:'Fresher',junior:'Junior',middle:'Middle',senior:'Senior',leader:'Leader',manager:'Manager' }
+  return map[level] || level || '-'
+}
 
-const getWorkModeLabel = (workMode) => {
-  const map = {
-    onsite: 'Onsite',
-    remote: 'Remote',
-    hybrid: 'Hybrid',
-  };
-  return map[workMode] || workMode || '-';
-};
+function getExperienceLabel(exp) {
+  const map = { 'no-experience':'Không yêu cầu','0-1-year':'0–1 năm','1-3-years':'1–3 năm','3-5-years':'3–5 năm','5+-years':'Trên 5 năm' }
+  return map[exp] || exp || '-'
+}
 
-const formatSalary = (salary) => {
-  if (!salary) return 'Thỏa thuận';
-  if (salary.negotiable) return 'Thỏa thuận';
+function getWorkModeLabel(mode) {
+  const map = { onsite:'Onsite', remote:'Remote', hybrid:'Hybrid' }
+  return map[mode] || mode || '-'
+}
 
-  const min = salary.min ? salary.min.toLocaleString('vi-VN') : 0;
-  const max = salary.max ? salary.max.toLocaleString('vi-VN') : 0;
-  const currency = salary.currency || 'VND';
+function formatSalary(salary) {
+  if (!salary || salary.negotiable) return 'Thỏa thuận'
+  const min = salary.min ? salary.min.toLocaleString('vi-VN') : 0
+  const max = salary.max ? salary.max.toLocaleString('vi-VN') : 0
+  return `${min} – ${max} ${salary.currency || 'VND'}`
+}
 
-  return `${min} - ${max} ${currency}`;
-};
+// ════════════════════════════════════════
+// HÀM GỌI API
+// ════════════════════════════════════════
 
-const fetchJobs = async () => {
+async function fetchJobs() {
   try {
-    loading.value = true;
-    message.value = '';
-
-    const res = await api.get('/admin/jobs');
-    jobs.value = res.data.jobs || [];
+    loading.value = true
+    message.value = ''
+    const res = await api.get('/admin/jobs')
+    jobs.value = res.data.jobs || []
   } catch (error) {
-    console.error('Error fetching admin jobs:', error);
-    message.value = error.response?.data?.message || 'Không thể tải danh sách tin tuyển dụng';
-    isSuccess.value = false;
+    console.error('Error fetching admin jobs:', error)
+    message.value  = error.response?.data?.message || 'Không thể tải danh sách tin tuyển dụng'
+    isSuccess.value = false
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 
-const viewDetails = async (jobId) => {
+async function viewDetails(jobId) {
   try {
-    const res = await api.get(`/admin/jobs/${jobId}`);
-    selectedJob.value = res.data.job;
+    const res = await api.get(`/admin/jobs/${jobId}`)
+    selectedJob.value = res.data.job
   } catch (error) {
-    console.error('Error fetching job detail:', error);
-    message.value = error.response?.data?.message || 'Không thể tải chi tiết job';
-    isSuccess.value = false;
+    message.value  = error.response?.data?.message || 'Không thể tải chi tiết job'
+    isSuccess.value = false
   }
-};
+}
 
-const closeModal = () => {
-  selectedJob.value = null;
-};
+function closeModal() { selectedJob.value = null }
 
-const handleToggleStatus = async (job) => {
+async function handleToggleStatus(job) {
   try {
-    const res = await api.patch(`/admin/jobs/${job._id}/toggle-status`);
-
-    message.value = res.data.message || 'Cập nhật trạng thái thành công';
-    isSuccess.value = true;
-
-    const index = jobs.value.findIndex((item) => item._id === job._id);
-    if (index !== -1) {
-      jobs.value[index].status = res.data.job.status;
-    }
-
-    if (selectedJob.value && selectedJob.value._id === job._id) {
-      selectedJob.value.status = res.data.job.status;
-    }
+    const res = await api.patch(`/admin/jobs/${job._id}/toggle-status`)
+    message.value  = res.data.message || 'Cập nhật trạng thái thành công'
+    isSuccess.value = true
+    // Cập nhật local thay vì reload
+    const index = jobs.value.findIndex(j => j._id === job._id)
+    if (index !== -1) jobs.value[index].status = res.data.job.status
+    if (selectedJob.value?._id === job._id) selectedJob.value.status = res.data.job.status
   } catch (error) {
-    console.error('Error toggling admin job status:', error);
-    message.value = error.response?.data?.message || 'Không thể cập nhật trạng thái job';
-    isSuccess.value = false;
+    message.value  = error.response?.data?.message || 'Không thể cập nhật trạng thái'
+    isSuccess.value = false
   }
-};
+}
 
-onMounted(fetchJobs);
+onMounted(fetchJobs)
 </script>
 
 <style scoped>

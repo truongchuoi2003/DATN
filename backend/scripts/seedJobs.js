@@ -2,16 +2,8 @@ const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const mongoose = require('mongoose');
-const Job = require('../src/models/Job.model');
 const Employer = require('../src/models/Employer.model');
-
-const DEMO_EMPLOYER_EMAILS = [
-  'hr1@gmail.com',
-  'hr2@gmail.com',
-  'hr3@gmail.com',
-  'hr4@gmail.com',
-  'hr5@gmail.com',
-];
+const Job = require('../src/models/Job.model');
 
 const CITY_COORDS = {
   'Hà Nội': [105.83416, 21.02776],
@@ -21,101 +13,132 @@ const CITY_COORDS = {
   'Cần Thơ': [105.78309, 10.04516],
 };
 
-const DISTRICTS_BY_CITY = {
-  'Hà Nội': ['Cầu Giấy', 'Đống Đa', 'Hai Bà Trưng', 'Ba Đình', 'Thanh Xuân', 'Nam Từ Liêm'],
-  'TP. Hồ Chí Minh': ['Quận 1', 'Quận 3', 'Quận Bình Thạnh', 'Quận 7', 'TP. Thủ Đức', 'Phú Nhuận'],
-  'Đà Nẵng': ['Hải Châu', 'Thanh Khê', 'Sơn Trà', 'Ngũ Hành Sơn'],
-  'Hải Phòng': ['Lê Chân', 'Ngô Quyền', 'Hồng Bàng', 'Kiến An'],
-  'Cần Thơ': ['Ninh Kiều', 'Bình Thủy', 'Cái Răng', 'Ô Môn'],
+const CITY_ADDRESSES = {
+  'Hà Nội': [
+    'Tòa nhà ABC, Cầu Giấy, Hà Nội',
+    'Tòa nhà Sông Đà, Nam Từ Liêm, Hà Nội',
+    'Nguyễn Chánh, Cầu Giấy, Hà Nội',
+  ],
+  'TP. Hồ Chí Minh': [
+    'Tòa nhà Innovation, TP. Thủ Đức, TP. Hồ Chí Minh',
+    'Nguyễn Hữu Cảnh, Bình Thạnh, TP. Hồ Chí Minh',
+    'Lê Văn Việt, TP. Thủ Đức, TP. Hồ Chí Minh',
+  ],
+  'Đà Nẵng': [
+    'Nguyễn Văn Linh, Hải Châu, Đà Nẵng',
+    '2/9, Hải Châu, Đà Nẵng',
+    'Hoàng Diệu, Hải Châu, Đà Nẵng',
+  ],
+  'Hải Phòng': [
+    'Lê Hồng Phong, Ngô Quyền, Hải Phòng',
+    'Tôn Đức Thắng, Lê Chân, Hải Phòng',
+    'Văn Cao, Hải An, Hải Phòng',
+  ],
+  'Cần Thơ': [
+    '30/4, Ninh Kiều, Cần Thơ',
+    'Mậu Thân, Ninh Kiều, Cần Thơ',
+    'Nguyễn Văn Cừ, Ninh Kiều, Cần Thơ',
+  ],
 };
 
-function randomItem(arr = []) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
+const DEMO_EMPLOYER_EMAILS = [
+  'hr1@gmail.com',
+  'hr2@gmail.com',
+  'hr3@gmail.com',
+  'hr4@gmail.com',
+  'hr5@gmail.com',
+];
 
-function randomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function addDays(date, days) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
-function jitterCoordinates([lng, lat], range = 0.02) {
-  const lngOffset = (Math.random() - 0.5) * range;
-  const latOffset = (Math.random() - 0.5) * range;
-  return [Number((lng + lngOffset).toFixed(6)), Number((lat + latOffset).toFixed(6))];
-}
-
-function splitSkillsForJob(skills) {
-  const uniqueSkills = [...new Set((skills || []).map((x) => String(x).trim()).filter(Boolean))];
-
-  if (uniqueSkills.length <= 3) {
-    return {
-      skills: uniqueSkills,
-      requiredSkills: uniqueSkills,
-      preferredSkills: [],
-    };
-  }
-
-  const requiredSkills = uniqueSkills.slice(0, 4);
-  const preferredSkills = uniqueSkills.slice(4);
-
-  return {
-    skills: uniqueSkills,
-    requiredSkills,
-    preferredSkills,
-  };
-}
-
-function buildAddress(city) {
-  const district = randomItem(DISTRICTS_BY_CITY[city] || ['Trung tâm']);
-  return `${district}, ${city}`;
-}
-
-function buildSalary([minBase, maxBase], jobType, level) {
-  let min = minBase;
-  let max = maxBase;
-
-  if (jobType === 'part-time') {
-    min = Math.max(2500000, Math.round(minBase * 0.7));
-    max = Math.max(min + 1000000, Math.round(maxBase * 0.75));
-  }
-
-  if (jobType === 'internship') {
-    min = Math.max(2500000, Math.round(minBase * 0.75));
-    max = Math.max(min + 1500000, Math.round(maxBase * 0.8));
-  }
-
-  if (level === 'junior') {
-    min += 1000000;
-    max += 2000000;
-  }
-
-  return {
-    min,
-    max,
-    currency: 'VND',
-    negotiable: false,
-  };
-}
-
-function buildWorkMode(jobType, preferredModes = []) {
-  if (preferredModes.length) return randomItem(preferredModes);
-  if (jobType === 'part-time') return Math.random() < 0.5 ? 'hybrid' : 'onsite';
-  if (jobType === 'internship') return Math.random() < 0.25 ? 'remote' : 'hybrid';
-  return 'onsite';
-}
-
-function buildAcceptableMajors(template) {
-  return [...new Set([...(template.acceptableMajors || []), ...(template.extraMajors || [])])];
-}
-
-const JOB_TEMPLATES = [
+const EMPLOYER_SEEDS = [
   {
-    code: 'frontend',
+    fullName: 'HR Tech One',
+    email: 'hr1@gmail.com',
+    password: '123456',
+    phone: '0900000001',
+    address: 'TP. Thủ Đức, TP. Hồ Chí Minh',
+    companyName: 'Tech One',
+    companySize: '11-50',
+    industry: 'Công nghệ',
+    website: 'https://techone.example.com',
+    description: 'Công ty công nghệ chuyên tuyển thực tập sinh và fresher ngành IT.',
+    city: 'TP. Hồ Chí Minh',
+    verified: true,
+    isActive: true,
+    emailVerified: true,
+    focusTemplates: ['frontend', 'node-backend', 'java-backend', 'qa'],
+  },
+  {
+    fullName: 'HR Bright Media',
+    email: 'hr2@gmail.com',
+    password: '123456',
+    phone: '0900000002',
+    address: 'Cầu Giấy, Hà Nội',
+    companyName: 'Bright Media',
+    companySize: '11-50',
+    industry: 'Marketing',
+    website: 'https://brightmedia.example.com',
+    description: 'Agency digital marketing và content cho SME.',
+    city: 'Hà Nội',
+    verified: true,
+    isActive: true,
+    emailVerified: true,
+    focusTemplates: ['marketing', 'design', 'business-development'],
+  },
+  {
+    fullName: 'HR Pixel Studio',
+    email: 'hr3@gmail.com',
+    password: '123456',
+    phone: '0900000003',
+    address: 'Hải Châu, Đà Nẵng',
+    companyName: 'Pixel Studio',
+    companySize: '11-50',
+    industry: 'Thiết kế sáng tạo',
+    website: 'https://pixelstudio.example.com',
+    description: 'Studio thiết kế UI/UX, social media và sản phẩm số cho doanh nghiệp.',
+    city: 'Đà Nẵng',
+    verified: true,
+    isActive: true,
+    emailVerified: true,
+    focusTemplates: ['design', 'frontend', 'marketing'],
+  },
+  {
+    fullName: 'HR Office Pro',
+    email: 'hr4@gmail.com',
+    password: '123456',
+    phone: '0900000004',
+    address: 'Lê Chân, Hải Phòng',
+    companyName: 'Office Pro',
+    companySize: '51-200',
+    industry: 'Dịch vụ doanh nghiệp',
+    website: 'https://officepro.example.com',
+    description: 'Doanh nghiệp dịch vụ văn phòng, vận hành và hỗ trợ báo cáo.',
+    city: 'Hải Phòng',
+    verified: true,
+    isActive: true,
+    emailVerified: true,
+    focusTemplates: ['operations', 'business-development', 'data'],
+  },
+  {
+    fullName: 'HR Mekong Analytics',
+    email: 'hr5@gmail.com',
+    password: '123456',
+    phone: '0900000005',
+    address: 'Ninh Kiều, Cần Thơ',
+    companyName: 'Mekong Analytics',
+    companySize: '11-50',
+    industry: 'Dữ liệu & phần mềm',
+    website: 'https://mekonganalytics.example.com',
+    description: 'Đơn vị triển khai dashboard, báo cáo và phần mềm nội bộ cho SME.',
+    city: 'Cần Thơ',
+    verified: true,
+    isActive: true,
+    emailVerified: true,
+    focusTemplates: ['data', 'dotnet', 'qa', 'java-backend'],
+  },
+];
+
+const JOB_TEMPLATES = {
+  frontend: {
     titles: [
       'Frontend Intern',
       'Thực tập Frontend Developer',
@@ -126,11 +149,11 @@ const JOB_TEMPLATES = [
     acceptableMajors: ['Công nghệ thông tin', 'Hệ thống thông tin'],
     skills: ['javascript', 'html', 'css', 'vue', 'git', 'responsive design'],
     description:
-      'Tham gia phát triển giao diện web, làm việc cùng backend và designer để hoàn thiện các module của sản phẩm.',
+      'Tham gia phát triển giao diện web, phối hợp cùng backend và design để hoàn thiện các module sản phẩm.',
     requirements:
-      'Có kiến thức HTML, CSS, JavaScript; biết Vue là lợi thế, có khả năng cắt giao diện responsive.',
+      'Nắm HTML, CSS, JavaScript; biết Vue là lợi thế, có khả năng cắt giao diện responsive.',
     benefits:
-      'Có mentor review code, được hướng dẫn Git workflow và có cơ hội lên thực tập sinh chính thức lâu dài.',
+      'Có mentor review code, học Git workflow và có cơ hội tiếp tục gắn bó sau kỳ thực tập.',
     jobTypes: ['internship', 'part-time'],
     levels: ['intern', 'fresher'],
     experiences: ['no-experience', '0-1-year'],
@@ -138,8 +161,8 @@ const JOB_TEMPLATES = [
     targetCities: ['TP. Hồ Chí Minh', 'Đà Nẵng', 'Hà Nội'],
     workModes: ['hybrid', 'remote'],
   },
-  {
-    code: 'node-backend',
+
+  'node-backend': {
     titles: [
       'Backend Developer Intern',
       'Node.js API Intern',
@@ -152,9 +175,9 @@ const JOB_TEMPLATES = [
     description:
       'Tham gia xây dựng API, xử lý dữ liệu và hỗ trợ backend cho website nội bộ.',
     requirements:
-      'Biết Node.js, Express, MongoDB cơ bản, hiểu REST API và có khả năng đọc tài liệu kỹ thuật.',
+      'Biết Node.js, Express, MongoDB cơ bản; hiểu REST API và có khả năng đọc tài liệu kỹ thuật.',
     benefits:
-      'Được training backend thực chiến, có review code định kỳ và hướng dẫn deploy cơ bản.',
+      'Được training backend thực chiến, review code định kỳ và hướng dẫn deploy cơ bản.',
     jobTypes: ['internship', 'part-time'],
     levels: ['intern', 'fresher'],
     experiences: ['no-experience', '0-1-year'],
@@ -162,8 +185,8 @@ const JOB_TEMPLATES = [
     targetCities: ['TP. Hồ Chí Minh', 'Hà Nội'],
     workModes: ['hybrid', 'onsite'],
   },
-  {
-    code: 'java-backend',
+
+  'java-backend': {
     titles: [
       'Java Backend Intern',
       'Java Spring Intern',
@@ -174,20 +197,20 @@ const JOB_TEMPLATES = [
     acceptableMajors: ['Công nghệ thông tin', 'Hệ thống thông tin'],
     skills: ['java', 'spring', 'spring boot', 'sql', 'git', 'docker'],
     description:
-      'Xây dựng API bằng Java/Spring Boot, hỗ trợ xử lý database và phát triển các module backend.',
+      'Xây dựng API bằng Java/Spring Boot, hỗ trợ database và phát triển các module backend.',
     requirements:
-      'Nắm Java core, OOP, SQL; biết Spring hoặc Spring Boot là một lợi thế lớn.',
+      'Nắm Java core, OOP, SQL; biết Spring hoặc Spring Boot là lợi thế lớn.',
     benefits:
-      'Được tham gia dự án nội bộ, học quy trình backend và cơ hội lên fresher nếu làm tốt.',
+      'Được tham gia dự án nội bộ, học quy trình backend và có cơ hội lên fresher.',
     jobTypes: ['internship', 'full-time'],
     levels: ['intern', 'fresher', 'junior'],
     experiences: ['no-experience', '0-1-year', '1-3-years'],
     salaryRange: [6000000, 15000000],
-    targetCities: ['TP. Hồ Chí Minh', 'Hà Nội'],
+    targetCities: ['TP. Hồ Chí Minh', 'Hà Nội', 'Cần Thơ'],
     workModes: ['onsite', 'hybrid'],
   },
-  {
-    code: 'dotnet',
+
+  dotnet: {
     titles: [
       '.NET Developer Intern',
       'C# Developer Intern',
@@ -210,8 +233,8 @@ const JOB_TEMPLATES = [
     targetCities: ['Cần Thơ', 'TP. Hồ Chí Minh', 'Hà Nội'],
     workModes: ['onsite', 'hybrid'],
   },
-  {
-    code: 'qa',
+
+  qa: {
     titles: [
       'QA Tester Intern',
       'Manual Tester Intern',
@@ -231,11 +254,11 @@ const JOB_TEMPLATES = [
     levels: ['intern', 'fresher'],
     experiences: ['no-experience', '0-1-year'],
     salaryRange: [3500000, 8000000],
-    targetCities: ['Hà Nội', 'TP. Hồ Chí Minh', 'Đà Nẵng'],
+    targetCities: ['Hà Nội', 'TP. Hồ Chí Minh', 'Đà Nẵng', 'Cần Thơ'],
     workModes: ['onsite', 'hybrid'],
   },
-  {
-    code: 'data',
+
+  data: {
     titles: [
       'Data Analyst Intern',
       'BI Analyst Intern',
@@ -255,11 +278,11 @@ const JOB_TEMPLATES = [
     levels: ['intern', 'fresher'],
     experiences: ['no-experience', '0-1-year'],
     salaryRange: [4500000, 11000000],
-    targetCities: ['Hải Phòng', 'Hà Nội', 'TP. Hồ Chí Minh'],
+    targetCities: ['Hải Phòng', 'Hà Nội', 'TP. Hồ Chí Minh', 'Cần Thơ'],
     workModes: ['remote', 'hybrid'],
   },
-  {
-    code: 'marketing',
+
+  marketing: {
     titles: [
       'Content Marketing Intern',
       'Social Media Intern',
@@ -282,8 +305,8 @@ const JOB_TEMPLATES = [
     targetCities: ['Hà Nội', 'TP. Hồ Chí Minh', 'Đà Nẵng'],
     workModes: ['onsite', 'hybrid'],
   },
-  {
-    code: 'design',
+
+  design: {
     titles: [
       'UI/UX Intern',
       'Graphic Designer Intern',
@@ -306,8 +329,8 @@ const JOB_TEMPLATES = [
     targetCities: ['Đà Nẵng', 'TP. Hồ Chí Minh', 'Hà Nội'],
     workModes: ['remote', 'hybrid'],
   },
-  {
-    code: 'operations',
+
+  operations: {
     titles: [
       'Business Operations Intern',
       'Operations Intern',
@@ -330,8 +353,8 @@ const JOB_TEMPLATES = [
     targetCities: ['Hà Nội', 'Hải Phòng', 'TP. Hồ Chí Minh'],
     workModes: ['onsite', 'hybrid'],
   },
-  {
-    code: 'business-development',
+
+  'business-development': {
     titles: [
       'Business Development Intern',
       'Part-time Sales Support',
@@ -354,7 +377,7 @@ const JOB_TEMPLATES = [
     targetCities: ['Hà Nội', 'TP. Hồ Chí Minh', 'Hải Phòng', 'Cần Thơ'],
     workModes: ['onsite', 'hybrid'],
   },
-];
+};
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -368,136 +391,183 @@ function parseArgs() {
   };
 }
 
-async function ensureDemoEmployers() {
-  const demoEmployers = [
-    {
-      fullName: 'HR Tech One',
-      email: 'hr1@gmail.com',
-      password: '123456',
-      phone: '0900000001',
-      address: 'TP. Thủ Đức, TP. Hồ Chí Minh',
-      companyName: 'Tech One',
-      companySize: '11-50',
-      industry: 'Công nghệ',
-      website: 'https://techone.example.com',
-      description: 'Công ty công nghệ chuyên tuyển thực tập sinh và fresher ngành IT.',
-      location: { type: 'Point', coordinates: jitterCoordinates(CITY_COORDS['TP. Hồ Chí Minh']) },
-      verified: true,
-      isActive: true,
-      emailVerified: true,
-    },
-    {
-      fullName: 'HR Bright Media',
-      email: 'hr2@gmail.com',
-      password: '123456',
-      phone: '0900000002',
-      address: 'Cầu Giấy, Hà Nội',
-      companyName: 'Bright Media',
-      companySize: '11-50',
-      industry: 'Marketing',
-      website: 'https://brightmedia.example.com',
-      description: 'Agency digital marketing và content cho SME.',
-      location: { type: 'Point', coordinates: jitterCoordinates(CITY_COORDS['Hà Nội']) },
-      verified: true,
-      isActive: true,
-      emailVerified: true,
-    },
-    {
-      fullName: 'HR Bean Cafe',
-      email: 'hr3@gmail.com',
-      password: '123456',
-      phone: '0900000003',
-      address: 'Hải Châu, Đà Nẵng',
-      companyName: 'Bean Cafe',
-      companySize: '11-50',
-      industry: 'F&B',
-      website: 'https://beancafe.example.com',
-      description: 'Chuỗi cửa hàng đồ uống tuyển part-time và hỗ trợ vận hành sinh viên.',
-      location: { type: 'Point', coordinates: jitterCoordinates(CITY_COORDS['Đà Nẵng']) },
-      verified: true,
-      isActive: true,
-      emailVerified: true,
-    },
-    {
-      fullName: 'HR Office Pro',
-      email: 'hr4@gmail.com',
-      password: '123456',
-      phone: '0900000004',
-      address: 'Lê Chân, Hải Phòng',
-      companyName: 'Office Pro',
-      companySize: '51-200',
-      industry: 'Dịch vụ doanh nghiệp',
-      website: 'https://officepro.example.com',
-      description: 'Doanh nghiệp dịch vụ văn phòng, vận hành và hỗ trợ báo cáo.',
-      location: { type: 'Point', coordinates: jitterCoordinates(CITY_COORDS['Hải Phòng']) },
-      verified: true,
-      isActive: true,
-      emailVerified: true,
-    },
-    {
-      fullName: 'HR Mekong Store',
-      email: 'hr5@gmail.com',
-      password: '123456',
-      phone: '0900000005',
-      address: 'Ninh Kiều, Cần Thơ',
-      companyName: 'Mekong Store',
-      companySize: '11-50',
-      industry: 'Bán lẻ',
-      website: 'https://mekongstore.example.com',
-      description: 'Đơn vị bán lẻ và vận hành cửa hàng tuyển sinh viên part-time, intern.',
-      location: { type: 'Point', coordinates: jitterCoordinates(CITY_COORDS['Cần Thơ']) },
-      verified: true,
-      isActive: true,
-      emailVerified: true,
-    },
-  ];
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
-  for (const item of demoEmployers) {
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function jitterCoordinates([lng, lat], range = 0.03) {
+  const lngOffset = (Math.random() - 0.5) * range;
+  const latOffset = (Math.random() - 0.5) * range;
+
+  return [
+    Number((lng + lngOffset).toFixed(6)),
+    Number((lat + latOffset).toFixed(6)),
+  ];
+}
+
+function uniqueArray(arr = []) {
+  return [...new Set(arr.map((x) => String(x || '').trim()).filter(Boolean))];
+}
+
+function pickByIndex(arr = [], index = 0) {
+  return arr[index % arr.length];
+}
+
+function buildAddress(city, companyName, localIndex) {
+  const pool = CITY_ADDRESSES[city] || [`${city}`];
+  const base = pool[localIndex % pool.length];
+  return `${companyName}, ${base}`;
+}
+
+function buildWorkMode(template, localIndex) {
+  const mode = pickByIndex(template.workModes, localIndex);
+  return mode;
+}
+
+function buildSalary([minBase, maxBase], jobType, level) {
+  let min = minBase;
+  let max = maxBase;
+
+  if (jobType === 'part-time') {
+    min = Math.round(min * 0.8);
+    max = Math.round(max * 0.8);
+  }
+
+  if (jobType === 'freelance') {
+    min = Math.round(min * 0.85);
+    max = Math.round(max * 0.95);
+  }
+
+  if (level === 'junior') {
+    min = Math.round(min * 1.15);
+    max = Math.round(max * 1.2);
+  }
+
+  return {
+    min,
+    max,
+    currency: 'VND',
+    negotiable: false,
+  };
+}
+
+function splitSkillsForJob(skills = [], localIndex = 0) {
+  const ordered = [...skills];
+  const rotate = localIndex % ordered.length;
+
+  const rotated = [...ordered.slice(rotate), ...ordered.slice(0, rotate)];
+  const uniq = uniqueArray(rotated);
+
+  const requiredSkills = uniq.slice(0, Math.min(4, uniq.length));
+  const preferredSkills = uniq.slice(Math.min(4, uniq.length), Math.min(6, uniq.length));
+  const allSkills = uniqueArray([...requiredSkills, ...preferredSkills]);
+
+  return {
+    skills: allSkills,
+    requiredSkills,
+    preferredSkills: preferredSkills.length ? preferredSkills : uniq.slice(-2),
+  };
+}
+
+async function ensureDemoEmployers() {
+  for (const item of EMPLOYER_SEEDS) {
     const exists = await Employer.findOne({ email: item.email.toLowerCase() }).select('_id');
     if (!exists) {
-      await Employer.create(item);
+      await Employer.create({
+        fullName: item.fullName,
+        email: item.email,
+        password: item.password,
+        phone: item.phone,
+        address: item.address,
+        companyName: item.companyName,
+        companySize: item.companySize,
+        industry: item.industry,
+        website: item.website,
+        description: item.description,
+        location: {
+          type: 'Point',
+          coordinates: jitterCoordinates(CITY_COORDS[item.city]),
+        },
+        verified: item.verified,
+        isActive: item.isActive,
+        emailVerified: item.emailVerified,
+      });
     }
   }
 
-  let employers = await Employer.find({
+  const employers = await Employer.find({
     email: { $in: DEMO_EMPLOYER_EMAILS.map((x) => x.toLowerCase()) },
   }).select('_id companyName email location');
-
-  if (!employers.length) {
-    employers = await Employer.find({ isActive: { $ne: false } })
-      .select('_id companyName email location')
-      .limit(5);
-  }
 
   if (!employers.length) {
     throw new Error('Không có employer nào để seed job.');
   }
 
-  return employers;
+  const employerMap = new Map(
+    employers.map((emp) => [emp.email.toLowerCase(), emp])
+  );
+
+  return EMPLOYER_SEEDS.map((seed) => ({
+    ...seed,
+    employerDoc: employerMap.get(seed.email.toLowerCase()),
+  })).filter((x) => x.employerDoc);
 }
 
-function generateOneJob({ employers, template, index }) {
-  const employer = employers[index % employers.length];
-  const city = template.targetCities[index % template.targetCities.length];
-  const jobType = template.jobTypes[index % template.jobTypes.length];
-  const level = template.levels[index % template.levels.length];
-  const experience = template.experiences[index % template.experiences.length];
-  const title = `${template.titles[index % template.titles.length]} #${index + 1}`;
-  const createdAt = addDays(new Date(), -(index % 14));
-  const workMode = buildWorkMode(jobType, template.workModes);
-  const skillSet = splitSkillsForJob(template.skills);
-  const acceptableMajors = buildAcceptableMajors(template);
+function buildEmployerJobPlan(employers, count) {
+  const plan = [];
+  const totalEmployers = employers.length;
+  const basePerEmployer = Math.floor(count / totalEmployers);
+  let remainder = count % totalEmployers;
+
+  for (const employer of employers) {
+    const quota = basePerEmployer + (remainder > 0 ? 1 : 0);
+    if (remainder > 0) remainder -= 1;
+
+    for (let i = 0; i < quota; i += 1) {
+      plan.push({
+        employer,
+        localIndex: i,
+      });
+    }
+  }
+
+  return plan;
+}
+
+function generateOneJob({ employerSeed, localIndex, globalIndex }) {
+  const templateCode = employerSeed.focusTemplates[localIndex % employerSeed.focusTemplates.length];
+  const template = JOB_TEMPLATES[templateCode];
+
+  const title = `${pickByIndex(template.titles, localIndex)} #${globalIndex + 1}`;
+  const jobType = pickByIndex(template.jobTypes, localIndex);
+  const level = pickByIndex(template.levels, localIndex);
+  const experience = pickByIndex(template.experiences, localIndex);
+
+  const cities = uniqueArray([employerSeed.city, ...template.targetCities]);
+  const city = pickByIndex(cities, localIndex);
+
+  const workMode = buildWorkMode(template, localIndex);
+  const skillSet = splitSkillsForJob(template.skills, localIndex);
+
+  const createdAt = addDays(new Date(), -(globalIndex % 14));
+  const deadline = addDays(new Date(), 20 + (globalIndex % 25));
 
   return {
-    employer: employer._id,
+    employer: employerSeed.employerDoc._id,
     title,
     description: template.description,
     requirements: template.requirements,
     benefits: template.benefits,
-    acceptableMajors,
+    acceptableMajors: uniqueArray(template.acceptableMajors),
     workMode,
     location: {
-      address: buildAddress(city),
+      address: buildAddress(city, employerSeed.companyName, localIndex),
       city,
       coordinates: jitterCoordinates(CITY_COORDS[city]),
     },
@@ -508,8 +578,8 @@ function generateOneJob({ employers, template, index }) {
     skills: skillSet.skills,
     requiredSkills: skillSet.requiredSkills,
     preferredSkills: skillSet.preferredSkills,
-    categories: [...new Set([...template.categories, 'seed-demo'])],
-    deadline: addDays(new Date(), 20 + (index % 20)),
+    categories: uniqueArray([...template.categories, 'seed-demo']),
+    deadline,
     slots: randomInt(1, 4),
     status: 'active',
     isVerified: true,
@@ -521,12 +591,18 @@ function generateOneJob({ employers, template, index }) {
 }
 
 function buildBalancedJobs(employers, count) {
+  const plan = buildEmployerJobPlan(employers, count);
   const jobs = [];
 
-  for (let i = 0; i < count; i += 1) {
-    const template = JOB_TEMPLATES[i % JOB_TEMPLATES.length];
-    jobs.push(generateOneJob({ employers, template, index: i }));
-  }
+  plan.forEach((item, index) => {
+    jobs.push(
+      generateOneJob({
+        employerSeed: item.employer,
+        localIndex: item.localIndex,
+        globalIndex: index,
+      })
+    );
+  });
 
   return jobs;
 }
@@ -551,9 +627,16 @@ async function seedJobs({ count = 40, reset = false } = {}) {
   const jobs = buildBalancedJobs(employers, count);
   const result = await Job.insertMany(jobs, { ordered: false });
 
+  const summary = result.reduce((acc, job) => {
+    const key = String(job.employer);
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+
   console.log(`🎉 Seed job xong | created: ${result.length}`);
   console.log(`🏢 Employers dùng để seed: ${employers.length}`);
   console.log('📌 Toàn bộ job seed đều: active + verified + còn hạn + applicationsCount = 0');
+  console.log('📊 Số job theo employer:', summary);
 
   await mongoose.disconnect();
   console.log('🔌 Đã ngắt kết nối MongoDB');

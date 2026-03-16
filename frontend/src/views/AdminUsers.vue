@@ -201,143 +201,134 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import Header from '../components/Header.vue';
-import api from '../services/api';
+// ── Import ──
+import { ref, computed, onMounted } from 'vue'
+import Header from '../components/Header.vue'
+import api from '../services/api'
 
-const loading = ref(false);
-const message = ref('');
-const isSuccess = ref(false);
-const users = ref([]);
-const filter = ref('all');
-const selectedUser = ref(null);
-const showReset = ref(false);
-const newPassword = ref('');
-const resetLoading = ref(false);
+// ════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════
 
-const studentCount = computed(() => users.value.filter((u) => u.role === 'student').length);
-const employerCount = computed(() => users.value.filter((u) => u.role === 'employer').length);
-const adminCount = computed(() => users.value.filter((u) => u.role === 'admin').length);
+const loading      = ref(false)
+const message      = ref('')
+const isSuccess    = ref(false)
+const users        = ref([])
+const filter       = ref('all')
+const selectedUser = ref(null)
+const showReset    = ref(false)
+const newPassword  = ref('')
+const resetLoading = ref(false)
+
+// ════════════════════════════════════════
+// COMPUTED
+// ════════════════════════════════════════
+
+const studentCount  = computed(() => users.value.filter(u => u.role === 'student').length)
+const employerCount = computed(() => users.value.filter(u => u.role === 'employer').length)
+const adminCount    = computed(() => users.value.filter(u => u.role === 'admin').length)
 
 const filteredUsers = computed(() => {
-  if (filter.value === 'all') return users.value;
-  return users.value.filter((u) => u.role === filter.value);
-});
+  if (filter.value === 'all') return users.value
+  return users.value.filter(u => u.role === filter.value)
+})
 
-const getInitials = (name) => {
-  if (!name) return '?';
-  const parts = name.trim().split(' ').filter(Boolean);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
-  return name.substring(0, 2).toUpperCase();
-};
+// ════════════════════════════════════════
+// HÀM TIỆN ÍCH
+// ════════════════════════════════════════
 
-const getRoleName = (role) => {
-  const roles = {
-    student: 'Sinh viên',
-    employer: 'Nhà tuyển dụng',
-    admin: 'Admin',
-  };
-  return roles[role] || role;
-};
+function getInitials(name) {
+  if (!name) return '?'
+  const parts = name.trim().split(' ').filter(Boolean)
+  return parts.length >= 2 ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase() : name.substring(0,2).toUpperCase()
+}
 
-const formatDate = (date) => {
-  if (!date) return '-';
-  return new Date(date).toLocaleDateString('vi-VN');
-};
+function getRoleName(role) {
+  const roles = { student: 'Sinh viên', employer: 'Nhà tuyển dụng', admin: 'Admin' }
+  return roles[role] || role
+}
 
-const fetchUsers = async () => {
+function formatDate(date) {
+  if (!date) return '-'
+  return new Date(date).toLocaleDateString('vi-VN')
+}
+
+// ════════════════════════════════════════
+// HÀM GỌI API
+// ════════════════════════════════════════
+
+async function fetchUsers() {
   try {
-    loading.value = true;
-    message.value = '';
-
-    const res = await api.get('/admin/users');
-    users.value = res.data.users || [];
+    loading.value = true
+    message.value = ''
+    const res = await api.get('/admin/users')
+    users.value = res.data.users || []
   } catch (error) {
-    console.error('Error fetching users:', error);
-    message.value = 'Không thể tải danh sách người dùng';
-    isSuccess.value = false;
+    console.error('Error fetching users:', error)
+    message.value  = 'Không thể tải danh sách người dùng'
+    isSuccess.value = false
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 
-const viewDetails = (user) => {
-  selectedUser.value = { ...user };
-  showReset.value = false;
-  newPassword.value = '';
-};
+function viewDetails(user) {
+  selectedUser.value = { ...user }
+  showReset.value    = false
+  newPassword.value  = ''
+}
 
-const openResetModal = (user) => {
-  selectedUser.value = { ...user };
-  showReset.value = true;
-  newPassword.value = '';
-};
+function openResetModal(user) {
+  selectedUser.value = { ...user }
+  showReset.value    = true
+  newPassword.value  = ''
+}
 
-const closeModal = () => {
-  selectedUser.value = null;
-  showReset.value = false;
-  newPassword.value = '';
-};
+function closeModal() {
+  selectedUser.value = null
+  showReset.value    = false
+  newPassword.value  = ''
+}
 
-const handleResetPassword = async () => {
+async function handleResetPassword() {
   if (!newPassword.value || newPassword.value.length < 6) {
-    message.value = 'Mật khẩu mới phải có ít nhất 6 ký tự';
-    isSuccess.value = false;
-    return;
+    message.value  = 'Mật khẩu mới phải có ít nhất 6 ký tự'
+    isSuccess.value = false
+    return
   }
-
   try {
-    resetLoading.value = true;
-
+    resetLoading.value = true
     const res = await api.put(
       `/admin/users/${selectedUser.value.role}/${selectedUser.value._id}/reset-password`,
       { newPassword: newPassword.value }
-    );
-
-    message.value = res.data.message || 'Reset mật khẩu thành công';
-    isSuccess.value = true;
-    closeModal();
+    )
+    message.value  = res.data.message || 'Reset mật khẩu thành công'
+    isSuccess.value = true
+    closeModal()
   } catch (error) {
-    console.error('Error resetting password:', error);
-    message.value = error.response?.data?.message || 'Reset mật khẩu thất bại';
-    isSuccess.value = false;
+    message.value  = error.response?.data?.message || 'Reset mật khẩu thất bại'
+    isSuccess.value = false
   } finally {
-    resetLoading.value = false;
+    resetLoading.value = false
   }
-};
+}
 
-const handleToggleUserStatus = async (user) => {
+async function handleToggleUserStatus(user) {
   try {
-    const res = await api.put(`/admin/users/${user.role}/${user._id}/toggle-status`);
-
-    message.value = res.data.message || 'Cập nhật trạng thái thành công';
-    isSuccess.value = true;
-
-    const index = users.value.findIndex(
-      (u) => u._id === user._id && u.role === user.role
-    );
-
-    if (index !== -1) {
-      users.value[index].isActive = !users.value[index].isActive;
-    }
-
-    if (
-      selectedUser.value &&
-      selectedUser.value._id === user._id &&
-      selectedUser.value.role === user.role
-    ) {
-      selectedUser.value.isActive = !selectedUser.value.isActive;
-    }
+    const res = await api.put(`/admin/users/${user.role}/${user._id}/toggle-status`)
+    message.value  = res.data.message || 'Cập nhật trạng thái thành công'
+    isSuccess.value = true
+    // Cập nhật local thay vì reload
+    const index = users.value.findIndex(u => u._id === user._id && u.role === user.role)
+    if (index !== -1) users.value[index].isActive = !users.value[index].isActive
+    if (selectedUser.value?._id === user._id) selectedUser.value.isActive = !selectedUser.value.isActive
   } catch (error) {
-    console.error('Error toggling user status:', error);
-    message.value = error.response?.data?.message || 'Cập nhật trạng thái thất bại';
-    isSuccess.value = false;
+    message.value  = error.response?.data?.message || 'Cập nhật trạng thái thất bại'
+    isSuccess.value = false
   }
-};
+}
 
-onMounted(fetchUsers);
+onMounted(fetchUsers)
 </script>
 
 <style scoped>

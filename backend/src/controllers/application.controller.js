@@ -78,6 +78,20 @@ const populateApplicationDetail = (query) =>
       populate: { path: 'employer', select: 'companyName logo email companySize industry' },
     });
 
+const removeBrokenApplications = async (applications = []) => {
+  const brokenIds = applications
+    .filter((app) => !app?.student || !app?.job)
+    .map((app) => app._id);
+
+  if (brokenIds.length) {
+    await Application.deleteMany({
+      _id: { $in: brokenIds },
+    });
+  }
+
+  return applications.filter((app) => app?.student && app?.job);
+};
+
 const canEmployerTransition = (currentStatus, nextStatus) => {
   const allowed = EMPLOYER_ALLOWED_TRANSITIONS[currentStatus] || [];
   return allowed.includes(nextStatus);
@@ -362,7 +376,8 @@ exports.getJobApplications = async (req, res) => {
 
     if (limitNum > 0) query = query.limit(limitNum);
 
-    const applications = await query;
+    let applications = await query;
+    applications = await removeBrokenApplications(applications);
 
     return res.status(200).json({
       success: true,
@@ -396,7 +411,8 @@ exports.getEmployerApplications = async (req, res) => {
 
     if (limitNum > 0) query = query.limit(limitNum);
 
-    const applications = await query;
+    let applications = await query;
+    applications = await removeBrokenApplications(applications);
 
     return res.status(200).json({
       success: true,
@@ -432,6 +448,15 @@ exports.getApplicationDetail = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy đơn ứng tuyển',
+      });
+    }
+
+    if (!application.student || !application.job) {
+      await Application.findByIdAndDelete(applicationId);
+
+      return res.status(404).json({
+        success: false,
+        message: 'Đơn ứng tuyển này không còn hợp lệ vì dữ liệu ứng viên hoặc công việc đã bị xoá',
       });
     }
 

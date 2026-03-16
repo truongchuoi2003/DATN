@@ -123,10 +123,6 @@
           Việc làm
         </router-link>
 
-        <router-link to="/home" class="nav-link">
-          Giới thiệu
-        </router-link>
-
         <router-link to="/login" class="nav-link">
           Đăng nhập
         </router-link>
@@ -565,6 +561,8 @@ onBeforeUnmount(() => {
   font-size: 12px;
   font-weight: 500;
   background: rgba(255, 255, 255, 0.2);
+  padding-inline-start: 25%;
+  
 }
 
 .role-badge.admin {

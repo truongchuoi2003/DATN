@@ -207,118 +207,107 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import Header from '../components/Header.vue';
-import api from '../services/api';
+// ── Import ──
+import { ref, computed, onMounted } from 'vue'
+import Header from '../components/Header.vue'
+import api from '../services/api'
 
-const loading = ref(false);
-const message = ref('');
-const isSuccess = ref(false);
-const employers = ref([]);
-const filter = ref('pending'); // pending, verified, all
-const selectedEmployer = ref(null);
+// ════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════
 
-const pendingCount = computed(() => employers.value.filter(e => !e.verified).length);
-const verifiedCount = computed(() => employers.value.filter(e => e.verified).length);
+const loading          = ref(false)
+const message          = ref('')
+const isSuccess        = ref(false)
+const employers        = ref([])
+const filter           = ref('pending')  // pending | verified | all
+const selectedEmployer = ref(null)
+
+// ════════════════════════════════════════
+// COMPUTED
+// ════════════════════════════════════════
+
+const pendingCount  = computed(() => employers.value.filter(e => !e.verified).length)
+const verifiedCount = computed(() => employers.value.filter(e =>  e.verified).length)
 
 const filteredEmployers = computed(() => {
-  if (filter.value === 'pending') {
-    return employers.value.filter(e => !e.verified);
-  } else if (filter.value === 'verified') {
-    return employers.value.filter(e => e.verified);
-  }
-  return employers.value;
-});
+  if (filter.value === 'pending')  return employers.value.filter(e => !e.verified)
+  if (filter.value === 'verified') return employers.value.filter(e =>  e.verified)
+  return employers.value
+})
 
-const getInitials = (name) => {
-  if (!name) return '?';
-  const parts = name.split(' ');
-  if (parts.length >= 2) {
-    return parts[0][0] + parts[parts.length - 1][0];
-  }
-  return name.substring(0, 2).toUpperCase();
-};
+// ════════════════════════════════════════
+// HÀM TIỆN ÍCH
+// ════════════════════════════════════════
 
-const formatDate = (date) => {
-  if (!date) return '-';
-  return new Date(date).toLocaleDateString('vi-VN');
-};
+function getInitials(name) {
+  if (!name) return '?'
+  const parts = name.trim().split(' ').filter(Boolean)
+  return parts.length >= 2 ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase() : name.substring(0,2).toUpperCase()
+}
 
-const fetchEmployers = async () => {
+function formatDate(date) {
+  if (!date) return '-'
+  return new Date(date).toLocaleDateString('vi-VN')
+}
+
+// ════════════════════════════════════════
+// HÀM GỌI API
+// ════════════════════════════════════════
+
+async function fetchEmployers() {
   try {
-    loading.value = true;
-    const res = await api.get('/admin/employers');
-    employers.value = res.data.employers;
+    loading.value = true
+    const res = await api.get('/admin/employers')
+    employers.value = res.data.employers
   } catch (error) {
-    console.error('Error fetching employers:', error);
-    message.value = 'Không thể tải danh sách nhà tuyển dụng';
-    isSuccess.value = false;
+    console.error('Error fetching employers:', error)
+    message.value  = 'Không thể tải danh sách nhà tuyển dụng'
+    isSuccess.value = false
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 
-const handleVerify = async (employerId) => {
-  if (!confirm('Xác nhận xác thực nhà tuyển dụng này?')) return;
-
+async function handleVerify(employerId) {
+  if (!confirm('Xác nhận xác thực nhà tuyển dụng này?')) return
   try {
-    message.value = '';
-    await api.put(`/admin/employers/${employerId}/verify`);
-    
-    message.value = 'Xác thực thành công! ✅';
-    isSuccess.value = true;
-    
-    // Update local state
-    const employer = employers.value.find(e => e._id === employerId);
-    if (employer) employer.verified = true;
-    
-    selectedEmployer.value = null;
-    
-    setTimeout(() => {
-      message.value = '';
-    }, 3000);
+    message.value = ''
+    await api.put(`/admin/employers/${employerId}/verify`)
+    message.value  = 'Xác thực thành công! ✅'
+    isSuccess.value = true
+    // Cập nhật local thay vì reload toàn bộ
+    const emp = employers.value.find(e => e._id === employerId)
+    if (emp) emp.verified = true
+    selectedEmployer.value = null
+    setTimeout(() => { message.value = '' }, 3000)
   } catch (error) {
-    message.value = error.response?.data?.message || 'Xác thực thất bại';
-    isSuccess.value = false;
+    message.value  = error.response?.data?.message || 'Xác thực thất bại'
+    isSuccess.value = false
   }
-};
+}
 
-const handleReject = async (employerId) => {
-  if (!confirm('Xác nhận hủy xác thực nhà tuyển dụng này?')) return;
-
+async function handleReject(employerId) {
+  if (!confirm('Xác nhận hủy xác thực nhà tuyển dụng này?')) return
   try {
-    message.value = '';
-    await api.put(`/admin/employers/${employerId}/reject`);
-    
-    message.value = 'Đã hủy xác thực';
-    isSuccess.value = true;
-    
-    // Update local state
-    const employer = employers.value.find(e => e._id === employerId);
-    if (employer) employer.verified = false;
-    
-    selectedEmployer.value = null;
-    
-    setTimeout(() => {
-      message.value = '';
-    }, 3000);
+    message.value = ''
+    await api.put(`/admin/employers/${employerId}/reject`)
+    message.value  = 'Đã hủy xác thực'
+    isSuccess.value = true
+    const emp = employers.value.find(e => e._id === employerId)
+    if (emp) emp.verified = false
+    selectedEmployer.value = null
+    setTimeout(() => { message.value = '' }, 3000)
   } catch (error) {
-    message.value = error.response?.data?.message || 'Hủy xác thực thất bại';
-    isSuccess.value = false;
+    message.value  = error.response?.data?.message || 'Hủy xác thực thất bại'
+    isSuccess.value = false
   }
-};
+}
 
-const viewDetails = (employer) => {
-  selectedEmployer.value = employer;
-};
+function viewDetails(employer) { selectedEmployer.value = employer }
+function closeModal()          { selectedEmployer.value = null }
 
-const closeModal = () => {
-  selectedEmployer.value = null;
-};
-
-onMounted(() => {
-  fetchEmployers();
-});
+onMounted(() => { fetchEmployers() })
 </script>
 
 <style scoped>

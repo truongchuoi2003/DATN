@@ -156,18 +156,60 @@ exports.rejectEmployer = async (req, res) => {
 // 📊 GET STATISTICS
 exports.getStatistics = async (req, res) => {
   try {
-    const totalStudents = await Student.countDocuments();
-    const totalEmployers = await Employer.countDocuments();
-    const verifiedEmployers = await Employer.countDocuments({ verified: true });
-    const pendingEmployers = await Employer.countDocuments({ verified: false });
+    const [
+      totalStudents,
+      totalEmployers,
+      totalAdmins,
+      verifiedEmployers,
+      pendingEmployers,
+      totalJobs,
+      activeJobs,
+      closedJobs,
+      expiredJobs,
+      totalReports,
+      openReports,
+      inReviewReports,
+      resolvedReports,
+      dismissedReports,
+    ] = await Promise.all([
+      Student.countDocuments(),
+      Employer.countDocuments(),
+      Admin.countDocuments(),
+      Employer.countDocuments({ verified: true }),
+      Employer.countDocuments({ verified: false }),
+      Job.countDocuments(),
+      Job.countDocuments({ status: 'active' }),
+      Job.countDocuments({ status: 'closed' }),
+      Job.countDocuments({ status: 'expired' }),
+      Report.countDocuments(),
+      Report.countDocuments({ status: 'open' }),
+      Report.countDocuments({ status: 'in_review' }),
+      Report.countDocuments({ status: 'resolved' }),
+      Report.countDocuments({ status: 'dismissed' }),
+    ]);
+
+    const totalUsers = totalStudents + totalEmployers + totalAdmins;
 
     return res.status(200).json({
       success: true,
       statistics: {
+        totalUsers,
         totalStudents,
         totalEmployers,
+        totalAdmins,
         verifiedEmployers,
         pendingEmployers,
+
+        totalJobs,
+        activeJobs,
+        closedJobs,
+        expiredJobs,
+
+        totalReports,
+        openReports,
+        inReviewReports,
+        resolvedReports,
+        dismissedReports,
       },
     });
   } catch (error) {
