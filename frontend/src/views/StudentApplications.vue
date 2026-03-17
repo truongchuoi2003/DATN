@@ -515,11 +515,11 @@ onMounted(() => { fetchAll() })
   transition: all 0.15s;
 }
 
-.filter-btn.active { background: #2563eb; color: white; }
+.filter-btn.active { background: #667eea; color: white; }
 
 /* ── State boxes ── */
 .state-box { background: white; border-radius: 16px; padding: 48px; text-align: center; box-shadow: 0 4px 14px rgba(0,0,0,.06); }
-.spinner { width: 36px; height: 36px; border: 4px solid #e0e0e0; border-top-color: #2563eb; border-radius: 50%; margin: 0 auto 14px; animation: spin 0.7s linear infinite; }
+.spinner { width: 36px; height: 36px; border: 4px solid #e0e0e0; border-top-color: #667eea; border-radius: 50%; margin: 0 auto 14px; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .empty-icon { font-size: 40px; margin-bottom: 10px; }
 
@@ -533,7 +533,7 @@ onMounted(() => { fetchAll() })
 
 .app-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
 .app-head h3 { font-size: 17px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
-.company-name { font-size: 14px; color: #2563eb; margin-bottom: 3px; }
+.company-name { font-size: 14px; color: #667eea; margin-bottom: 3px; }
 .job-meta     { font-size: 13px; color: #64748b; }
 
 .head-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
@@ -573,7 +573,7 @@ onMounted(() => { fetchAll() })
 
 .interview-box { background: #eef6ff; border: 1px solid #cfe3ff; padding: 12px 14px; border-radius: 10px; margin: 12px 0; font-size: 13px; }
 .interview-box p { margin: 5px 0; color: #374151; }
-.iv-link { color: #2563eb; text-decoration: none; font-weight: 600; word-break: break-all; }
+.iv-link { color: #667eea; text-decoration: none; font-weight: 600; word-break: break-all; }
 .iv-link:hover { text-decoration: underline; }
 
 /* Actions */
@@ -586,9 +586,9 @@ onMounted(() => { fetchAll() })
 }
 
 .btn:hover { transform: translateY(-1px); }
-.btn-primary  { background: #2563eb; color: white; }
+.btn-primary  { background: #667eea; color: white; }
 .btn-secondary{ background: #e2e8f0; color: #0f172a; }
-.btn-outline  { background: white; color: #2563eb; border: 1.5px solid #bfdbfe; }
+.btn-outline  { background: white; color: #667eea; border: 1.5px solid #c3b8f0; }
 .btn-danger   { background: #ef4444; color: white; }
 .btn-warning  { background: #f59e0b; color: white; }
 

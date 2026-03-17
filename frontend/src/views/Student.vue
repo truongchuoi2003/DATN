@@ -232,10 +232,9 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import Header  from '../components/Header.vue'
 import JobsMap from '../components/JobsMap.vue'
 import { useAuth } from '../composables/useAuth'
-import axios from 'axios'
+import api from '../services/api'
 
 const { user, refreshUser, updateUser } = useAuth()
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
 
 // ════════════════════════════════════════
 // STATE
@@ -406,17 +405,9 @@ function onMarkerClick(job) {
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
 
-// ════════════════════════════════════════
-// HÀM GỌI API
-// ════════════════════════════════════════
-
-function getAuthHeader() {
-  return { Authorization: `Bearer ${localStorage.getItem('token')}` }
-}
-
 async function fetchProfileData() {
   try {
-    const res = await axios.get(`${API_URL}/profile`, { headers: getAuthHeader() })
+    const res = await api.get('/profile')
     profileData.value = res.data.profile || null
     if (profileData.value) updateUser(profileData.value)
   } catch (error) {
@@ -426,7 +417,7 @@ async function fetchProfileData() {
 
 async function fetchStats() {
   try {
-    const res = await axios.get(`${API_URL}/applications/my-stats`, { headers: getAuthHeader() })
+    const res = await api.get('/applications/my-stats')
     Object.assign(stats, res.data.stats || res.data.statistics || {})
   } catch (error) {
     console.error('Error fetching stats:', error)
@@ -436,7 +427,7 @@ async function fetchStats() {
 async function fetchRecentApplications() {
   try {
     loadingApps.value = true
-    const res = await axios.get(`${API_URL}/applications/my-applications?limit=3&sort=-createdAt`, { headers: getAuthHeader() })
+    const res = await api.get('/applications/my-applications?limit=3&sort=-createdAt')
     recentApplications.value = res.data.applications || []
   } catch (error) {
     console.error('Error fetching applications:', error)
@@ -448,13 +439,13 @@ async function fetchRecentApplications() {
 async function fetchRecommendedJobs() {
   try {
     loadingJobs.value = true
-    const res = await axios.get(`${API_URL}/recommendations/jobs?limit=3`, { headers: getAuthHeader() })
+    const res = await api.get('/recommendations/jobs?limit=3')
     recommendedJobs.value = res.data.jobs || []
     totalJobs.value       = res.data.count || recommendedJobs.value.length
   } catch (error) {
     // Nếu API gợi ý lỗi, fallback về danh sách job công khai
     try {
-      const fallback = await axios.get(`${API_URL}/jobs/public?limit=3`)
+      const fallback = await api.get('/jobs/public?limit=3')
       recommendedJobs.value = fallback.data.jobs || []
       totalJobs.value       = fallback.data.total || recommendedJobs.value.length
     } catch (e) {

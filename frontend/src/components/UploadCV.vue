@@ -78,9 +78,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+import api from '../services/api';
 
 const currentCV = ref(null);
 const selectedFile = ref(null);
@@ -94,10 +92,7 @@ const emit = defineEmits(['uploaded']);
 // Load current CV
 const loadCurrentCV = async () => {
   try {
-    const token = localStorage.getItem('token');
-    const res = await axios.get(`${API_URL}/profile`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
+    const res = await api.get('/profile');
     
     currentCV.value = res.data.profile?.resumeUrl;
     console.log('Current CV:', currentCV.value);
@@ -164,23 +159,17 @@ const uploadCV = async () => {
     uploading.value = true;
     uploadProgress.value = 0;
 
-    const token = localStorage.getItem('token');
     const formData = new FormData();
     formData.append('resume', selectedFile.value);
 
-    const res = await axios.put(
-      `${API_URL}/profile`,
-      formData,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
-        },
-        onUploadProgress: (progressEvent) => {
-          uploadProgress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-        }
+    const res = await api.put('/profile', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+      onUploadProgress: (progressEvent) => {
+        uploadProgress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total);
       }
-    );
+    });
 
     console.log('Upload response:', res.data);
 

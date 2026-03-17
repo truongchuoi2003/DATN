@@ -304,11 +304,10 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Header from '../components/Header.vue'
-import axios from 'axios'
+import api from '../services/api'
 
 const route   = useRoute()
 const router  = useRouter()
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
 
 // ════════════════════════════════════════
 // STATE
@@ -343,15 +342,6 @@ const reportEmployerEvidenceText = ref('')
 
 // Ngày hôm nay làm min cho input date
 const today = new Date().toISOString().split('T')[0]
-
-// ════════════════════════════════════════
-// HÀM TIỆN ÍCH
-// ════════════════════════════════════════
-
-function getAuthHeaders() {
-  const token = localStorage.getItem('token')
-  return token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : null
-}
 
 function getInitials(name) {
   if (!name) return '?'
@@ -405,16 +395,16 @@ function normalizeUrl(url) {
 // Ghi nhận tương tác của sinh viên với job (click, view, apply)
 async function recordInteraction(type) {
   try {
-    const headers = getAuthHeaders()
-    if (!headers) return
-    await axios.post(`${API_URL}/jobs/${route.params.id}/interactions/${type}`, {}, { headers })
+    const token = localStorage.getItem('token')
+    if (!token) return
+    await api.post(`/jobs/${route.params.id}/interactions/${type}`)
   } catch (error) { }
 }
 
 async function fetchJobDetail() {
   try {
     loading.value = true
-    const res = await axios.get(`${API_URL}/jobs/public/${route.params.id}`)
+    const res = await api.get(`/jobs/public/${route.params.id}`)
     job.value = res.data.job
 
     // Ghi nhận click và view, kiểm tra trạng thái đã ứng tuyển và đã lưu
@@ -433,9 +423,9 @@ async function fetchJobDetail() {
 
 async function checkApplicationStatus() {
   try {
-    const headers = getAuthHeaders()
-    if (!headers) return
-    const res = await axios.get(`${API_URL}/applications/check/${route.params.id}`, { headers })
+    const token = localStorage.getItem('token')
+    if (!token) return
+    const res = await api.get(`/applications/check/${route.params.id}`)
     hasApplied.value = res.data.hasApplied
   } catch {
     hasApplied.value = false
@@ -444,9 +434,9 @@ async function checkApplicationStatus() {
 
 async function fetchSavedStatus() {
   try {
-    const headers = getAuthHeaders()
-    if (!headers) return
-    const res = await axios.get(`${API_URL}/jobs/saved/my`, { headers })
+    const token = localStorage.getItem('token')
+    if (!token) return
+    const res = await api.get('/jobs/saved/my')
     isSaved.value = (res.data.jobs || []).some(j => String(j._id) === String(route.params.id))
   } catch {
     isSaved.value = false
@@ -455,15 +445,15 @@ async function fetchSavedStatus() {
 
 // Toggle lưu/bỏ lưu job
 async function toggleSave() {
-  const headers = getAuthHeaders()
-  if (!headers) { alert('Vui lòng đăng nhập'); router.push('/login'); return }
+  const token = localStorage.getItem('token')
+  if (!token) { alert('Vui lòng đăng nhập'); router.push('/login'); return }
   if (!job.value?._id) return
   try {
     if (isSaved.value) {
-      await axios.delete(`${API_URL}/jobs/${job.value._id}/save`, { headers })
+      await api.delete(`/jobs/${job.value._id}/save`)
       isSaved.value = false
     } else {
-      await axios.post(`${API_URL}/jobs/${job.value._id}/save`, {}, { headers })
+      await api.post(`/jobs/${job.value._id}/save`)
       isSaved.value = true
     }
   } catch (error) {
@@ -473,18 +463,18 @@ async function toggleSave() {
 
 // Gửi đơn ứng tuyển
 async function submitApplication() {
-  const headers = getAuthHeaders()
-  if (!headers) { alert('Vui lòng đăng nhập để ứng tuyển'); router.push('/login'); return }
+  const token = localStorage.getItem('token')
+  if (!token) { alert('Vui lòng đăng nhập để ứng tuyển'); router.push('/login'); return }
 
   try {
     submitting.value = true
-    await axios.post(`${API_URL}/applications`, {
-      jobId:          route.params.id,
-      coverLetter:    application.coverLetter,
+    await api.post('/applications', {
+      jobId: route.params.id,
+      coverLetter: application.coverLetter,
       expectedSalary: application.expectedSalary || null,
-      availableFrom:  application.availableFrom  || null,
+      availableFrom: application.availableFrom || null,
       additionalInfo: application.additionalInfo || null,
-    }, { headers })
+    })
 
     alert('✅ Ứng tuyển thành công! Chúc bạn may mắn!')
     hasApplied.value = true
@@ -534,12 +524,12 @@ async function submitReportJob() {
 
   try {
     const evidenceUrls = reportJobEvidenceText.value.split('\n').map(s => s.trim()).filter(Boolean)
-    await axios.post(`${API_URL}/reports/student/job`, {
-      jobId:       job.value._id,
-      reason:      reportJobForm.reason,
+    await api.post('/reports/student/job', {
+      jobId: job.value._id,
+      reason: reportJobForm.reason,
       description: reportJobForm.description.trim(),
       evidenceUrls,
-    }, { headers: { Authorization: `Bearer ${token}` } })
+    })
 
     alert('✅ Đã gửi report thành công!')
     closeReportJob()
@@ -560,13 +550,13 @@ async function submitReportEmployer() {
 
   try {
     const evidenceUrls = reportEmployerEvidenceText.value.split('\n').map(s => s.trim()).filter(Boolean)
-    await axios.post(`${API_URL}/reports/student/employer`, {
+    await api.post('/reports/student/employer', {
       employerId,
-      jobId:       job.value?._id || null,
-      reason:      reportEmployerForm.reason,
+      jobId: job.value?._id || null,
+      reason: reportEmployerForm.reason,
       description: reportEmployerForm.description.trim(),
       evidenceUrls,
-    }, { headers: { Authorization: `Bearer ${token}` } })
+    })
 
     alert('✅ Đã gửi report thành công!')
     closeReportEmployer()

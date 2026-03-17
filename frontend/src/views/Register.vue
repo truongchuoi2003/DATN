@@ -116,7 +116,7 @@
           </p>
 
           <p class="back-home">
-            <router-link to="/">← Quay lại trang chủ</router-link>
+            <router-link to="/home">← Quay lại trang chủ</router-link>
           </p>
         </div>
       </div>

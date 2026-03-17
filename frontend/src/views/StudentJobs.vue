@@ -322,12 +322,11 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import Header  from '../components/Header.vue'
 import JobsMap from '../components/JobsMap.vue'
-import axios   from 'axios'
 import { useAuth } from '../composables/useAuth'
+import api from '../services/api'
 
 const { user } = useAuth()
 const router   = useRouter()
-const API_URL  = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
 
 // ════════════════════════════════════════
 // STATE
@@ -418,15 +417,6 @@ const mapCenter = computed(() => {
   if (mapJobs.value.length > 0) return mapJobs.value[0].latlng
   return CITY_CENTER['TP. Hồ Chí Minh']
 })
-
-// ════════════════════════════════════════
-// HÀM TIỆN ÍCH
-// ════════════════════════════════════════
-
-function getAuthHeaders() {
-  const token = localStorage.getItem('token')
-  return token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : null
-}
 
 // Lấy [lat, lng] từ job, fallback về city center
 function toLatLng(job) {
@@ -554,7 +544,7 @@ async function fetchJobs() {
     params.append('page',  page.value)
     params.append('limit', 12)
 
-    const res = await axios.get(`${API_URL}/jobs/public?${params.toString()}`)
+    const res = await api.get(`/jobs/public?${params.toString()}`)
     jobs.value       = res.data.jobs       || []
     total.value      = res.data.total      || 0
     totalPages.value = res.data.totalPages || 1
@@ -568,9 +558,9 @@ async function fetchJobs() {
 
 async function fetchSavedJobs() {
   try {
-    const headers = getAuthHeaders()
-    if (!headers) return
-    const res = await axios.get(`${API_URL}/jobs/saved/my`, { headers })
+    const token = localStorage.getItem('token')
+    if (!token) return
+    const res = await api.get('/jobs/saved/my')
     savedJobIds.value = (res.data.jobs || []).map(j => String(j._id))
   } catch (error) {
     savedJobIds.value = []
@@ -581,9 +571,9 @@ async function fetchRecommendedJobs() {
   try {
     recommendLoading.value = true
     recommendError.value   = ''
-    const headers = getAuthHeaders()
-    if (!headers) return
-    const res = await axios.get(`${API_URL}/recommendations/jobs?limit=6`, { headers })
+    const token = localStorage.getItem('token')
+    if (!token) return
+    const res = await api.get('/recommendations/jobs?limit=6')
     recommendedJobs.value = (res.data?.jobs || []).map(j => attachDistance(j))
   } catch (error) {
     recommendError.value = error.response?.data?.message || 'Không thể tải gợi ý'
@@ -595,15 +585,15 @@ async function fetchRecommendedJobs() {
 
 // Lưu / bỏ lưu job
 async function toggleSave(jobId) {
-  const headers = getAuthHeaders()
-  if (!headers) { alert('Vui lòng đăng nhập để lưu việc làm'); router.push('/login'); return }
+  const token = localStorage.getItem('token')
+  if (!token) { alert('Vui lòng đăng nhập để lưu việc làm'); router.push('/login'); return }
   const id = String(jobId)
   try {
     if (isSaved(id)) {
-      await axios.delete(`${API_URL}/jobs/${id}/save`, { headers })
+      await api.delete(`/jobs/${id}/save`)
       savedJobIds.value = savedJobIds.value.filter(x => x !== id)
     } else {
-      await axios.post(`${API_URL}/jobs/${id}/save`, {}, { headers })
+      await api.post(`/jobs/${id}/save`)
       savedJobIds.value.push(id)
     }
   } catch (error) {
@@ -614,8 +604,8 @@ async function toggleSave(jobId) {
 // Ghi nhận click + chuyển trang chi tiết
 async function goToDetail(jobId) {
   try {
-    const headers = getAuthHeaders()
-    if (headers) await axios.post(`${API_URL}/jobs/${jobId}/interactions/click`, {}, { headers })
+    const token = localStorage.getItem('token')
+    if (token) await api.post(`/jobs/${jobId}/interactions/click` )
   } catch { }
   router.push(`/student/jobs/${jobId}`)
 }

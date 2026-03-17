@@ -51,9 +51,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue';
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+import api from '../services/api';
 
 const props = defineProps({
   currentAvatar: {
@@ -136,14 +134,11 @@ const uploadAvatar = async () => {
   try {
     uploading.value = true;
     uploadProgress.value = 0;
-
-    const token = localStorage.getItem('token');
     const formData = new FormData();
     formData.append('avatar', selectedFile.value);
 
-    const res = await axios.put(`${API_URL}/profile`, formData, {
+    const res = await api.put('/profile', formData, {
       headers: {
-        Authorization: `Bearer ${token}`,
         'Content-Type': 'multipart/form-data',
       },
       onUploadProgress: (progressEvent) => {

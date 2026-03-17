@@ -2,7 +2,7 @@ const Student = require('../models/Student.model');
 const Employer = require('../models/Employer.model');
 const Admin = require('../models/Admin.model');
 const jwt = require('jsonwebtoken');
-const { findUserByIdAndRole } = require('../utils/user.helper');
+
 
 // 📝 REGISTER
 exports.register = async (req, res) => {
@@ -36,6 +36,14 @@ exports.register = async (req, res) => {
     if (role === 'student') {
       Model = Student;
       collectionName = 'Student';
+
+      // Student bắt buộc birthday
+      if (!birthday) {
+        return res.status(400).json({
+          success: false,
+          message: 'Sinh viên phải có ngày sinh',
+        });
+      }
       
     } else if (role === 'employer') {
       Model = Employer;
@@ -46,13 +54,6 @@ exports.register = async (req, res) => {
         return res.status(400).json({
           success: false,
           message: 'Nhà tuyển dụng phải có tên công ty',
-        });
-      }
-      // Student bắt buộc birthday
-      if (role === 'student' && !birthday) {
-        return res.status(400).json({
-          success: false,
-          message: 'Sinh viên phải có ngày sinh',
         });
       }
     }
@@ -175,13 +176,6 @@ exports.login = async (req, res) => {
         message: 'Email hoặc password không đúng',
       });
     }
-    
-    if (!user.isActive) {
-      return res.status(403).json({
-        success: false,
-        message: 'Tài khoản đã bị khóa',
-      });
-    }
 
     // ✅ Check tài khoản có active không
     if (!user.isActive) {
@@ -217,66 +211,6 @@ exports.login = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Lỗi server khi đăng nhập',
-      error: error.message,
-    });
-  }
-};
-exports.changePassword = async (req, res) => {
-  try {
-    const { userId, role } = req.user;
-    const { currentPassword, newPassword, confirmNewPassword } = req.body;
-
-    if (!currentPassword || !newPassword || !confirmNewPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Vui lòng nhập đầy đủ thông tin',
-      });
-    }
-
-    if (newPassword.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'Mật khẩu mới phải có ít nhất 6 ký tự',
-      });
-    }
-
-    if (newPassword !== confirmNewPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'Xác nhận mật khẩu mới không khớp',
-      });
-    }
-
-    const found = await findUserByIdAndRole(userId, role);
-    if (!found) {
-      return res.status(404).json({
-        success: false,
-        message: 'Không tìm thấy tài khoản',
-      });
-    }
-
-    const { user } = found;
-
-    const isMatch = await user.comparePassword(currentPassword);
-    if (!isMatch) {
-      return res.status(400).json({
-        success: false,
-        message: 'Mật khẩu hiện tại không đúng',
-      });
-    }
-
-    user.password = newPassword;
-    await user.save();
-
-    return res.status(200).json({
-      success: true,
-      message: 'Đổi mật khẩu thành công',
-    });
-  } catch (error) {
-    console.error('❌ Change password error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Lỗi server',
       error: error.message,
     });
   }

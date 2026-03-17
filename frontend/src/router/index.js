@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import Login from '../views/Login.vue';
 import Register from '../views/Register.vue';
-import ChangePassword from '../views/ChangePassword.vue';
+
 
 /**
  * Đọc user từ localStorage an toàn
@@ -58,9 +58,13 @@ const routes = [
   // ===== PUBLIC =====
   
   {
-    path: '',
+    path: '/home',
     name: 'PublicJobs',
     component: () => import('../views/PublicJobs.vue'),
+  },
+  {
+    path: '/jobs/public',
+    redirect: '/home',
   },
   {
     path: '/jobs/public/:jobId',
@@ -79,12 +83,6 @@ const routes = [
     name: 'Register',
     component: Register,
     meta: { guest: true },
-  },
-  {
-    path: '/change-password',
-    name: 'ChangePassword',
-    component: ChangePassword,
-    meta: { requiresAuth: true },
   },
 
   // ===== STUDENT =====
@@ -231,8 +229,8 @@ router.beforeEach((to, from, next) => {
     return next();
   }
 
-  // 2) Route chỉ dành cho khách / landing guest
-  if (to.meta.guest || to.meta.guestLanding) {
+  // 2) Route chỉ dành cho khách 
+  if (to.meta.guest) {
     if (isAuthenticated) {
       return next(getDashboardPathByRole(user.role));
     }

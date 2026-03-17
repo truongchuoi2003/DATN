@@ -119,7 +119,7 @@
 
       <!-- ===== NAV KHI CHƯA ĐĂNG NHẬP ===== -->
       <nav v-else class="nav">
-        <router-link to="/" class="nav-link">
+        <router-link to="/home" class="nav-link">
           Việc làm
         </router-link>
 
@@ -153,7 +153,7 @@ const notificationRef = ref(null);
 let pollingInterval = null;
 
 const homeRoute = computed(() => {
-  if (!user.value) return '/';
+  if (!user.value) return '/home';
 
   const roleRoutes = {
     student: '/student',
@@ -161,7 +161,7 @@ const homeRoute = computed(() => {
     admin: '/admin',
   };
 
-  return roleRoutes[user.value.role] || '/';
+  return roleRoutes[user.value.role] || '/home';
 });
 
 const getRoleName = (role) => {
