@@ -221,11 +221,11 @@ const getStudentBehaviorProfile = async (studentId) => {
 
     // cap theo loại hành vi
     let eventWeight = 0;
-    if (type === 'apply') eventWeight = 4.5;
-    else if (type === 'save') eventWeight = 3.0;
-    else if (type === 'click') eventWeight = 1.4;
-    else if (type === 'view') eventWeight = 0.7;
-    else if (type === 'unsave') eventWeight = -2.5;
+    if (type === 'apply') eventWeight = 5.0;
+    else if (type === 'save') eventWeight = 3.5;
+    else if (type === 'click') eventWeight = 1.5;
+    else if (type === 'view') eventWeight = 0.5;
+    else if (type === 'unsave') eventWeight = -4.0;
 
     let weighted = Math.max(baseValue, 1) * eventWeight * recencyFactor;
 
