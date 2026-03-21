@@ -59,7 +59,7 @@
           <div class="stat-card">
             <div class="stat-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7)">✅</div>
             <div class="stat-info">
-              <h3>{{ stats.acceptedApplications }}</h3>
+              <h3>{{ stats.hiredApplications }}</h3>
               <p>Đã tuyển</p>
               <span class="stat-sub">Tổng cộng</span>
             </div>
@@ -163,7 +163,7 @@
                     <!-- Nút hành động -->
                     <div class="app-actions">
                       <button class="btn-icon" @click="openDetailModal(app)" title="Xem hồ sơ">👁️</button>
-                      <button v-if="app.status === 'pending'" class="btn-icon btn-accept" @click="acceptApplication(app._id)" title="Chấp nhận">✓</button>
+                      <button v-if="app.status === 'pending'" class="btn-icon btn-accept" @click="acceptApplication(app._id)" title="Chuyển sang đang xem xét">✓</button>
                       <button v-if="app.status === 'pending'" class="btn-icon btn-reject" @click="rejectApplication(app._id)" title="Từ chối">✕</button>
                     </div>
                   </div>
@@ -213,7 +213,7 @@
 
           <!-- Nút hành động modal -->
           <div class="modal-actions">
-            <button v-if="selectedApplication.status === 'pending'" class="btn btn-success" @click="acceptApplication(selectedApplication._id)">✅ Chấp nhận</button>
+            <button v-if="selectedApplication.status === 'pending'" class="btn btn-success" @click="acceptApplication(selectedApplication._id)">👀 Đang xem xét</button>
             <button v-if="selectedApplication.status === 'pending'" class="btn btn-danger"  @click="rejectApplication(selectedApplication._id)">❌ Từ chối</button>
             <button class="btn btn-secondary" @click="closeDetailModal">Đóng</button>
           </div>
@@ -247,7 +247,7 @@ const stats = reactive({
   activeJobs:           0,
   totalApplications:    0,
   pendingApplications:  0,
-  acceptedApplications: 0,
+  hiredApplications: 0,
   totalViews:           0,
 })
 
@@ -288,10 +288,13 @@ function formatDate(date) {
 
 function getStatusLabel(status) {
   const labels = {
-    pending:    'Chờ xử lý',
-    reviewing:  'Đang xem xét',
-    accepted:   'Đã chấp nhận',
-    rejected:   'Đã từ chối',
+    pending:      'Chờ xử lý',
+    reviewing:    'Đang xem xét',
+    shortlisted:  'Đã shortlist',
+    interviewing: 'Đang phỏng vấn',
+    offered:      'Đã gửi offer',
+    hired:        'Đã tuyển',
+    rejected:     'Đã từ chối',
   }
   return labels[status] || status
 }
@@ -309,19 +312,20 @@ function getFullUrl(url) {
 
 async function fetchStats() {
   try {
-    // Gọi song song 2 API bằng Promise.all để tiết kiệm thời gian
     const [jobStatsRes, appStatsRes] = await Promise.all([
       api.get('/jobs/statistics'),
       api.get('/applications/employer/stats'),
     ])
+
     const jobStats = jobStatsRes.data.statistics || {}
-    const appStats = appStatsRes.data.stats      || {}
-    stats.totalJobs            = jobStats.totalJobs   || 0
-    stats.activeJobs           = jobStats.activeJobs  || 0
-    stats.totalViews           = jobStats.totalViews  || 0
-    stats.totalApplications    = appStats.total       || 0
-    stats.pendingApplications  = appStats.pending     || 0
-    stats.acceptedApplications = appStats.accepted    || 0
+    const appStats = appStatsRes.data.stats || {}
+
+    stats.totalJobs           = jobStats.totalJobs || 0
+    stats.activeJobs          = jobStats.activeJobs || 0
+    stats.totalViews          = jobStats.totalViews || 0
+    stats.totalApplications   = appStats.total || 0
+    stats.pendingApplications = appStats.pending || 0
+    stats.hiredApplications   = appStats.hired || 0
   } catch (error) {
     console.error('Error fetching stats:', error)
   }
@@ -387,14 +391,14 @@ function closeDetailModal() {
 }
 
 async function acceptApplication(appId) {
-  if (!confirm('Bạn có chắc muốn chấp nhận ứng viên này?')) return
+  if (!confirm('Bạn có chắc muốn chuyển ứng viên này sang trạng thái đang xem xét?')) return
   try {
-    await api.put(`/applications/${appId}/status`, { status: 'accepted' })
-    alert('✅ Đã chấp nhận ứng viên')
+    await api.put(`/applications/${appId}/status`, { status: 'reviewing' })
+    alert('✅ Đã chuyển ứng viên sang trạng thái đang xem xét')
     closeDetailModal()
     await fetchAllData()
   } catch (error) {
-    alert(error.response?.data?.message || 'Không thể chấp nhận ứng viên')
+    alert(error.response?.data?.message || 'Không thể cập nhật trạng thái ứng viên')
   }
 }
 
@@ -589,10 +593,13 @@ onMounted(() => {
 .app-meta { font-size: 12px; color: #bbb; margin-bottom: 6px; }
 
 .status-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
-.status-pending   { background: #fff3cd; color: #856404; }
-.status-accepted  { background: #d4edda; color: #155724; }
-.status-rejected  { background: #f8d7da; color: #721c24; }
-.status-reviewing { background: #cce5ff; color: #004085; }
+.status-pending      { background: #fff3cd; color: #856404; }
+.status-reviewing    { background: #cce5ff; color: #004085; }
+.status-shortlisted  { background: #ede9fe; color: #6d28d9; }
+.status-interviewing { background: #e0f2fe; color: #075985; }
+.status-offered      { background: #fff7ed; color: #c2410c; }
+.status-hired        { background: #dcfce7; color: #166534; }
+.status-rejected     { background: #f8d7da; color: #721c24; }
 
 .app-actions { display: flex; flex-direction: column; gap: 6px; }
 

@@ -37,12 +37,16 @@ function main() {
   console.log(`📦 Số lượng job seed: ${count}`);
   console.log('='.repeat(70));
 
-  runNodeScript('scripts/cleanupOrphanApplications.js');
+  runNodeScript('scripts/cleanupOrphanApplications.js', ['--apply']);
+  runNodeScript('scripts/seedPendingEmployers.js', ['--reset']);
+  runNodeScript('scripts/seedEmployers.js', ['--reset']);
+  runNodeScript('scripts/createAdmin.js');
   runNodeScript('scripts/seedStudents.js', ['--reset']);
-  runNodeScript('scripts/seedJobs.js', [`--count=${count}`, '--reset']);
+  runNodeScript('scripts/seedJobs.js', ['--reset']);
   runNodeScript('scripts/seedInteractions.js', ['--reset']);
   runNodeScript('scripts/seedApplications.js', ['--reset']);
   runNodeScript('scripts/cleanupOrphanApplications.js');
+  runNodeScript('scripts/seedReports.js', ['--reset']);
 
   console.log('\n' + '='.repeat(70));
   console.log('✅ HOÀN TẤT REBUILD DEMO');

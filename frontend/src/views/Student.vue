@@ -362,7 +362,17 @@ function getInitials(name) {
 }
 
 function getStatusLabel(status) {
-  const labels = { pending: 'Đang chờ', accepted: 'Chấp nhận', rejected: 'Từ chối', withdrawn: 'Đã rút' }
+  const labels = {
+    pending: 'Đang chờ',
+    reviewing: 'Đang xem xét',
+    shortlisted: 'Đã shortlist',
+    interviewing: 'Đang phỏng vấn',
+    offered: 'Đã nhận offer',
+    hired: 'Đã được tuyển',
+    accepted: 'Chấp nhận',
+    rejected: 'Từ chối',
+    withdrawn: 'Đã rút',
+  }
   return labels[status] || status
 }
 
@@ -615,10 +625,15 @@ onMounted(() => {
 .app-date    { font-size: 12px; color: #bbb; white-space: nowrap; }
 
 .status-badge { display: inline-block; padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-.status-pending   { background: #fff3cd; color: #856404; }
-.status-accepted  { background: #d4edda; color: #155724; }
-.status-rejected  { background: #f8d7da; color: #721c24; }
-.status-withdrawn { background: #f0f0f0; color: #888; }
+.status-pending      { background: #fff3cd; color: #856404; }
+.status-reviewing    { background: #e0f2fe; color: #075985; }
+.status-shortlisted  { background: #ede9fe; color: #6d28d9; }
+.status-interviewing { background: #e0f2fe; color: #075985; }
+.status-offered      { background: #fff7ed; color: #c2410c; }
+.status-hired        { background: #dcfce7; color: #166534; }
+.status-accepted     { background: #d4edda; color: #155724; }
+.status-rejected     { background: #f8d7da; color: #721c24; }
+.status-withdrawn    { background: #f0f0f0; color: #888; }
 
 /* ── Việc làm gợi ý ── */
 .job-list { display: flex; flex-direction: column; gap: 10px; }

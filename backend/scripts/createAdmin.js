@@ -5,11 +5,11 @@ const Admin = require('../src/models/Admin.model');
 // 🔧 Thông tin admin - BẠN CÓ THỂ SỬA Ở ĐÂY
 const ADMIN_DATA = {
   fullName: 'Admin DATN',
-  email: 'admin@datn.com',
+  email: 'admin@gmail.com',
   password: '123456',
   phone: '0123456789',
   permissions: ['all'],
-  role: 'super_admin',
+  role: 'admin',
 };
 
 const createAdmin = async () => {

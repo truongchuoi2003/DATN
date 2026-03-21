@@ -438,12 +438,16 @@ exports.getAllReports = async (req, res) => {
     if (status !== 'all') filter.status = status;
     if (targetType !== 'all') filter.targetType = targetType;
 
-    const reports = await Report.find(filter)
+    const rawReports = await Report.find(filter)
       .populate('reporterId', 'fullName email companyName phone')
       .populate('targetId')
       .populate('relatedJob', 'title')
       .populate('relatedApplication', 'status createdAt')
       .sort({ createdAt: -1 });
+
+    const reports = rawReports.filter(
+      (report) => report.reporterId && report.targetId
+    );
 
     return res.status(200).json({
       success: true,
@@ -475,6 +479,13 @@ exports.getReportDetail = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy report',
+      });
+    }
+
+    if (!report.reporterId || !report.targetId) {
+      return res.status(404).json({
+        success: false,
+        message: 'Report không còn hợp lệ vì đã mất người gửi hoặc đối tượng bị report',
       });
     }
 

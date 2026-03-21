@@ -324,6 +324,7 @@ import Header  from '../components/Header.vue'
 import JobsMap from '../components/JobsMap.vue'
 import { useAuth } from '../composables/useAuth'
 import api from '../services/api'
+import { authStorage } from '../utils/authStorage'
 
 const { user } = useAuth()
 const router   = useRouter()
@@ -558,7 +559,7 @@ async function fetchJobs() {
 
 async function fetchSavedJobs() {
   try {
-    const token = localStorage.getItem('token')
+    const token = authStorage.getToken()
     if (!token) return
     const res = await api.get('/jobs/saved/my')
     savedJobIds.value = (res.data.jobs || []).map(j => String(j._id))
@@ -571,7 +572,7 @@ async function fetchRecommendedJobs() {
   try {
     recommendLoading.value = true
     recommendError.value   = ''
-    const token = localStorage.getItem('token')
+    const token = authStorage.getToken()
     if (!token) return
     const res = await api.get('/recommendations/jobs?limit=6')
     recommendedJobs.value = (res.data?.jobs || []).map(j => attachDistance(j))
@@ -585,7 +586,7 @@ async function fetchRecommendedJobs() {
 
 // Lưu / bỏ lưu job
 async function toggleSave(jobId) {
-  const token = localStorage.getItem('token')
+  const token = authStorage.getToken()
   if (!token) { alert('Vui lòng đăng nhập để lưu việc làm'); router.push('/login'); return }
   const id = String(jobId)
   try {
@@ -604,7 +605,7 @@ async function toggleSave(jobId) {
 // Ghi nhận click + chuyển trang chi tiết
 async function goToDetail(jobId) {
   try {
-    const token = localStorage.getItem('token')
+    const token = authStorage.getToken()
     if (token) await api.post(`/jobs/${jobId}/interactions/click` )
   } catch { }
   router.push(`/student/jobs/${jobId}`)

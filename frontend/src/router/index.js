@@ -1,62 +1,39 @@
-import { createRouter, createWebHistory } from 'vue-router';
-import Login from '../views/Login.vue';
-import Register from '../views/Register.vue';
+import { createRouter, createWebHistory } from 'vue-router'
+import Login from '../views/Login.vue'
+import Register from '../views/Register.vue'
+import { authStorage } from '../utils/authStorage'
 
-
-/**
- * Đọc user từ localStorage an toàn
- */
-function getStoredUser() {
-  try {
-    const rawUser = localStorage.getItem('user');
-    return rawUser ? JSON.parse(rawUser) : null;
-  } catch (error) {
-    console.error('Lỗi parse user từ localStorage:', error);
-    localStorage.removeItem('user');
-    return null;
-  }
-}
-
-/**
- * Lấy đường dẫn dashboard theo role
- */
 function getDashboardPathByRole(role) {
   switch (role) {
     case 'admin':
-      return '/admin';
+      return '/admin'
     case 'employer':
-      return '/employer';
+      return '/employer'
     case 'student':
-      return '/student';
+      return '/student'
     default:
-      return '/home';
+      return '/home'
   }
 }
 
-/**
- * Kiểm tra đã đăng nhập hợp lệ chưa
- */
 function getAuthState() {
-  const token = localStorage.getItem('token');
-  const user = getStoredUser();
+  const token = authStorage.getToken()
+  const user = authStorage.getUser()
+  const isAuthenticated = !!token && !!user && !!user.role
 
-  const isAuthenticated = !!token && !!user && !!user.role;
-  return { token, user, isAuthenticated };
+  return { token, user, isAuthenticated }
 }
 
 const routes = [
-  // ===== ROOT ENTRY =====
   {
     path: '/',
     name: 'RootEntry',
     redirect: () => {
-      const { isAuthenticated, user } = getAuthState();
-      return isAuthenticated ? getDashboardPathByRole(user.role) : '/home';
+      const { isAuthenticated, user } = getAuthState()
+      return isAuthenticated ? getDashboardPathByRole(user.role) : '/home'
     },
   },
 
-  // ===== PUBLIC =====
-  
   {
     path: '/home',
     name: 'PublicJobs',
@@ -85,7 +62,6 @@ const routes = [
     meta: { guest: true },
   },
 
-  // ===== STUDENT =====
   {
     path: '/student',
     name: 'Student',
@@ -117,7 +93,6 @@ const routes = [
     meta: { requiresAuth: true, role: 'student' },
   },
 
-  // ===== EMPLOYER =====
   {
     path: '/employer',
     name: 'Employer',
@@ -161,7 +136,6 @@ const routes = [
     meta: { requiresAuth: true, role: 'employer' },
   },
 
-  // ===== ADMIN =====
   {
     path: '/admin',
     name: 'Admin',
@@ -200,45 +174,40 @@ const routes = [
   },
 
   { path: '/:pathMatch(.*)*', name: 'NotFound', redirect: '/' },
-];
+]
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
-});
+})
 
 router.beforeEach((to, from, next) => {
-  const { token, user, isAuthenticated } = getAuthState();
+  const { token, user, isAuthenticated } = getAuthState()
 
-  // Trường hợp token có nhưng user lỗi / thiếu role -> clear luôn
   if (token && (!user || !user.role)) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    authStorage.clear()
   }
 
-  // 1) Route cần đăng nhập
   if (to.meta.requiresAuth) {
     if (!isAuthenticated) {
-      return next('/login');
+      return next('/login')
     }
 
     if (to.meta.role && to.meta.role !== user.role) {
-      return next(getDashboardPathByRole(user.role));
+      return next(getDashboardPathByRole(user.role))
     }
 
-    return next();
+    return next()
   }
 
-  // 2) Route chỉ dành cho khách 
   if (to.meta.guest) {
     if (isAuthenticated) {
-      return next(getDashboardPathByRole(user.role));
+      return next(getDashboardPathByRole(user.role))
     }
-    return next();
+    return next()
   }
 
-  // 3) Route public bình thường
-  return next();
-});
+  return next()
+})
 
-export default router;
+export default router

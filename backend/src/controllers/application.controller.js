@@ -551,6 +551,20 @@ exports.updateApplicationStatus = async (req, res) => {
       application.interview.status = 'scheduled';
     }
 
+    // Nếu từ chối ứng viên thì tự động hủy lịch phỏng vấn hiện có
+    let interviewAutoCancelled = false;
+    if (
+      status === 'rejected' &&
+      application.interview &&
+      application.interview.status &&
+      application.interview.status !== 'none' &&
+      application.interview.status !== 'cancelled'
+    ) {
+      application.interview.status = 'cancelled';
+      application.interview.cancelledAt = new Date();
+      interviewAutoCancelled = true;
+    }
+
     application.reviewedAt = new Date();
     await application.save();
 
@@ -560,7 +574,9 @@ exports.updateApplicationStatus = async (req, res) => {
       interviewing: 'đã vào vòng phỏng vấn',
       offered: 'đã nhận offer',
       hired: 'đã được tuyển',
-      rejected: 'đã bị từ chối',
+      rejected: interviewAutoCancelled
+        ? 'đã bị từ chối và lịch phỏng vấn đã tự động bị hủy'
+        : 'đã bị từ chối',
     };
 
     await createNotification({
@@ -575,6 +591,7 @@ exports.updateApplicationStatus = async (req, res) => {
         applicationId: application._id.toString(),
         jobId: application.job?._id?.toString?.() || '',
         status,
+        interviewStatus: interviewAutoCancelled ? 'cancelled' : application.interview?.status || 'none',
       },
     });
 
@@ -584,7 +601,10 @@ exports.updateApplicationStatus = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Đã cập nhật trạng thái ứng viên',
+      message:
+        status === 'rejected' && interviewAutoCancelled
+          ? 'Đã từ chối ứng viên và tự động hủy lịch phỏng vấn'
+          : 'Đã cập nhật trạng thái ứng viên',
       application: updatedApplication,
     });
   } catch (error) {

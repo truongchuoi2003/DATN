@@ -3,23 +3,39 @@ const Employer = require('../models/Employer.model');
 const Admin = require('../models/Admin.model');
 const jwt = require('jsonwebtoken');
 
+const normalizeEmail = (email = '') => email.trim().toLowerCase();
+
+const findExistingUserByEmail = async (email) => {
+  const normalizedEmail = normalizeEmail(email);
+
+  const [student, employer, admin] = await Promise.all([
+    Student.findOne({ email: normalizedEmail }).select('_id email'),
+    Employer.findOne({ email: normalizedEmail }).select('_id email'),
+    Admin.findOne({ email: normalizedEmail }).select('_id email'),
+  ]);
+
+  if (student) return { role: 'student', user: student };
+  if (employer) return { role: 'employer', user: employer };
+  if (admin) return { role: 'admin', user: admin };
+
+  return null;
+};
 
 // 📝 REGISTER
 exports.register = async (req, res) => {
   try {
     const { fullName, email, password, role, birthday, phone, companyName } = req.body;
+    const normalizedEmail = normalizeEmail(email);
 
     console.log('📥 Register request:', { fullName, email, role, birthday, phone });
 
-    // ✅ Validate input
-    if (!fullName || !email || !password || !role  || !phone) {
+    if (!fullName || !email || !password || !role || !phone) {
       return res.status(400).json({
         success: false,
         message: 'Vui lòng điền đầy đủ thông tin ',
       });
     }
 
-    // ✅ Validate role
     const validRoles = ['student', 'employer'];
     if (!validRoles.includes(role)) {
       return res.status(400).json({
@@ -32,24 +48,20 @@ exports.register = async (req, res) => {
     let Model;
     let collectionName;
 
-    // 🎯 Chọn Model dựa vào role
     if (role === 'student') {
       Model = Student;
       collectionName = 'Student';
 
-      // Student bắt buộc birthday
       if (!birthday) {
         return res.status(400).json({
           success: false,
           message: 'Sinh viên phải có ngày sinh',
         });
       }
-      
     } else if (role === 'employer') {
       Model = Employer;
       collectionName = 'Employer';
-      
-      // Employer bắt buộc phải có companyName
+
       if (!companyName) {
         return res.status(400).json({
           success: false,
@@ -58,8 +70,7 @@ exports.register = async (req, res) => {
       }
     }
 
-    // ✅ Check email đã tồn tại chưa
-    const existingUser = await Model.findOne({ email });
+    const existingUser = await findExistingUserByEmail(normalizedEmail);
     if (existingUser) {
       return res.status(400).json({
         success: false,
@@ -67,19 +78,17 @@ exports.register = async (req, res) => {
       });
     }
 
-    // ✅ Tạo user mới
     const userData = {
       fullName,
-      email,
+      email: normalizedEmail,
       password,
       phone,
     };
 
-    // Thêm companyName nếu là employer
     if (role === 'employer') {
       userData.companyName = companyName;
     }
-    // Chỉ student mới có birthday
+
     if (role === 'student') {
       userData.birthday = birthday;
     }
@@ -89,14 +98,12 @@ exports.register = async (req, res) => {
 
     console.log(`✅ ${collectionName} created:`, user._id);
 
-    // ✅ Tạo JWT token
     const token = jwt.sign(
       { userId: user._id, role: role },
       process.env.JWT_SECRET || 'your-secret-key',
       { expiresIn: '7d' }
     );
 
-    // ✅ Trả về response
     res.status(201).json({
       success: true,
       message: 'Đăng ký thành công',
@@ -110,6 +117,13 @@ exports.register = async (req, res) => {
       },
     });
   } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email đã được sử dụng',
+      });
+    }
+
     console.error('❌ Register error:', error);
     res.status(500).json({
       success: false,
@@ -123,10 +137,10 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = normalizeEmail(email);
 
     console.log('📥 Login request:', { email });
 
-    // ✅ Validate input
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -137,30 +151,25 @@ exports.login = async (req, res) => {
     let user = null;
     let role = null;
 
-    // 🔍 Tìm user trong 3 collections
-    // Thử tìm trong Student
-    user = await Student.findOne({ email });
+    user = await Student.findOne({ email: normalizedEmail });
     if (user) {
       role = 'student';
     }
 
-    // Nếu không có, thử tìm trong Employer
     if (!user) {
-      user = await Employer.findOne({ email });
+      user = await Employer.findOne({ email: normalizedEmail });
       if (user) {
         role = 'employer';
       }
     }
 
-    // Nếu không có, thử tìm trong Admin
     if (!user) {
-      user = await Admin.findOne({ email });
+      user = await Admin.findOne({ email: normalizedEmail });
       if (user) {
         role = 'admin';
       }
     }
 
-    // ❌ Không tìm thấy user
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -168,7 +177,6 @@ exports.login = async (req, res) => {
       });
     }
 
-    // ✅ Check password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(401).json({
@@ -177,7 +185,6 @@ exports.login = async (req, res) => {
       });
     }
 
-    // ✅ Check tài khoản có active không
     if (!user.isActive) {
       return res.status(403).json({
         success: false,
@@ -185,7 +192,6 @@ exports.login = async (req, res) => {
       });
     }
 
-    // ✅ Tạo JWT token
     const token = jwt.sign(
       { userId: user._id, role: role },
       process.env.JWT_SECRET || 'your-secret-key',

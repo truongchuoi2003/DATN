@@ -305,6 +305,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Header from '../components/Header.vue'
 import api from '../services/api'
+import { authStorage } from '../utils/authStorage'
 
 const route   = useRoute()
 const router  = useRouter()
@@ -395,7 +396,7 @@ function normalizeUrl(url) {
 // Ghi nhận tương tác của sinh viên với job (click, view, apply)
 async function recordInteraction(type) {
   try {
-    const token = localStorage.getItem('token')
+    const token = authStorage.getToken()
     if (!token) return
     await api.post(`/jobs/${route.params.id}/interactions/${type}`)
   } catch (error) { }
@@ -423,7 +424,7 @@ async function fetchJobDetail() {
 
 async function checkApplicationStatus() {
   try {
-    const token = localStorage.getItem('token')
+    const token = authStorage.getToken()
     if (!token) return
     const res = await api.get(`/applications/check/${route.params.id}`)
     hasApplied.value = res.data.hasApplied
@@ -434,7 +435,7 @@ async function checkApplicationStatus() {
 
 async function fetchSavedStatus() {
   try {
-    const token = localStorage.getItem('token')
+    const token = authStorage.getToken()
     if (!token) return
     const res = await api.get('/jobs/saved/my')
     isSaved.value = (res.data.jobs || []).some(j => String(j._id) === String(route.params.id))
@@ -445,7 +446,7 @@ async function fetchSavedStatus() {
 
 // Toggle lưu/bỏ lưu job
 async function toggleSave() {
-  const token = localStorage.getItem('token')
+  const token = authStorage.getToken()
   if (!token) { alert('Vui lòng đăng nhập'); router.push('/login'); return }
   if (!job.value?._id) return
   try {
@@ -463,7 +464,7 @@ async function toggleSave() {
 
 // Gửi đơn ứng tuyển
 async function submitApplication() {
-  const token = localStorage.getItem('token')
+  const token = authStorage.getToken()
   if (!token) { alert('Vui lòng đăng nhập để ứng tuyển'); router.push('/login'); return }
 
   try {
@@ -519,7 +520,7 @@ async function submitReportJob() {
   if (!reportJobForm.reason)       { alert('Vui lòng chọn lý do report'); return }
   if (!reportJobForm.description.trim()) { alert('Vui lòng nhập mô tả'); return }
 
-  const token = localStorage.getItem('token')
+  const token = authStorage.getToken()
   if (!token) { alert('Vui lòng đăng nhập lại'); return }
 
   try {
@@ -545,7 +546,7 @@ async function submitReportEmployer() {
   if (!reportEmployerForm.reason)           { alert('Vui lòng chọn lý do report'); return }
   if (!reportEmployerForm.description.trim()) { alert('Vui lòng nhập mô tả'); return }
 
-  const token = localStorage.getItem('token')
+  const token = authStorage.getToken()
   if (!token) { alert('Vui lòng đăng nhập lại'); return }
 
   try {

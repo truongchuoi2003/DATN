@@ -471,7 +471,8 @@ const filterTabs = [
 // Tách ra hàm riêng để template gọn hơn và dễ giải thích
 
 function canScheduleInterview(app) {
-  return app.status !== 'rejected' && app.status !== 'withdrawn' && app.status !== 'hired'
+  const allowedStatuses = ['pending', 'reviewing', 'shortlisted', 'interviewing']
+  return allowedStatuses.includes(app.status)
 }
 
 function canSendOffer(app) {
@@ -698,20 +699,27 @@ function closeRejectModal() { showRejectModal.value = false; rejectNote.value = 
 async function confirmReject() {
   if (!rejectingAppId.value) return
   await updateStatus(rejectingAppId.value, 'rejected', rejectNote.value)
+  alert('Ứng viên đã bị từ chối. Nếu đã có lịch phỏng vấn, hệ thống đã tự động hủy lịch đó.')
   closeRejectModal()
 }
 
 // Modal lên lịch phỏng vấn
 function openInterviewModal(app) {
+  if (!canScheduleInterview(app)) {
+    alert('Không thể lên lịch phỏng vấn cho ứng viên đã bị từ chối, đã rút đơn hoặc đã tuyển')
+    return
+  }
+
   interviewForm.value = {
     applicationId: app._id,
     candidateName: app.student?.fullName || '',
-    scheduledAt:   '',
-    mode:          app.interview?.mode || 'online',
-    location:      app.interview?.location || '',
-    meetingLink:   app.interview?.meetingLink || '',
-    note:          app.interview?.note || '',
+    scheduledAt: '',
+    mode: app.interview?.mode || 'online',
+    location: app.interview?.location || '',
+    meetingLink: app.interview?.meetingLink || '',
+    note: app.interview?.note || '',
   }
+
   showInterviewModal.value = true
 }
 
@@ -723,7 +731,25 @@ function closeInterviewModal() {
 async function scheduleInterview() {
   try {
     const { applicationId, scheduledAt, mode, location, meetingLink, note } = interviewForm.value
-    await api.put(`/applications/${applicationId}/interview/schedule`, { scheduledAt, mode, location, meetingLink, note })
+
+    const currentApp =
+      applications.value.find(app => app._id === applicationId) ||
+      (selectedApplication.value?._id === applicationId ? selectedApplication.value : null)
+
+    if (currentApp && !canScheduleInterview(currentApp)) {
+      alert('Không thể lên lịch phỏng vấn cho ứng viên này')
+      closeInterviewModal()
+      return
+    }
+
+    await api.put(`/applications/${applicationId}/interview/schedule`, {
+      scheduledAt,
+      mode,
+      location,
+      meetingLink,
+      note,
+    })
+
     alert('✅ Đã lên lịch phỏng vấn!')
     const id = applicationId
     closeInterviewModal()

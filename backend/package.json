@@ -9,8 +9,11 @@
     "start": "node src/index.js",
     "create-admin": "node scripts/createAdmin.js",
 
-    "seed:jobs": "node scripts/seedJobs.js --count=40",
-    "seed:jobs:reset": "node scripts/seedJobs.js --count=40 --reset",
+    "seed:employers": "node scripts/seedEmployers.js",
+    "seed:employers:reset": "node scripts/seedEmployers.js --reset",
+    
+    "seed:jobs": "node scripts/seedJobs.js ",
+    "seed:jobs:reset": "node scripts/seedJobs.js --reset",
 
     "seed:students": "node scripts/seedStudents.js",
     "seed:students:reset": "node scripts/seedStudents.js --reset",
@@ -21,7 +24,10 @@
     "seed:interactions": "node scripts/seedInteractions.js",
     "seed:interactions:reset": "node scripts/seedInteractions.js --reset",
 
-    "cleanup:orphans": "node scripts/cleanupOrphanApplications.js",
+    "seed:reports": "node scripts/seedReports.js",
+    "seed:reports:reset": "node scripts/seedReports.js --reset",
+
+    "cleanup:orphans": "node scripts/cleanupOrphanApplications.js --apply",
 
     "seed:demo:reset": "node scripts/seedDemoReset.js",
     "seed:recommend:reset": "node scripts/seedDemoReset.js"

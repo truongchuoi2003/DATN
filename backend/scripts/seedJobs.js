@@ -41,98 +41,35 @@ const CITY_ADDRESSES = {
   ],
 };
 
-const DEMO_EMPLOYER_EMAILS = [
-  'hr1@gmail.com',
-  'hr2@gmail.com',
-  'hr3@gmail.com',
-  'hr4@gmail.com',
-  'hr5@gmail.com',
-];
-
-const EMPLOYER_SEEDS = [
+const EMPLOYER_JOB_PLANS = [
   {
-    fullName: 'HR Tech One',
     email: 'hr1@gmail.com',
-    password: '123456',
-    phone: '0900000001',
-    address: 'TP. Thủ Đức, TP. Hồ Chí Minh',
     companyName: 'Tech One',
-    companySize: '11-50',
-    industry: 'Công nghệ',
-    website: 'https://techone.example.com',
-    description: 'Công ty công nghệ chuyên tuyển thực tập sinh và fresher ngành IT.',
     city: 'TP. Hồ Chí Minh',
-    verified: true,
-    isActive: true,
-    emailVerified: true,
     focusTemplates: ['frontend', 'node-backend', 'java-backend', 'qa'],
   },
   {
-    fullName: 'HR Bright Media',
     email: 'hr2@gmail.com',
-    password: '123456',
-    phone: '0900000002',
-    address: 'Cầu Giấy, Hà Nội',
     companyName: 'Bright Media',
-    companySize: '11-50',
-    industry: 'Marketing',
-    website: 'https://brightmedia.example.com',
-    description: 'Agency digital marketing và content cho SME.',
     city: 'Hà Nội',
-    verified: true,
-    isActive: true,
-    emailVerified: true,
     focusTemplates: ['marketing', 'design', 'business-development'],
   },
   {
-    fullName: 'HR Pixel Studio',
     email: 'hr3@gmail.com',
-    password: '123456',
-    phone: '0900000003',
-    address: 'Hải Châu, Đà Nẵng',
     companyName: 'Pixel Studio',
-    companySize: '11-50',
-    industry: 'Thiết kế sáng tạo',
-    website: 'https://pixelstudio.example.com',
-    description: 'Studio thiết kế UI/UX, social media và sản phẩm số cho doanh nghiệp.',
     city: 'Đà Nẵng',
-    verified: true,
-    isActive: true,
-    emailVerified: true,
     focusTemplates: ['design', 'frontend', 'marketing'],
   },
   {
-    fullName: 'HR Office Pro',
     email: 'hr4@gmail.com',
-    password: '123456',
-    phone: '0900000004',
-    address: 'Lê Chân, Hải Phòng',
     companyName: 'Office Pro',
-    companySize: '51-200',
-    industry: 'Dịch vụ doanh nghiệp',
-    website: 'https://officepro.example.com',
-    description: 'Doanh nghiệp dịch vụ văn phòng, vận hành và hỗ trợ báo cáo.',
     city: 'Hải Phòng',
-    verified: true,
-    isActive: true,
-    emailVerified: true,
     focusTemplates: ['operations', 'business-development', 'data'],
   },
   {
-    fullName: 'HR Mekong Analytics',
     email: 'hr5@gmail.com',
-    password: '123456',
-    phone: '0900000005',
-    address: 'Ninh Kiều, Cần Thơ',
     companyName: 'Mekong Analytics',
-    companySize: '11-50',
-    industry: 'Dữ liệu & phần mềm',
-    website: 'https://mekonganalytics.example.com',
-    description: 'Đơn vị triển khai dashboard, báo cáo và phần mềm nội bộ cho SME.',
     city: 'Cần Thơ',
-    verified: true,
-    isActive: true,
-    emailVerified: true,
     focusTemplates: ['data', 'dotnet', 'qa', 'java-backend'],
   },
 ];
@@ -420,14 +357,13 @@ function pickByIndex(arr = [], index = 0) {
 }
 
 function buildAddress(city, companyName, localIndex) {
-  const pool = CITY_ADDRESSES[city] || [`${city}`];
+  const pool = CITY_ADDRESSES[city] || [city];
   const base = pool[localIndex % pool.length];
   return `${companyName}, ${base}`;
 }
 
 function buildWorkMode(template, localIndex) {
-  const mode = pickByIndex(template.workModes, localIndex);
-  return mode;
+  return pickByIndex(template.workModes, localIndex);
 }
 
 function buildSalary([minBase, maxBase], jobType, level) {
@@ -459,8 +395,7 @@ function buildSalary([minBase, maxBase], jobType, level) {
 
 function splitSkillsForJob(skills = [], localIndex = 0) {
   const ordered = [...skills];
-  const rotate = localIndex % ordered.length;
-
+  const rotate = ordered.length ? localIndex % ordered.length : 0;
   const rotated = [...ordered.slice(rotate), ...ordered.slice(0, rotate)];
   const uniq = uniqueArray(rotated);
 
@@ -475,48 +410,31 @@ function splitSkillsForJob(skills = [], localIndex = 0) {
   };
 }
 
-async function ensureDemoEmployers() {
-  for (const item of EMPLOYER_SEEDS) {
-    const exists = await Employer.findOne({ email: item.email.toLowerCase() }).select('_id');
-    if (!exists) {
-      await Employer.create({
-        fullName: item.fullName,
-        email: item.email,
-        password: item.password,
-        phone: item.phone,
-        address: item.address,
-        companyName: item.companyName,
-        companySize: item.companySize,
-        industry: item.industry,
-        website: item.website,
-        description: item.description,
-        location: {
-          type: 'Point',
-          coordinates: jitterCoordinates(CITY_COORDS[item.city]),
-        },
-        verified: item.verified,
-        isActive: item.isActive,
-        emailVerified: item.emailVerified,
-      });
-    }
-  }
+async function loadDemoEmployers() {
+  const emails = EMPLOYER_JOB_PLANS.map((x) => x.email.toLowerCase());
 
   const employers = await Employer.find({
-    email: { $in: DEMO_EMPLOYER_EMAILS.map((x) => x.toLowerCase()) },
+    email: { $in: emails },
   }).select('_id companyName email location');
 
   if (!employers.length) {
-    throw new Error('Không có employer nào để seed job.');
+    throw new Error('Không có employer demo để seed job. Hãy chạy seedEmployers trước.');
   }
 
   const employerMap = new Map(
     employers.map((emp) => [emp.email.toLowerCase(), emp])
   );
 
-  return EMPLOYER_SEEDS.map((seed) => ({
+  const merged = EMPLOYER_JOB_PLANS.map((seed) => ({
     ...seed,
     employerDoc: employerMap.get(seed.email.toLowerCase()),
   })).filter((x) => x.employerDoc);
+
+  if (!merged.length) {
+    throw new Error('Không map được employer demo nào để seed job. Hãy kiểm tra email employer.');
+  }
+
+  return merged;
 }
 
 function buildEmployerJobPlan(employers, count) {
@@ -541,8 +459,13 @@ function buildEmployerJobPlan(employers, count) {
 }
 
 function generateOneJob({ employerSeed, localIndex, globalIndex }) {
-  const templateCode = employerSeed.focusTemplates[localIndex % employerSeed.focusTemplates.length];
+  const templateCode =
+    employerSeed.focusTemplates[localIndex % employerSeed.focusTemplates.length];
   const template = JOB_TEMPLATES[templateCode];
+
+  if (!template) {
+    throw new Error(`Không tìm thấy JOB_TEMPLATES cho mã: ${templateCode}`);
+  }
 
   const title = `${pickByIndex(template.titles, localIndex)} #${globalIndex + 1}`;
   const jobType = pickByIndex(template.jobTypes, localIndex);
@@ -615,7 +538,7 @@ async function seedJobs({ count = 40, reset = false } = {}) {
   await mongoose.connect(process.env.MONGO_URI);
   console.log('✅ Đã kết nối MongoDB');
 
-  const employers = await ensureDemoEmployers();
+  const employers = await loadDemoEmployers();
 
   if (reset) {
     const rs = await Job.deleteMany({
