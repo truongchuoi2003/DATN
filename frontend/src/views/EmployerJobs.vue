@@ -116,6 +116,12 @@
 
             <!-- Các nút thao tác -->
             <div class="jc-actions">
+              <router-link
+                :to="`/employer/applications/${job._id}`"
+                class="btn-action"
+              >
+                👥 Xem ứng viên
+              </router-link>
               <button class="btn-action" @click="openDetail(job._id)">👁️ Xem</button>
               <router-link :to="`/employer/jobs/${job._id}/edit`" class="btn-action">✏️ Sửa</router-link>
               <button class="btn-action" @click="toggleStatus(job)">
